@@ -23,35 +23,33 @@ Three kinds of request share one API:
 
 ## Status
 
-**Planning.** There is no code yet. The order of work is:
+**Planning — specs revised, `IMPLEMENT.md` awaiting human approval.** The order of work is:
 
-1. Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
-   `docs/REDESIGN_NOTES_DE.md`.
-2. Write `IMPLEMENT.md`: phases, each with "Done when" checks tagged `[agent]` or
-   `[human]`. Phase 1 is a vertical slice.
+1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
+   `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
+2. ~~Write `IMPLEMENT.md`: phases, each with "Done when" checks tagged `[agent]` or
+   `[human]`. Phase 1 is a vertical slice.~~ Proposed; awaiting approval and the budget.
 3. Implement phase by phase.
 
-Do not write application code before `IMPLEMENT.md` exists and the human has approved it.
-When the scaffold exists, replace the placeholders in "Setup and verification" below with
-the real commands in the same commit.
+Do not write application code before the human has approved `IMPLEMENT.md`. On approval,
+start Phase 1. Replace the placeholders in "Setup and verification" below with the real
+commands in the same commit that makes them real.
 
 ## Where the truth lives
 
 | File | Role |
 | --- | --- |
-| `docs/REDESIGN_NOTES_DE.md` | The decision log of the redesign (German). Until the specs are revised it is the **source of truth for intended behaviour**. Marked `[E]` = decided by the human, `[V]` = proposal, `[?]` = open, `[!]` = consequence to resolve. |
+| `docs/REDESIGN_NOTES_DE.md` | The decision log of the redesign (German). Marked `[E]` = decided by the human, `[V]` = proposal, `[?]` = open, `[!]` = consequence to resolve. Where the revised specs still leave a contradiction, the notes win. |
 | `PURPOSE.md` | Requirements. Code cites it as `PURPOSE §3.1`. |
-| `PROTOCOL.md` | Normative wire formats, endpoints and error shapes. Once revised, it **wins** over `IMPLEMENT.md` and over code comments. |
+| `PROTOCOL.md` | Normative wire formats, endpoints and error shapes. It **wins** over `IMPLEMENT.md` and over code comments. |
 | `PERSONAS.md` | Runtime input, not documentation: parsed for the personas and the Shared Invariants. Editing it changes behaviour. |
-| `IMPLEMENT.md` | (planned) Phase plan and "Done when" checks. |
-| `DECISIONS.md` | (planned) One short entry per non-obvious decision: what, why, alternatives rejected. Decisions, not bug diaries. |
+| `IMPLEMENT.md` | Phase plan and "Done when" checks. Proposed until the human approves it. |
+| `DECISIONS.md` | (created in Phase 1) One short entry per non-obvious decision: what, why, alternatives rejected. Decisions, not bug diaries. |
 | `methodology/` | Publisher grades, confounder checklists, argument patterns. Content that changes conclusions. |
-| `tests/eval/`, `tests/fixtures/corpus/` | Labelled evaluation sets and the synthetic CI corpus. |
+| `tests/eval/`, `tests/fixtures/corpus/` | Labelled evaluation sets and the synthetic CI corpus. The carried-over claim set needs repair and re-labelling (IMPLEMENT Phase 9). |
 
-Until the specs are revised, the copies of `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md`
-still describe the **old** design in places (two-source gate, web search, federation in
-v1, English-only output, single admin). Where they contradict the redesign notes, the
-notes win. If you find a contradiction that the notes do not settle, ask.
+The spec revision is complete. If you find a contradiction that the revised specs and the
+redesign notes do not settle, ask before implementing.
 
 The retired first implementation lives at `/Users/caboe/project/factcheck-discussion-bot`.
 Treat it as **read-only reference**: read it to learn, never copy code from it. What went
@@ -136,10 +134,9 @@ A new runtime dependency or a pinned image bump needs a `DECISIONS.md` entry.
 
 ## Setup and verification
 
-*Not defined yet.* There is nothing to build. When the scaffold lands, this section lists
-the exact commands that make a green tree (lint, format check, type check, tests,
-generated-artefact drift checks, migrations up/down/check, frontend check, compose up),
-and CI runs exactly those.
+*Not defined yet.* There is nothing to build. The target commands are specified in
+`IMPLEMENT.md` §15; when the scaffold lands, this section lists the exact commands that
+make a green tree, and CI runs exactly those.
 
 ## Conventions
 

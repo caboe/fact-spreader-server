@@ -2,7 +2,7 @@
 
 PURPOSE §3.1b defines how evidence is graded. This document is the operator-facing
 version of that policy and of the shipped list in
-[`backend/app/pipeline/publishers.json`](backend/app/pipeline/publishers.json).
+[`methodology/publishers.json`](../methodology/publishers.json).
 
 ## What a grade means
 

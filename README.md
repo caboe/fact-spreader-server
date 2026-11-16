@@ -8,19 +8,25 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Planning.** There is no code yet. This repository is a fresh start after a first
-implementation; the decisions for the redesign are recorded (in German) in
-[`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md).
-
-Carried over from the first implementation, to be revised:
+**Planning — specs revised, implementation plan awaiting human approval.** No application
+code has been written yet. The specs below were revised for the v1 scope on 2026-11-16
+using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md) as the decision log; the
+build plan is [`IMPLEMENT.md`](IMPLEMENT.md), whose Phase 1 is a vertical slice through
+stock LightRAG and a real model.
 
 | Path | What | State |
 | --- | --- | --- |
-| `PURPOSE.md`, `PROTOCOL.md`, `PERSONAS.md` | Requirements, wire contracts, personas | Unchanged copies; to be revised per §11 of the redesign notes |
-| `methodology/` | Publisher grades, confounder checklists, argument patterns | Unchanged copies |
-| `docs/SOURCE_GRADING.md` | Grading criteria for `methodology/publishers.json` | Unchanged copy |
-| `tests/eval/` | Hand-labelled claim and moderation sets, reference-corpus manifest | Unchanged copies; expected verdicts must be re-labelled for the revised gate and the new `contested` verdict |
-| `tests/fixtures/corpus/` | Synthetic CI corpus (19 documents, labelled `FIXTURE — not a real source`) | Exported from Python to Markdown with front matter |
+| [`PURPOSE.md`](PURPOSE.md), [`PROTOCOL.md`](PROTOCOL.md), [`PERSONAS.md`](PERSONAS.md) | Requirements, wire contracts, personas and rendering | Revised for v1 on 2026-11-16 |
+| [`IMPLEMENT.md`](IMPLEMENT.md) | Phases and `[agent]`/`[human]` checks | Proposed; awaiting human approval and the live-model budget |
+| `methodology/` | Publisher grades, confounder checklists, argument patterns | Unchanged copy; valid and referenced by the new specs |
+| [`docs/SOURCE_GRADING.md`](docs/SOURCE_GRADING.md) | Grading criteria for `methodology/publishers.json` | Unchanged copy; path corrected |
+| `tests/eval/` | Hand-labelled claim and moderation sets, reference-corpus manifest | Carried over; `claims.seed.jsonl` currently has duplicate ids and repeated rows and is repaired in Phase 9 |
+| `tests/fixtures/corpus/` | Synthetic CI corpus (19 documents, labelled `FIXTURE — not a real source`) | Unchanged copy with front matter |
+
+## Next step
+
+Approve [`IMPLEMENT.md`](IMPLEMENT.md) and set the live-model budget (§2). Phase 1 then
+starts with the repository scaffold and the vertical slice.
 
 ## Licences
 
