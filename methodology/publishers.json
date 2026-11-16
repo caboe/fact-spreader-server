@@ -1,0 +1,301 @@
+{
+  "version": "2026.02.1",
+  "criteria_version": "2026.02.1",
+  "documentation": "docs/SOURCE_GRADING.md",
+  "notes": [
+    "Entries are matched in order; the first match wins, so put narrow entries before broad ones.",
+    "Grades reflect methodological transparency, quality assurance, corrections policy, institutional independence and disclosure of funding (PURPOSE 3.1b). They are not a statement about the political orientation or the conclusions of a source.",
+    "disputed: true caps the effective grade at C until the dispute is resolved."
+  ],
+  "entries": [
+    {
+      "key": "destatis",
+      "publisher": "Federal Statistical Office of Germany (Destatis)",
+      "aliases": ["Statistisches Bundesamt", "Destatis"],
+      "grade": "A",
+      "basis": "Official national statistics; documented methodology and revision policy; independent of the reporting ministry.",
+      "rationale": "Official statistics produced under a published methodology and a legal mandate, with documented revisions.",
+      "match": { "domains": ["destatis.de"], "aliases": ["Statistisches Bundesamt"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "eurostat",
+      "publisher": "Eurostat (Statistical Office of the European Union)",
+      "aliases": ["Statistical Office of the European Union"],
+      "grade": "A",
+      "basis": "Official supranational statistics; published methodology, quality reports and revision policy.",
+      "rationale": "Official European statistics with documented methods and quality reporting.",
+      "match": { "domains": ["ec.europa.eu", "eurostat.ec.europa.eu"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "oecd",
+      "publisher": "OECD",
+      "aliases": ["Organisation for Economic Co-operation and Development", "Organisation for Economic Cooperation and Development"],
+      "grade": "A",
+      "basis": "Intergovernmental organisation; published methodology notes, source metadata and revisions per indicator.",
+      "rationale": "Comparable cross-country statistics with per-indicator methodology and source documentation.",
+      "match": { "domains": ["oecd.org", "data.oecd.org", "doi.org"], "doi_prefixes": ["10.1787"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "bka",
+      "publisher": "Federal Criminal Police Office (BKA)",
+      "aliases": ["Bundeskriminalamt", "BKA"],
+      "grade": "A",
+      "basis": "Official police statistics with a published definition catalogue and methodology notes; annual, standardized collection across the Laender.",
+      "rationale": "Official crime statistics; the methodology notes are explicit about the difference between suspects and convictions, which is exactly the kind of disclosure the criteria require.",
+      "match": { "domains": ["bka.de"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "destatis-genesis",
+      "publisher": "Federal Statistical Office of Germany (Destatis) — GENESIS database",
+      "aliases": ["GENESIS-Online"],
+      "grade": "A",
+      "basis": "Official statistics database with documented definitions and revision policy.",
+      "rationale": "Same publisher and methodology as the statistical office; listed separately because the database documents series-level definitions.",
+      "match": { "domains": ["genesis.destatis.de", "www-genesis.destatis.de"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "who",
+      "publisher": "World Health Organization (WHO)",
+      "grade": "A",
+      "basis": "Intergovernmental organisation; published methodology, estimates review and corrections.",
+      "rationale": "Global health estimates with published methods and uncertainty ranges.",
+      "match": { "domains": ["who.int", "who.int/publications"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "un-data",
+      "publisher": "United Nations — statistical divisions",
+      "aliases": ["UN Statistics Division", "UNSD", "UNECE"],
+      "grade": "A",
+      "basis": "Intergovernmental statistical bodies with published methodology and metadata.",
+      "rationale": "Official international statistics with documented definitions and revisions.",
+      "match": { "domains": ["un.org", "unstats.un.org", "data.un.org", "unece.org"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "worldbank",
+      "publisher": "World Bank",
+      "grade": "A",
+      "basis": "Intergovernmental organisation; per-indicator methodology and source documentation.",
+      "rationale": "Development statistics with documented indicator definitions and sources.",
+      "match": { "domains": ["worldbank.org", "data.worldbank.org"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "peer-reviewed-journals",
+      "publisher": "Peer-reviewed journals (publisher-agnostic DOI prefixes)",
+      "grade": "A",
+      "basis": "Peer review or an equivalent editorial quality-assurance process, a corrections/retraction policy and author conflict-of-interest disclosure.",
+      "rationale": "Journal articles that state their method and pass review meet all five criteria. Individual articles can still be weak; use the reported uncertainty and the study design, not the grade alone.",
+      "match": {
+        "name_patterns": ["\\bjournal of\\b", "\\bannual review of\\b", "\\bnature\\b", "\\bscience\\b", "\\bthe lancet\\b", "\\bpnas\\b"],
+        "doi_prefixes": ["10.1038", "10.1126", "10.1073", "10.1016", "10.1007", "10.1111", "10.1093", "10.1146", "10.1177", "10.1086", "10.1257", "10.1287", "10.2307", "10.3386", "10.1136", "10.2105", "10.1146"]
+      },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "crossref-metadata",
+      "publisher": "Crossref DOI registry",
+      "grade": "B",
+      "basis": "Registers publisher-supplied metadata; verifies existence and bibliographic match, not the content.",
+      "rationale": "Crossref confirms that a DOI and its metadata exist. It says nothing about the quality of the underlying document, so it is graded B and usually only used for tier-3 validation.",
+      "match": { "domains": ["crossref.org", "api.crossref.org"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "iab",
+      "publisher": "Institute for Employment Research (IAB)",
+      "aliases": ["Institut fuer Arbeitsmarkt- und Berufsforschung", "Institut für Arbeitsmarkt- und Berufsforschung"],
+      "grade": "A",
+      "basis": "Research institute of the Federal Employment Agency; working papers and reports state data sources and methods; peer-reviewed outlets for core results.",
+      "rationale": "Administrative labour-market data with documented methods; the institute publishes its data sources and revision practice.",
+      "match": { "domains": ["iab.de", "doku.iab.de"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "ifo",
+      "publisher": "ifo Institute",
+      "aliases": ["ifo Institut"],
+      "grade": "B",
+      "basis": "Established economic research institute; published data documentation and working-paper series; not peer reviewed throughout.",
+      "rationale": "Established research institute with transparent data documentation; its working papers are not all peer reviewed, so B rather than A.",
+      "match": { "domains": ["ifo.de", "econpapers.repec.org"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "bmfsfj",
+      "publisher": "Federal Ministry for Family Affairs, Senior Citizens, Women and Youth (BMFSFJ)",
+      "aliases": ["Bundesministerium fuer Familie, Senioren, Frauen und Jugend", "Bundesministerium für Familie, Senioren, Frauen und Jugend"],
+      "grade": "B",
+      "basis": "Government ministry; commissioned expert reports name their authors and data sources, but the publishing body has a policy interest.",
+      "rationale": "The reports are commissioned research with named authors and data sources, but the publisher is a ministry with a policy position; B reflects that without judging the findings.",
+      "match": { "domains": ["bmfsfj.de", "bmfsfj.de/bmfsfj/service/publikationen"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "mediendienst-integration",
+      "publisher": "Mediendienst Integration",
+      "grade": "B",
+      "basis": "Specialist information service; commissions expert reports with named authors and cited sources; organizational funding is disclosed.",
+      "rationale": "The expert reports cite their data and authors; the service itself is an advocacy-adjacent information provider, so B rather than A.",
+      "match": { "domains": ["mediendienst-integration.de"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "bundesregierung",
+      "publisher": "German Federal Government",
+      "aliases": ["Bundesregierung", "Bundesministerium des Innern", "BMI"],
+      "grade": "B",
+      "basis": "Government publications; primary documents with named responsibility, but a policy interest and no independent review.",
+      "rationale": "Primary government documents are citable, but the publisher has a policy interest; B reflects that.",
+      "match": { "domains": ["bundesregierung.de", "bmi.bund.de", "bundestag.de"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "european-commission",
+      "publisher": "European Commission",
+      "grade": "B",
+      "basis": "Supranational executive; documents name their method and data sources, but the institution has a policy interest.",
+      "rationale": "Methodologically documented but policy-driven; B rather than A.",
+      "match": { "domains": ["commission.europa.eu", "ec.europa.eu/commission"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "ipcc",
+      "publisher": "Intergovernmental Panel on Climate Change (IPCC)",
+      "grade": "A",
+      "basis": "Structured expert review at multiple stages, published uncertainty language, full source traceability.",
+      "rationale": "Assessment reports undergo successive expert and government review with explicit uncertainty treatment and traceable sources.",
+      "match": { "domains": ["ipcc.ch"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "eea",
+      "publisher": "European Environment Agency (EEA)",
+      "grade": "A",
+      "basis": "EU agency; published methodology, quality assurance and revision practice for its indicators.",
+      "rationale": "Official environmental reporting with documented methods and indicator metadata.",
+      "match": { "domains": ["eea.europa.eu"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "umweltbundesamt",
+      "publisher": "German Environment Agency (Umweltbundesamt)",
+      "aliases": ["Umweltbundesamt", "UBA"],
+      "grade": "A",
+      "basis": "Federal agency with a scientific mandate; published methods, data sources and review of its reports.",
+      "rationale": "Official environmental data with documented methodology and sources.",
+      "match": { "domains": ["umweltbundesamt.de"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "robert-koch-institut",
+      "publisher": "Robert Koch Institute (RKI)",
+      "aliases": ["Robert Koch-Institut", "RKI"],
+      "grade": "A",
+      "basis": "Federal public-health institute; published surveillance methods, case definitions and weekly reports with revisions.",
+      "rationale": "Official public-health surveillance with published case definitions and method notes.",
+      "match": { "domains": ["rki.de"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "cochrane",
+      "publisher": "Cochrane",
+      "grade": "A",
+      "basis": "Systematic reviews with a published protocol, explicit risk-of-bias assessment and conflict-of-interest policy.",
+      "rationale": "Systematic reviews follow a pre-registered protocol and an explicit appraisal method.",
+      "match": { "domains": ["cochranelibrary.com"], "doi_prefixes": ["10.1002/14651858"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "nber",
+      "publisher": "National Bureau of Economic Research (NBER)",
+      "grade": "B",
+      "basis": "Working-paper series; methods and data are documented, but papers are circulated before peer review.",
+      "rationale": "Transparent working papers that have not necessarily been peer reviewed; B rather than A.",
+      "match": { "domains": ["nber.org"], "doi_prefixes": ["10.3386"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "quality-journalism",
+      "publisher": "Quality journalism with a published corrections policy",
+      "grade": "C",
+      "basis": "Editorial review and a corrections policy, but no systematic method disclosure or peer review.",
+      "rationale": "Journalism can be accurate and useful, but it does not normally disclose method well enough for a higher grade.",
+      "match": {
+        "domains": ["spiegel.de", "zeit.de", "sueddeutsche.de", "faz.net", "tagesschau.de", "deutschlandfunk.de", "theguardian.com", "bbc.co.uk", "nytimes.com", "reuters.com", "apnews.com", "dw.com", "correctiv.org"]
+      },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "preprint-servers",
+      "publisher": "Preprint servers (arXiv, SSRN, medRxiv, …)",
+      "grade": "C",
+      "basis": "Moderation and identifier assignment, but no peer review at the time of posting.",
+      "rationale": "Preprints are citable but unreviewed; use them as leads or as context, not as a decisive source.",
+      "match": { "domains": ["arxiv.org", "ssrn.com", "medrxiv.org", "biorxiv.org", "osf.io", "preprints.org"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "advocacy-organizations",
+      "publisher": "Advocacy and campaigning organizations",
+      "grade": "D",
+      "basis": "The organization pursues a stated political or campaign goal; material is not independently reviewed.",
+      "rationale": "Advocacy material of every orientation is graded by the same rule: it documents a position. It can be cited as a position, but not as an independent source for the gate.",
+      "match": {
+        "name_patterns": ["\\bcampaign\\b", "\\badvocacy\\b", "\\binitiative\\b", "\\bbuendnis\\b", "\\bbündnis\\b", "\\balliance\\b"]
+      },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "encyclopedias-and-aggregators",
+      "publisher": "Encyclopedias and content aggregators",
+      "grade": "D",
+      "basis": "No stable editorial responsibility for the individual statement; no method disclosure.",
+      "rationale": "Useful for orientation and for finding primary sources, but not citable as verified evidence.",
+      "match": { "domains": ["wikipedia.org", "baike.baidu.com", "medium.com", "substack.com", "quora.com", "reddit.com", "blogspot.com", "wordpress.com"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    },
+    {
+      "key": "social-media",
+      "publisher": "Social media platforms",
+      "grade": "D",
+      "basis": "No editorial review, no method disclosure, unstable availability.",
+      "rationale": "Never verdict-bearing. Recorded so that such material is graded explicitly rather than by accident.",
+      "match": { "domains": ["twitter.com", "x.com", "facebook.com", "instagram.com", "tiktok.com", "t.me", "youtube.com"] },
+      "reviewed_at": "2026-02-01",
+      "reviewed_by": "project-maintainers"
+    }
+  ]
+}

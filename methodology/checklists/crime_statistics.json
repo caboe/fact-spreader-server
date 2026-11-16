@@ -1,0 +1,46 @@
+{
+  "topic": "crime_statistics",
+  "name": "Crime statistics",
+  "version": "v1",
+  "description": "Recorded crime, suspects, convictions, victim surveys. A raw group comparison in this domain is almost always confounded.",
+  "domain_tags": ["racism", "politics"],
+  "staleness_days": 1095,
+  "confounders": [
+    {
+      "id": "age",
+      "label": "age structure",
+      "retrieval_hint": "age-crime curve registered offending by age",
+      "retrieval_hint_de": "Altersstruktur Kriminalitaet Alterskurve"
+    },
+    {
+      "id": "sex",
+      "label": "sex ratio",
+      "retrieval_hint": "male share among suspects and in the population",
+      "retrieval_hint_de": "Geschlechterverteilung Tatverdaechtige"
+    },
+    {
+      "id": "ses",
+      "label": "socioeconomic status",
+      "retrieval_hint": "adjusted for socioeconomic status income neighbourhood",
+      "retrieval_hint_de": "soziooekonomischer Status Einkommen Stadtviertel"
+    },
+    {
+      "id": "reporting",
+      "label": "reporting behaviour",
+      "retrieval_hint": "reporting behaviour likelihood of a report perceived as foreign",
+      "retrieval_hint_de": "Anzeigeverhalten Anzeige Wahrscheinlichkeit"
+    },
+    {
+      "id": "urbanisation",
+      "label": "urbanisation",
+      "retrieval_hint": "urban rural distribution crime rates by district",
+      "retrieval_hint_de": "Stadt Land Verteilung Kriminalitaetsbelastung"
+    },
+    {
+      "id": "suspects_vs_convictions",
+      "label": "suspects vs convictions",
+      "retrieval_hint": "police statistics record suspects not convictions cleared offences",
+      "retrieval_hint_de": "Tatverdaechtige nicht Verurteilte Aufklaerung"
+    }
+  ]
+}

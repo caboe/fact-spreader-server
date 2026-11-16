@@ -1,0 +1,34 @@
+{
+  "topic": "labor_statistics",
+  "name": "Labour statistics",
+  "version": "v1",
+  "description": "Working time, employment, wages, participation. Aggregate averages in this domain hide composition.",
+  "domain_tags": ["economics", "poverty"],
+  "staleness_days": 1095,
+  "confounders": [
+    {
+      "id": "part_time_share",
+      "label": "part-time share",
+      "retrieval_hint": "part-time employment share by sex usual weekly hours",
+      "retrieval_hint_de": "Teilzeitquote Geschlecht uebliche Wochenarbeitszeit"
+    },
+    {
+      "id": "participation",
+      "label": "labour force participation",
+      "retrieval_hint": "labour force participation rate employment rate",
+      "retrieval_hint_de": "Erwerbsbeteiligung Erwerbsquote"
+    },
+    {
+      "id": "household_vs_individual",
+      "label": "household vs individual perspective",
+      "retrieval_hint": "household working hours versus hours per person",
+      "retrieval_hint_de": "Haushalt Erwerbsarbeit Haushaltsdimension"
+    },
+    {
+      "id": "annual_vs_weekly",
+      "label": "annual vs weekly hours",
+      "retrieval_hint": "annual hours actually worked versus usual weekly hours",
+      "retrieval_hint_de": "Jahresarbeitszeit Wochenarbeitszeit Arbeitszeitrechnung"
+    }
+  ]
+}

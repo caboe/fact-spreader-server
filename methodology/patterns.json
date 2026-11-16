@@ -1,0 +1,93 @@
+{
+  "version": "v1",
+  "patterns": [
+    {
+      "id": "composition_effect",
+      "name": "Composition effect",
+      "definition": "An aggregate changes because the mix of its parts changed, not because any part changed.",
+      "mechanism": "The aggregate is an average over groups with different levels; a shift in group shares moves the average.",
+      "requires_evidence": true,
+      "related_confounders": [
+        "part_time_share",
+        "age",
+        "sex"
+      ]
+    },
+    {
+      "id": "simpsons_paradox",
+      "name": "Simpson's paradox",
+      "definition": "A trend within every subgroup runs opposite to the trend in the pooled data.",
+      "mechanism": "Group sizes differ, so the pooled comparison is dominated by a different group mix at each level.",
+      "requires_evidence": true,
+      "related_confounders": []
+    },
+    {
+      "id": "omitted_confounders",
+      "name": "Omitted confounders",
+      "definition": "A raw association between group membership and an outcome is presented without the variables that explain it.",
+      "mechanism": "The groups differ systematically in a third variable that also drives the outcome, so the association is not an effect of group membership.",
+      "requires_evidence": true,
+      "related_confounders": [
+        "age",
+        "sex",
+        "ses",
+        "reporting",
+        "urbanisation"
+      ]
+    },
+    {
+      "id": "base_rate_neglect",
+      "name": "Base-rate neglect",
+      "definition": "A rate or share is read without the denominator or the base rate that produces it.",
+      "mechanism": "The same absolute number implies very different rates depending on the population it is divided by.",
+      "requires_evidence": true,
+      "related_confounders": [
+        "participation"
+      ]
+    },
+    {
+      "id": "ecological_fallacy",
+      "name": "Ecological fallacy",
+      "definition": "A conclusion about individuals is drawn from data about regions or groups.",
+      "mechanism": "An association between regional aggregates does not transfer to the individuals inside those regions.",
+      "requires_evidence": true,
+      "related_confounders": []
+    },
+    {
+      "id": "cherry_picking",
+      "name": "Cherry-picking",
+      "definition": "A single favourable figure is presented while other available figures point the other way.",
+      "mechanism": "Selection of the time window, the subgroup or the indicator determines the result.",
+      "requires_evidence": true,
+      "related_confounders": []
+    },
+    {
+      "id": "false_causality",
+      "name": "False causality",
+      "definition": "A correlation is presented as a causal mechanism without a design that could support it.",
+      "mechanism": "No identification strategy, no temporal ordering and no control group are offered for a causal claim.",
+      "requires_evidence": true,
+      "related_confounders": []
+    },
+    {
+      "id": "scapegoating",
+      "name": "Scapegoating",
+      "definition": "A problem explained largely by other factors is attributed to the presence or behaviour of a group.",
+      "mechanism": "An outcome driven by structure is reattributed to a group's identity, which shifts blame onto that group without an evidential basis.",
+      "requires_evidence": true,
+      "related_confounders": [
+        "age",
+        "sex",
+        "ses"
+      ]
+    },
+    {
+      "id": "moving_goalposts",
+      "name": "Moving the goalposts",
+      "definition": "After a claim is addressed, the standard of proof or the claim itself shifts.",
+      "mechanism": "Each answer is met with a new requirement, so no evidence could ever settle the question.",
+      "requires_evidence": false,
+      "related_confounders": []
+    }
+  ]
+}

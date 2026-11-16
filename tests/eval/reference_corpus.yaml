@@ -1,0 +1,103 @@
+# Layer B — real reference corpus, MANIFEST ONLY (IMPLEMENT Phase 4).
+#
+# Content is not committed: the documents belong to their publishers and are
+# downloaded locally with `make fetch-reference-corpus` into a git-ignored
+# directory.
+#
+# IMPORTANT — state of this file:
+#   * The entries below are the candidate sources listed in IMPLEMENT Phase 4.
+#   * `license` is left empty wherever it has NOT been verified. The fetcher
+#     refuses to download an entry without a license, on purpose: the operator is
+#     responsible for correct license metadata (PURPOSE §3.6, §7 decision 3).
+#   * URLs, current editions and licenses must be checked before the entries are
+#     usable. Nothing here has been downloaded or ingested yet.
+#   * `role` records what the case is for in the evaluation, not a verdict.
+
+documents:
+  - case: hours-oecd-annual
+    title: "Average annual hours actually worked per worker"
+    publisher: OECD
+    language: en
+    url: "https://data-explorer.oecd.org/"
+    license: ""            # TODO verify before enabling this entry
+    role: "Aggregate statistic: Germany low in international comparison"
+
+  - case: hours-eurostat-lfs
+    title: "Labour Force Survey — usual weekly hours by full-time/part-time"
+    publisher: Eurostat
+    language: en
+    url: "https://ec.europa.eu/eurostat/web/lfs/database"
+    license: ""            # TODO verify (Eurostat reuse policy)
+    role: "Disaggregation: full-time vs part-time"
+
+  - case: hours-destatis-parttime
+    title: "Part-time employment rate by sex"
+    publisher: Statistisches Bundesamt (Destatis)
+    language: de
+    url: "https://www.destatis.de/DE/Themen/Arbeit/Arbeitsmarkt/Erwerbslosigkeit/_inhalt.html"
+    license: ""            # TODO verify (dl-de/by-2-0 is the usual case)
+    role: "Composition effect: part-time share, women"
+
+  - case: hours-iab-arbeitszeitrechnung
+    title: "Arbeitszeitrechnung (working-time accounting) and recent press releases"
+    publisher: Institut fuer Arbeitsmarkt- und Berufsforschung (IAB)
+    language: de
+    url: "https://iab.de/"
+    license: ""            # TODO verify
+    role: "Annual vs weekly hours, volume of work"
+
+  - case: crime-bka-pks
+    title: "Polizeiliche Kriminalstatistik (PKS), annual report and methodology notes"
+    publisher: Bundeskriminalamt (BKA)
+    language: de
+    url: "https://www.bka.de/DE/AktuelleInformationen/StatistikenLagebilder/PolizeilicheKriminalstatistik/pks_node.html"
+    license: ""            # TODO verify
+    role: "Raw suspect rates; suspects are not convictions"
+
+  - case: crime-bka-zuwanderung
+    title: "Kriminalitaet im Kontext von Zuwanderung (federal situation report)"
+    publisher: Bundeskriminalamt (BKA)
+    language: de
+    url: "https://www.bka.de/"
+    license: ""            # TODO verify
+    role: "Group-specific suspect figures"
+
+  - case: crime-walburg-expertise
+    title: "Migration und Kriminalitaet — expert report for Mediendienst Integration"
+    publisher: Mediendienst Integration
+    language: de
+    url: "https://mediendienst-integration.de/"
+    license: ""            # TODO verify
+    role: "Limits of the PKS, age/sex structure, non-resident suspects"
+
+  - case: crime-pfeiffer-baier-kliem
+    title: "Zur Entwicklung der Gewalt in Deutschland"
+    publisher: BMFSFJ
+    language: de
+    url: "https://www.bmfsfj.de/"
+    license: ""            # TODO verify
+    role: "Group composition, reporting behaviour"
+
+  - case: crime-ifo-foreigners
+    title: "More Foreigners Do Not Increase Germany's Crime Rate"
+    publisher: ifo Institute
+    language: en
+    url: "https://www.ifo.de/en"
+    license: ""            # TODO verify
+    role: "Regional analysis with controls"
+
+  - case: crime-light-he-robey
+    title: "Comparing crime rates between undocumented immigrants, legal immigrants and native-born US citizens (PNAS 2020)"
+    publisher: PNAS
+    language: en
+    url: "https://www.pnas.org/"
+    license: ""            # TODO verify
+    role: "International comparison with conviction data"
+
+  - case: crime-hirschi-gottfredson
+    title: "Age and the Explanation of Crime (American Journal of Sociology, 1983)"
+    publisher: American Journal of Sociology
+    language: en
+    url: "https://www.journals.uchicago.edu/"
+    license: ""            # TODO verify
+    role: "Age-crime curve"
