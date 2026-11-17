@@ -109,7 +109,7 @@ schemathesis:
 		--base-url http://127.0.0.1:8000 \
 		-H "Authorization: Bearer $$(cat ../$(EVAL_API_KEY_FILE))" \
 		--exclude-method POST --exclude-method PUT --exclude-method PATCH --exclude-method DELETE \
-		--checks all --hypothesis-max-examples 20 --workers 4
+		--checks all --hypothesis-max-examples 20 --workers 4 --experimental=openapi-3.1
 
 eval-check:
 	cd $(BACKEND) && uv run python -m app.tools.eval --set ../tests/eval/claims.jsonl --check-only
