@@ -44,8 +44,8 @@ Three kinds of request share one API:
    and batch metadata sidecars apply per file; retries, estimates and the budget block
    are in place. Phase 4 is complete; Docling layout/OCR is recorded as a follow-up, not a
    gate, in the phase report. Phase 5 has started with TOTP enrolment, encrypted secrets
-   and one-time recovery codes; the setup wizard, role templates, limits and retention
-   remain.
+   and one-time recovery codes; retention redacts old context and cleans job events. The
+   setup wizard, role templates and per-user limits remain.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

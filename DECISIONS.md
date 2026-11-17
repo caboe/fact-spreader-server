@@ -686,3 +686,19 @@ enforcement pass belongs with the role/setup work rather than blocking the only 
 
 **Rejected:** storing recovery codes in plaintext, disabling TOTP with a password alone,
 an email reset flow (no email in v1), locking privileged users out before they can enrol.
+
+## D45 — Retention redacts context in place and deletes only unreferenced terminal jobs
+
+**What:** `python -m app.cli retention` redacts `input.context` on results older than
+`context_retention_days` (default 90), replacing it with `null` and
+`context_redacted = true` while keeping the claim text and result row. It deletes job
+events older than 30 days and terminal jobs older than 90 days that no result references.
+Every run, including `--dry-run`, writes a `retention_run` audit row with counts. Usage
+events are left untouched for the later rollup.
+
+**Why:** old context can contain personal data, but the verdict and citations must remain
+for the archive. Deleting a job that a result still references would break provenance, so
+the query excludes referenced jobs. The audit row makes the cleanup visible.
+
+**Rejected:** deleting old results, deleting referenced jobs, silently skipping the audit,
+redacting claim text itself.

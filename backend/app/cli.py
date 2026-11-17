@@ -53,6 +53,7 @@ from app.llm.aliases import (
 from app.retrieval.lightrag import LightRAGClient
 from app.services.auth import all_permissions, create_api_key
 from app.services.publishers import PublisherMatch, PublisherRegistry
+from app.services.retention import run_retention
 
 DEFAULT_FIXTURES = (
     "crime-raw-suspect-rates",
@@ -583,6 +584,8 @@ def main() -> None:
     key.add_argument("--email", required=True)
     key.add_argument("--name", default="cli")
     sub.add_parser("spend", help="show the current month's usage")
+    retention = sub.add_parser("retention", help="redact old contexts and clean job events")
+    retention.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     settings = get_settings()
     if args.command == "bootstrap":
@@ -591,6 +594,8 @@ def main() -> None:
         code = asyncio.run(seed_fixtures(settings, approve=args.approve))
     elif args.command == "create-api-key":
         code = asyncio.run(create_key(settings, args.email, args.name))
+    elif args.command == "retention":
+        code = asyncio.run(retention_job(settings, dry_run=args.dry_run))
     else:
         code = asyncio.run(spend(settings))
     raise SystemExit(code)
@@ -598,3 +603,14 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+async def retention_job(settings: Settings, *, dry_run: bool) -> int:
+    database = Database(settings)
+    try:
+        async with database.session_factory() as session:
+            report = await run_retention(session, settings, dry_run=dry_run)
+            print(report.as_dict())
+            return 0
+    finally:
+        await database.dispose()

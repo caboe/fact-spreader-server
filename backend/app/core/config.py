@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     cache_similarity_threshold: float = 0.93
     recheck_daily_budget: int = 200
     four_eyes_enabled: bool = False
+    context_retention_days: int = 90
+    job_event_retention_days: int = 30
+    job_retention_days: int = 90
 
     # --- bootstrap providers (Phase 1 only) ------------------------------------
     deepseek_api_key: SecretStr = SecretStr("")

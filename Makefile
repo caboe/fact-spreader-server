@@ -79,5 +79,8 @@ stack-smoke:
 spend:
 	$(COMPOSE) exec -T backend python -m app.cli spend
 
+retention:
+	$(COMPOSE) exec -T backend python -m app.cli retention
+
 clean:
 	rm -rf $(BACKEND)/.pytest_cache $(BACKEND)/.mypy_cache $(BACKEND)/.ruff_cache

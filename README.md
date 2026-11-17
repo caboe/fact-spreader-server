@@ -33,8 +33,8 @@ descriptions. Failed batch entries can be retried from stored bytes; batch estim
 against the remaining budget before parsing and actual usage is reported. Phase 4 is
 complete; Docling layout/OCR is recorded as a follow-up. The live evidence is in
 [`docs/PHASE_4_REPORT.md`](docs/PHASE_4_REPORT.md). Phase 5 has started with TOTP
-enrolment and one-time recovery codes; the setup wizard, role templates, limits and
-retention remain.
+enrolment, one-time recovery codes and a retention job for old context and job events;
+the setup wizard, role templates and per-user limits remain.
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes
