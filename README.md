@@ -31,7 +31,7 @@ the sexual-minors block.
 | LLM gateway | internal OpenAI-compatible chat/embeddings proxy, aliases, budget, usage, embedding lock |
 | Languages | en/de/fr/es deterministic substance; unsupported input falls back to English |
 | Operations | pinned Postgres+pgvector+AGE, Redis, stock LightRAG v1.5.0, health/readiness |
-| Tests | 55 unit, 21 integration, migration up/down/up, OpenAPI drift, compose checks |
+| Tests | 59 unit, 22 integration, migration up/down/up, OpenAPI drift, compose checks |
 
 Phase 2 so far adds three runtime personas (analyst, mediator, straight-talker), the
 deterministic checks plus a consistency judge with one re-render and a template fallback,
@@ -45,10 +45,11 @@ result in the first chunk and narrative deltas only afterwards; a live screensho
 extracted the text and returned `true_but_misleading` with the image-authenticity warning.
 
 Phase 2 also includes revocable device tokens with a permission subset
-(`claims:submit` by default, shown once, hashed at rest) and persistent archive feedback.
-Still open in Phase 2: conversation history/turn classification, translated evidence and
-quote labels, and the remaining multilingual persona checks. Later phases add research,
-fast mode, the editorial pipeline and the UI.
+(`claims:submit` by default, shown once, hashed at rest), persistent archive feedback,
+conversation context with a code-side turn heuristic, and labelled translations of
+non-response-language evidence. The remaining Phase 2 item is the full live persona ×
+language matrix; the mechanical checks are covered for en/de/fr/es. Later phases add
+research, fast mode, the editorial pipeline and the UI.
 
 ## Quick start (development)
 

@@ -152,3 +152,22 @@ async def test_unavailable_renderer_uses_the_template_not_silence() -> None:
     outcome = await service(fake).render(_result(), persona_id="analyst", language="en")
     assert outcome.rendering.consistency.fallback is True
     assert outcome.rendering.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("language", "narrative"),
+    [
+        ("de", "Fazit: Richtig, aber irreführend. Die Rohzahl ist belegt [E1]."),
+        ("fr", "Verdict : Vrai, mais trompeur. Le chiffre brut est étayé [E1]."),
+        ("es", "Veredicto: Verdadero, pero engañoso. La cifra bruta está respaldada [E1]."),
+    ],
+)
+async def test_analyst_mechanical_checks_in_the_supported_languages(
+    language: str, narrative: str
+) -> None:
+    result = _result().model_copy(update={"response_language": language})
+    fake = FakeLLM(narratives=[narrative])
+    outcome = await service(fake).render(result, persona_id="analyst", language=language)
+    assert outcome.rendering.consistency.passed is True
+    assert outcome.rendering.format == "persona"

@@ -33,8 +33,9 @@ Three kinds of request share one API:
    `docs/PHASE_1_REPORT.md`. Phase 2 is in progress: persona rendering, the consistency
    checker, the OpenAI-compatible checked-streaming surface, SSRF-guarded URL input, the
    read-only claim archive, statement-level SSE/replay/cancellation, multipart file input,
-   image input through the vision path, device tokens and archive feedback are done;
-   history, translated evidence and the remaining multilingual work are still open.
+   image input through the vision path, device tokens, archive feedback, conversation
+   context and translated evidence are done; the full live persona × language matrix is
+   the remaining Phase 2 acceptance item.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

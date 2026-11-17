@@ -49,10 +49,11 @@ from app.db.models import (
     Passage,
 )
 from app.llm.aliases import FS_AUDIT, FS_EXTRACT, FS_MODERATION, FS_VERIFY
-from app.llm.client import StructuredLLM
+from app.llm.client import LLMError, StructuredLLM
 from app.pipeline.compact import build_compact
 from app.pipeline.extraction import ExtractionResult, extract_statements
 from app.pipeline.gate import GateConfig, gate_statement, overall_verdict
+from app.pipeline.translation import translate_evidence
 from app.pipeline.verification import VerificationProposal, verify_statement
 from app.retrieval.lightrag import LightRAGClient, LightRAGError, RetrievalChunk
 from app.services.language import LanguageService
@@ -133,6 +134,7 @@ class CheckPipeline:
         source_media_type: str | None = None,
         source_size_bytes: int | None = None,
         source_image: bool = False,
+        context: list[dict[str, str]] | None = None,
         on_statement: Callable[[Statement], Awaitable[None]] | None = None,
     ) -> PipelineOutcome:
         started = utcnow()
@@ -359,6 +361,21 @@ class CheckPipeline:
         warnings = _dedupe_warnings(warnings)
         cited_ids = _cited_evidence_ids(statements)
         evidence = [pool.by_id[eid] for eid in cited_ids if eid in pool.by_id]
+        if any(item.passage_language != decision.response for item in evidence):
+            try:
+                await translate_evidence(
+                    self.llm,
+                    evidence,
+                    target_language=decision.response,
+                    user_id=user_id,
+                )
+            except LLMError:
+                warnings.append(
+                    WarningInfo(
+                        code="translation_unavailable",
+                        message="Evidence translation could not be produced; the originals remain.",
+                    )
+                )
         result = FactCheckResult(
             id=result_id,
             job_id=job_id,
@@ -376,6 +393,7 @@ class CheckPipeline:
                 file_name=source_file_name,
                 media_type=source_media_type,
                 size_bytes=source_size_bytes,
+                context={"messages": context} if context else None,
                 sha256=sha256_text(normalized),
             ),
             detected_language=decision.detected,

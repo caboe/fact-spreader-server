@@ -113,6 +113,7 @@ async def extract_statements(
     topics: list[str],
     domain_tags: list[str],
     user_id: str | None,
+    context: str | None = None,
 ) -> ExtractionResult:
     messages = [
         {"role": "system", "content": _SYSTEM},
@@ -122,7 +123,8 @@ async def extract_statements(
                 f"Input language: {language}\n"
                 f"Known topics: {topics}\n"
                 f"Known domains: {domain_tags}\n"
-                f"<input>\n{text}\n</input>"
+                + (f"<context>\n{context}\n</context>\n" if context else "")
+                + f"<input>\n{text}\n</input>"
             ),
         },
     ]

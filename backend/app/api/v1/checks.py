@@ -215,12 +215,14 @@ async def create_check(
         text=normalized,
         user_id=principal.user_id,
         response_language=body.response_language,
-        turn_type=body.turn_type or TurnType.NEW_CLAIM,
+        turn_type=body.turn_type
+        or (TurnType.FOLLOW_UP_CLAIM if body.context else TurnType.NEW_CLAIM),
         source_url=source_url,
         source_file_name=upload_name,
         source_media_type=upload_media,
         source_size_bytes=upload_size,
         source_image=source_image,
+        context=[item.model_dump() for item in body.context],
         persona_id=body.persona_id,
         render_model_id=body.render_model_id,
         output_format=body.output_format.value,
@@ -421,12 +423,6 @@ def _validate_phase1_request(
             raise AppError(413, "payload_too_large", "The input text is too long.")
     elif body.input.type == "url" and not body.input.url:
         raise AppError(422, "invalid_input", "A URL input requires a url.")
-    if body.context:
-        raise AppError(
-            422,
-            "context_not_supported",
-            "Conversation context is added in Phase 2.",
-        )
     if body.mode == "sync" or body.fast:
         raise AppError(
             422,

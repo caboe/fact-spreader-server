@@ -235,3 +235,29 @@ async def test_a_blocked_openai_request_returns_a_refusal(
     payload = response.json()
     assert payload["choices"][0]["finish_reason"] == "content_filter"
     assert payload["factcheck"]["result"]["status"] == "refused"
+
+
+@pytest.mark.asyncio
+async def test_conversation_history_is_preserved_as_context(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document_id = await _seed_document(app)
+    fake = FakeLLM(narratives=[ANALYST_NARRATIVE])
+    _patch_llm(monkeypatch, fake)
+    task = asyncio.create_task(_process_one(app, settings, document_id, fake))
+    response = await client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "factcheck:analyst",
+            "messages": [
+                {"role": "user", "content": "Earlier question."},
+                {"role": "assistant", "content": "Earlier answer."},
+                {"role": "user", "content": "Immigrants commit more crimes."},
+            ],
+        },
+    )
+    await task
+    assert response.status_code == 200
+    result = response.json()["factcheck"]["result"]
+    assert result["input"]["context"]["messages"][0]["content"] == "Earlier question."
+    assert result["turn_type"] == "follow_up_claim"

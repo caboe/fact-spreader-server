@@ -316,3 +316,22 @@ double counting while allowing a user to change their assessment.
 **Rejected:** reusing API keys for the extension (too broad), storing device tokens in
 plaintext (hard invariant 15), a feedback table per kind (three columns and no single
 upsert), anonymous feedback (no author to scope or delete).
+
+
+## D23 — Conversation context is data; translations are labelled and never evidence
+
+**What:** the last user message is the check input; earlier messages are stored as context
+and included in a delimited block for extraction. A deterministic turn heuristic marks a
+repeated or follow-up claim; there is no second pipeline. Non-response-language evidence is
+translated once in a single structured call; `passage` remains authoritative and the
+translation is marked machine-generated. A failed translation leaves the original and adds
+`translation_unavailable`.
+
+**Why:** context can resolve scope, but it must not become an instruction or a second claim.
+Translations are display/judge context only (PURPOSE §3.9); the evidence hash and citations
+still refer to the original. A translation failure must not fail a check that can be decided
+from originals.
+
+**Rejected:** asking the model to decide which prior message to check (turn routing as an
+LLM verdict source), treating a translation as a citable passage, failing the whole check
+when translation is unavailable.

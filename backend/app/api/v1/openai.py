@@ -298,14 +298,22 @@ async def chat_completions(
         return _error(404, "model_not_found", f"Unknown model {body.model!r}.")
     except ValueError as exc:
         return _error(400, "unsupported_parameter", str(exc))
-    if len(body.messages) != 1 or body.messages[0].role != "user":
-        return _error(
-            400,
-            "context_not_supported",
-            "This Phase 2 surface accepts one user message; conversation history arrives "
-            "with the chat layer.",
+    if not body.messages or body.messages[-1].role != "user":
+        return _error(400, "invalid_messages", "The last message must be from the user.")
+    if any(message.role not in {"system", "user", "assistant"} for message in body.messages):
+        return _error(400, "invalid_messages", "Unsupported message role.")
+    text = normalize_text(body.messages[-1].content)
+    context = [{"role": message.role, "content": message.content} for message in body.messages[:-1]]
+    turn_type = TurnType.NEW_CLAIM
+    if context:
+        turn_type = (
+            TurnType.REPEATED_CLAIM
+            if any(
+                message["role"] == "user" and normalize_text(message["content"]) == text
+                for message in context
+            )
+            else TurnType.FOLLOW_UP_CLAIM
         )
-    text = normalize_text(body.messages[0].content)
     if not text:
         return _error(400, "empty_input", "The user message is empty.")
     settings: Settings = request.app.state.settings
@@ -319,6 +327,8 @@ async def chat_completions(
             text=text,
             persona_id=persona_id,
             output_format=output_format,
+            context=context,
+            turn_type=turn_type,
         )
     return await _non_streaming_response(
         request=request,
@@ -327,6 +337,8 @@ async def chat_completions(
         text=text,
         persona_id=persona_id,
         output_format=output_format,
+        context=context,
+        turn_type=turn_type,
     )
 
 
@@ -338,6 +350,8 @@ async def _create_job(
     text: str,
     persona_id: str | None,
     output_format: str,
+    context: list[dict[str, str]],
+    turn_type: TurnType,
 ) -> tuple[JobRow, str]:
     session_factory = request.app.state.db.session_factory
     async with session_factory() as session:
@@ -349,7 +363,8 @@ async def _create_job(
             text=text,
             user_id=principal.user_id,
             response_language=body.factcheck.get("response_language") if body.factcheck else None,
-            turn_type=TurnType.NEW_CLAIM,
+            turn_type=turn_type,
+            context=context,
             persona_id=persona_id,
             render_model_id=body.factcheck.get("render_model_id") if body.factcheck else None,
             output_format=output_format,
@@ -368,6 +383,8 @@ async def _non_streaming_response(
     text: str,
     persona_id: str | None,
     output_format: str,
+    context: list[dict[str, str]],
+    turn_type: TurnType,
 ) -> JSONResponse:
     try:
         _job, job_id = await _create_job(
@@ -377,6 +394,8 @@ async def _non_streaming_response(
             text=text,
             persona_id=persona_id,
             output_format=output_format,
+            context=context,
+            turn_type=turn_type,
         )
     except AppError as exc:
         return _error(exc.status, exc.code, exc.detail, _kind_for_status(exc.status))
@@ -424,6 +443,8 @@ async def _stream_response(
     text: str,
     persona_id: str | None,
     output_format: str,
+    context: list[dict[str, str]],
+    turn_type: TurnType,
 ) -> JSONResponse | StreamingResponse:
     try:
         _job, job_id = await _create_job(
@@ -433,6 +454,8 @@ async def _stream_response(
             text=text,
             persona_id=persona_id,
             output_format=output_format,
+            context=context,
+            turn_type=turn_type,
         )
     except AppError as exc:
         return _error(exc.status, exc.code, exc.detail, _kind_for_status(exc.status))
