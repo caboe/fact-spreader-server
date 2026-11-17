@@ -484,3 +484,84 @@ async def test_research_withholds_a_summary_that_fails_the_consistency_check(
     assert body["summary"] is None
     assert [warning["code"] for warning in body["warnings"]] == ["summary_consistency_failed"]
     assert body["documents"]
+
+
+@pytest.mark.asyncio
+async def test_an_open_confounder_triggers_a_targeted_retrieval_and_a_second_verify(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document_id = await _seed_approved_document(app, settings)
+    fake_llm = FakeLLM(audit_sequence=[False, True])
+    fake_lightrag = FakeLightRAG(
+        document_id=document_id,
+        passage="Immigrants commit more crimes, according to the fixture.",
+        second_passage="Registered offending peaks among young men in every group.",
+    )
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "Immigrants commit more crimes."}},
+    )
+    assert response.status_code == 202
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=fake_lightrag,  # type: ignore[arg-type]
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+    body = (await client.get(f"/v1/factcheck/{job_id}")).json()
+    result = body["result"]["result"]
+    assert len(fake_lightrag.queries) == 2
+    assert "age" in fake_lightrag.queries[1].casefold()
+    assert fake_llm.verify_calls == 2
+    assert result["overall_verdict"] == "true_but_misleading"
+    assert "audit_incomplete" not in [w["code"] for w in result["warnings"]]
+
+
+@pytest.mark.asyncio
+async def test_an_open_audit_never_returns_true(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document_id = await _seed_approved_document(app, settings)
+    fake_llm = FakeLLM(verdict="true", audit_sequence=[False])
+    fake_lightrag = FakeLightRAG(
+        document_id=document_id,
+        passage="Immigrants commit more crimes, according to the fixture.",
+    )
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "Immigrants commit more crimes."}},
+    )
+    assert response.status_code == 202
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=fake_lightrag,  # type: ignore[arg-type]
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+    body = (await client.get(f"/v1/factcheck/{job_id}")).json()
+    result = body["result"]["result"]
+    assert len(fake_lightrag.queries) == 2
+    assert fake_llm.verify_calls == 1
+    assert result["overall_verdict"] == "insufficient_evidence"
+    assert result["statements"][0]["gate"]["reason"] == "audit_incomplete"
+    assert "audit_incomplete" in [w["code"] for w in result["warnings"]]

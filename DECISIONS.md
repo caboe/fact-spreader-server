@@ -402,3 +402,20 @@ Invariant 8 requires every model call to go through the gateway.
 **Rejected:** setting a global `LLM_BINDING` only (it also affects roles we do not want),
 pointing the keyword role at a host Ollama (bypasses the gateway and the data-flow policy),
 patching LightRAG.
+
+## D28 — One targeted retrieval round closes an open confounder
+
+**What:** after verification reports `audit_complete = false` and the statement has
+checklist confounders, the pipeline builds a second query from the statement plus the
+confounder labels and retrieval hints, retrieves once more, and re-verifies only if new
+evidence appeared. A retrieval failure leaves the audit open rather than failing the whole
+check; the gate still downgrades `true` and records `audit_incomplete`.
+
+**Why:** Phase 3 requires a missing-context claim to trigger a second retrieval and either
+fill the gap or return `insufficient_evidence` with an open audit. Re-verifying without new
+evidence would add cost without changing the decision; the gate is already the guard that
+prevents a clean `true`.
+
+**Rejected:** re-verifying unconditionally after every audit gap, looping until the model
+claims completeness (unbounded cost), letting the model itself decide whether to retrieve,
+dropping the audit gate for speed.

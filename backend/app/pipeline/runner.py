@@ -57,7 +57,7 @@ from app.pipeline.translation import translate_evidence
 from app.pipeline.verification import VerificationProposal, verify_statement
 from app.retrieval.lightrag import LightRAGClient, LightRAGError, RetrievalChunk
 from app.services.language import LanguageService
-from app.services.methodology import Methodology
+from app.services.methodology import Confounder, Methodology
 from app.services.publishers import PublisherRegistry
 from app.services.templates import (
     overall_explanation,
@@ -244,6 +244,23 @@ class CheckPipeline:
                     staleness_days=staleness_days,
                     user_id=user_id,
                 )
+                if confounders and not proposal.audit_complete:
+                    extra = await self._targeted_candidates(located.text, confounders, pool=pool)
+                    known = {item.id for item in candidates}
+                    new_candidates = [item for item in extra if item.id not in known]
+                    if new_candidates:
+                        candidates = [*candidates, *new_candidates]
+                        proposal = await verify_statement(
+                            self.llm,
+                            statement_text=located.text,
+                            statement_scope=located.scope,
+                            topics=topics,
+                            candidates=candidates,
+                            confounders=confounders,
+                            methodology=self.methodology,
+                            staleness_days=staleness_days,
+                            user_id=user_id,
+                        )
             else:
                 proposal = VerificationProposal(
                     verdict=Verdict.INSUFFICIENT_EVIDENCE,
@@ -513,6 +530,38 @@ class CheckPipeline:
             if set(tags) & set(domain_tags):
                 inferred.append(topic)
         return inferred
+
+    async def _targeted_candidates(
+        self,
+        statement: str,
+        confounders: list[Confounder],
+        *,
+        pool: _EvidencePool,
+    ) -> list[Evidence]:
+        """One targeted retrieval round for an open confounder (IMPLEMENT Phase 3).
+
+        The statement and checklist hints are the query. A retrieval failure leaves the
+        audit open instead of failing the whole check; the gate already refuses to return
+        ``true`` with an incomplete audit.
+        """
+        hints: list[str] = []
+        for confounder in confounders:
+            hints.extend(
+                value
+                for value in (
+                    confounder.label,
+                    confounder.retrieval_hint,
+                    confounder.retrieval_hint_de,
+                )
+                if value
+            )
+        query = f"{statement} {' '.join(hints)}"[:1000]
+        try:
+            retrieval = await self.lightrag.query_data(query, top_k=16, chunk_top_k=10)
+        except LightRAGError:
+            logger.warning("targeted_retrieval_unavailable")
+            return []
+        return await self._candidates(retrieval.chunks, pool=pool, statement_text=statement)
 
     async def _candidates(
         self,

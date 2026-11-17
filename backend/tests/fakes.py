@@ -35,11 +35,16 @@ class FakeLLM:
         unavailable: bool = False,
         narratives: list[str] | None = None,
         judge_issues: list[str] | None = None,
+        audit_sequence: list[bool] | None = None,
+        verdict: str = "true_but_misleading",
     ) -> None:
         self.block = block
         self.unavailable = unavailable
         self.narratives = list(narratives or ["The raw figure is supported [E1]."])
         self.judge_issues = list(judge_issues or [])
+        self.audit_sequence = list(audit_sequence or [])
+        self.verdict = verdict
+        self.verify_calls = 0
         self.calls: list[str] = []
 
     async def chat_text(
@@ -102,8 +107,11 @@ class FakeLLM:
                 ]
             )
         elif alias == FS_VERIFY:
+            audit_index = min(self.verify_calls, len(self.audit_sequence) - 1)
+            audit_complete = self.audit_sequence[audit_index] if self.audit_sequence else False
+            self.verify_calls += 1
             output = VerificationOutput(
-                verdict="true_but_misleading",
+                verdict=self.verdict,
                 rationale="The raw figure is supported; the conclusion omits age structure [E1].",
                 evidence=[
                     _EvidenceLinkOut(
@@ -136,7 +144,7 @@ class FakeLLM:
                         evidence=["E1"],
                     )
                 ],
-                audit_complete=False,
+                audit_complete=audit_complete,
             )
         else:
             raise AssertionError(f"unexpected alias {alias}")
@@ -144,21 +152,29 @@ class FakeLLM:
 
 
 class FakeLightRAG:
-    def __init__(self, *, document_id: str, passage: str) -> None:
+    def __init__(
+        self, *, document_id: str, passage: str, second_passage: str | None = None
+    ) -> None:
         self.document_id = document_id
         self.passage = passage
+        self.second_passage = second_passage
         self.queries: list[str] = []
 
     async def query_data(self, query: str, **kwargs: Any) -> RetrievalResult:
         self.queries.append(query)
+        content = (
+            self.passage
+            if len(self.queries) == 1 or self.second_passage is None
+            else self.second_passage
+        )
         return RetrievalResult(
             chunks=[
                 RetrievalChunk(
-                    content=self.passage,
+                    content=content,
                     file_path=f"{self.document_id}@v1",
-                    chunk_id="chunk-1",
+                    chunk_id=f"chunk-{len(self.queries)}",
                     score=0.9,
-                    order=0,
+                    order=len(self.queries) - 1,
                 )
             ]
         )
