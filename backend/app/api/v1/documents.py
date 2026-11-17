@@ -29,8 +29,10 @@ from app.db.session import get_session
 from app.llm.client import LLMClient, LLMError
 from app.services.auth import Principal, require_permission
 from app.services.documents import (
+    _record_recheck_summary,
     create_document,
     document_to_api,
+    enqueue_rechecks_for_document,
     latest_version,
     queue_review_counts,
     update_corpus_version,
@@ -358,6 +360,27 @@ async def withdraw_document(
     instance = (await session.execute(select(Instance).limit(1))).scalar_one_or_none()
     if instance is not None:
         await update_corpus_version(session, instance)
+    summary = await enqueue_rechecks_for_document(
+        session,
+        settings=request.app.state.settings,
+        publishers=request.app.state.publishers,
+        methodology=request.app.state.methodology,
+        document=document,
+        reason="withdrawal",
+    )
+    _record_recheck_summary(document, summary)
+    session.add(
+        AuditLog(
+            id=new_id("aud"),
+            actor_id=principal.user_id,
+            actor_type="user",
+            action="document_withdrawn",
+            object_type="document",
+            object_id=document.id,
+            detail={"reason": body.reason, **summary},
+            created_at=utcnow(),
+        )
+    )
     await session.commit()
     return await _api(session, document, principal)
 

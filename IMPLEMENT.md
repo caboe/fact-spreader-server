@@ -428,9 +428,11 @@ duplicates with `duplicate_of`, review queue, detail/content endpoints, approve/
 withdraw, figure-description correction, approval audit and worker-driven LightRAG
 indexing with a corpus-version bump. Live: a Destatis housing report was submitted, approved
 and indexed in 10.1 s; a rent claim cited it; a resubmission returned state `duplicate`.
-Open: Docling tables/scans, figure extraction and vision descriptions, batch upload/ZIP,
-cost estimates, four-eyes automation, re-check trigger on approval/withdrawal, editor
-contradiction/gap endpoints.
+Approval and withdrawal now trigger bounded re-checks for matching or citing claims, with
+a `budget_low` warning when the daily budget stops the run; four-eyes approval is enforced
+and the editor contradiction/gap endpoints are present. Open: Docling tables/scans, figure
+extraction and vision descriptions, batch upload/ZIP, cost estimates and the remaining
+Phase 4 batch/editor re-check flows.
 
 **Goal.** Documents can be submitted singly or in batches, parsed, warned about, reviewed,
 approved, indexed, withdrawn and versioned; approval and withdrawal trigger re-checks.

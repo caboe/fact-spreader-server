@@ -783,3 +783,92 @@ async def test_documents_are_submitted_reviewed_indexed_withdrawn_and_deduplicat
     assert withdrawn.status_code == 200, withdrawn.text
     assert withdrawn.json()["state"] == "withdrawn"
     assert fake_lightrag.deleted == [f"{document_id}@v1"]
+
+
+@pytest.mark.asyncio
+async def test_four_eyes_and_the_daily_recheck_budget_are_enforced(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.services.documents import run_document_index_job
+
+    document_id_seed = await _seed_approved_document(app, settings)
+    fake_llm = FakeLLM()
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "Immigrants commit more crimes."}},
+    )
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=FakeLightRAG(  # type: ignore[arg-type]
+                document_id=document_id_seed,
+                passage="Immigrants commit more crimes, according to the fixture.",
+            ),
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+
+    settings.four_eyes_enabled = True
+    submitted = await client.post(
+        "/v1/documents",
+        json={
+            "input": {"type": "text", "text": "# Fixture\n\nA new approved document about crime."},
+            "metadata": {
+                "title": "Crime report",
+                "publisher": "Federal Criminal Police Office (BKA)",
+                "license": "CC0-1.0",
+                "redistribution": "full_text",
+                "domain_tags": ["racism"],
+                "language": "en",
+            },
+        },
+    )
+    assert submitted.status_code == 202, submitted.text
+    document_id = submitted.json()["document"]["id"]
+    blocked = await client.post(
+        f"/v1/documents/{document_id}/approve",
+        json={"license_confirmed": True, "redistribution": "full_text"},
+    )
+    assert blocked.status_code == 403
+    assert blocked.json()["code"] == "four_eyes_required"
+
+    settings.four_eyes_enabled = False
+    settings.recheck_daily_budget = 0
+    approved = await client.post(
+        f"/v1/documents/{document_id}/approve",
+        json={"license_confirmed": True, "redistribution": "full_text"},
+    )
+    assert approved.status_code == 200, approved.text
+    fake_lightrag = FakeLightRAG(document_id=document_id, passage="unused")
+    async with app.state.db.session_factory() as session:
+        job = (
+            (
+                await session.execute(
+                    select(JobRow)
+                    .where(JobRow.kind == "document_index")
+                    .order_by(JobRow.created_at.desc())
+                )
+            )
+            .scalars()
+            .first()
+        )
+        assert job is not None
+        await run_document_index_job(
+            session,
+            settings=settings,
+            lightrag=fake_lightrag,  # type: ignore[arg-type]
+            job=job,
+        )
+        await session.commit()
+    after = await client.get(f"/v1/documents/{document_id}")
+    codes = [warning["code"] for warning in after.json()["warnings"]]
+    assert "budget_low" in codes

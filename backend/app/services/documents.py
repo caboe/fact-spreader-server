@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -24,11 +25,14 @@ from app.contracts.api import (
     DocumentMetadata,
     DocumentWarning,
 )
+from app.contracts.enums import TurnType
 from app.core.config import Settings
 from app.core.ids import new_id, sha256_text, utcnow
-from app.db.models import Document, DocumentVersion, Instance
+from app.db.models import Document, DocumentVersion, Instance, Result
 from app.db.models import Job as JobRow
 from app.retrieval.lightrag import LightRAGClient, LightRAGError
+from app.services.checks import create_check_job
+from app.services.methodology import Methodology
 from app.services.publishers import PublisherRegistry
 
 logger = logging.getLogger(__name__)
@@ -313,6 +317,25 @@ async def run_document_index_job(
     instance = (await session.execute(select(Instance).limit(1))).scalar_one_or_none()
     if instance is not None:
         await update_corpus_version(session, instance)
+    publishers = PublisherRegistry.from_path(settings.publisher_list_path)
+    methodology = Methodology.load(settings.checklist_dir, settings.pattern_list_path)
+    summary = await enqueue_rechecks_for_document(
+        session,
+        settings=settings,
+        publishers=publishers,
+        methodology=methodology,
+        document=document,
+        reason="corpus_changed",
+    )
+    _record_recheck_summary(document, summary)
+    logger.info(
+        "document_rechecks_enqueued",
+        extra={
+            "event": "document",
+            "enqueued": summary["enqueued"],
+            "skipped": summary["skipped_budget"],
+        },
+    )
     await session.commit()
     logger.info("document_indexed", extra={"event": "document", "document_id": document.id})
 
@@ -337,3 +360,118 @@ async def queue_review_counts(session: AsyncSession) -> dict[str, int]:
         "rejected": counts.get("rejected", 0),
         "withdrawn": counts.get("withdrawn", 0),
     }
+
+
+def _record_recheck_summary(document: Document, summary: dict[str, int]) -> None:
+    if not summary.get("skipped_budget"):
+        return
+    warnings = [dict(item) for item in (document.warnings or []) if isinstance(item, dict)]
+    warnings = [item for item in warnings if item.get("code") != "budget_low"]
+    warnings.append(
+        {
+            "code": "budget_low",
+            "message": (
+                f"{summary['skipped_budget']} affected claim(s) were not re-checked: the "
+                "daily re-check budget is exhausted."
+            ),
+        }
+    )
+    document.warnings = warnings
+
+
+async def enqueue_rechecks_for_document(
+    session: AsyncSession,
+    *,
+    settings: Settings,
+    publishers: PublisherRegistry,
+    methodology: Methodology,
+    document: Document,
+    reason: str,
+) -> dict[str, int]:
+    """Queue re-checks for claims affected by an approval or withdrawal.
+
+    Approval matches statements by domain tag; withdrawal matches results whose evidence
+    references the document. The daily re-check budget is a hard cap; the return value
+    reports how many were skipped for the editor instead of dropping them silently.
+    """
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    used = int(
+        (
+            await session.execute(
+                select(func.count(JobRow.id)).where(
+                    JobRow.created_at >= today,
+                    JobRow.payload["recheck"].astext == "true",
+                )
+            )
+        ).scalar_one()
+    )
+    remaining = max(0, settings.recheck_daily_budget - used)
+    candidates = (
+        (
+            await session.execute(
+                select(Result)
+                .where(
+                    Result.deleted.is_(False),
+                    Result.status == "complete",
+                    Result.preliminary.is_(False),
+                )
+                .order_by(Result.created_at.desc())
+                .limit(200)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    claim_texts: set[str] = set()
+    enqueued = 0
+    skipped = 0
+    for row in candidates:
+        if reason == "withdrawal":
+            related = any(
+                str((item.get("provenance") or {}).get("document_id")) == document.id
+                for item in (row.evidence or [])
+                if isinstance(item, dict)
+            )
+        else:
+            related = any(
+                set(statement.get("domain_tags") or []) & set(document.domain_tags or [])
+                for statement in (row.statements or [])
+                if isinstance(statement, dict)
+            )
+        if not related:
+            continue
+        text = str((row.input or {}).get("text") or "").strip()
+        normalized = text.casefold()
+        if not text or normalized in claim_texts:
+            continue
+        claim_texts.add(normalized)
+        if enqueued >= remaining:
+            skipped += 1
+            continue
+        await create_check_job(
+            session,
+            settings=settings,
+            publishers=publishers,
+            methodology=methodology,
+            text=text,
+            user_id=row.user_id,
+            response_language=row.response_language,
+            turn_type=TurnType(row.turn_type),
+            source_url=(row.input or {}).get("url"),
+            source_file_name=(row.input or {}).get("file_name"),
+            source_media_type=(row.input or {}).get("media_type"),
+            source_size_bytes=(row.input or {}).get("size_bytes"),
+            context=((row.input or {}).get("context") or {}).get("messages"),
+            previous_result_id=row.id,
+        )
+        job = (
+            await session.execute(select(JobRow).order_by(JobRow.created_at.desc()).limit(1))
+        ).scalar_one()
+        job.payload = {
+            **(job.payload or {}),
+            "recheck": True,
+            "recheck_reason": reason,
+            "recheck_document_id": document.id,
+        }
+        enqueued += 1
+    return {"enqueued": enqueued, "skipped_budget": skipped}

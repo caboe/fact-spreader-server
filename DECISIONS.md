@@ -510,3 +510,21 @@ the worker. This is the Phase 4 slice; Docling, figures, scans and batches still
 
 **Rejected:** parsing in the worker without a content store, automatic approval on upload,
 serving uploaded HTML, treating a hash duplicate as a new version.
+
+## D34 — Approval and withdrawal trigger bounded re-checks; skipped claims are visible
+
+**What:** after a document is indexed, the worker queues re-checks for current claims whose
+statement domain tags overlap the document; withdrawal instead matches results whose stored
+evidence references the document. Candidates are de-duplicated by normalized claim text,
+capped by the daily re-check budget, and linked to the previous result. If the budget is
+exhausted, the document gets a `budget_low` warning with the skipped count; the claim is not
+silently dropped. Approval of one's own document is refused with `403 four_eyes_required`
+when the four-eyes setting is on.
+
+**Why:** IMPLEMENT Phase 4 requires approval and withdrawal to trigger affected claims
+within budget, and the Phase 3 report listed the automatic trigger as open. Bounded,
+de-duplicated jobs avoid a corpus update re-checking the same claim many times. A visible
+`budget_low` warning is the editor's record that the trigger ran and stopped at the cap.
+
+**Rejected:** re-checking every archived claim on every approval, unbounded queue growth,
+dropping over-budget claims without a record, hard-coding four-eyes off.

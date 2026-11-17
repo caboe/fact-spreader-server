@@ -641,3 +641,30 @@ class ReviewQueueResponse(ApiModel):
     data: list[DocumentInfo] = Field(default_factory=list)
     counts: dict[str, int] = Field(default_factory=dict)
     summary: dict[str, Any] = Field(default_factory=dict)
+
+
+class EditorContradiction(ApiModel):
+    id: str
+    statement_text: str
+    result_ids: list[str] = Field(default_factory=list)
+    supporting: list[dict[str, Any]] = Field(default_factory=list)
+    refuting: list[dict[str, Any]] = Field(default_factory=list)
+    state: str
+    detected_at: datetime
+
+
+class EditorGap(ApiModel):
+    id: str
+    normalized_topic: str
+    query: str
+    language: str
+    topics: list[str] = Field(default_factory=list)
+    frequency: int
+    sample_result_ids: list[str] = Field(default_factory=list)
+    state: str
+    first_seen: datetime
+    last_seen: datetime
+
+
+class EditorStateRequest(RequestModel):
+    state: str
