@@ -8,14 +8,14 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phase 1 complete; Phase 2 in progress (2026-11-17).** The specs were revised for the v1
-scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md) as the
-decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
-[`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. The Phase 1
-evidence, including live-model spend, is in
-[`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md). Phase 2 has started with the persona
-renderer and the OpenAI-compatible checked-streaming surface; file/URL/image input,
-statement-level SSE, the full archive and the rest of Phase 2 remain open.
+**Phase 1 and Phase 2 complete; Phase 3 in progress (2026-11-17).** The specs were revised
+for the v1 scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md)
+as the decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
+[`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. Live
+evidence, including spend, is in [`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md) and
+[`docs/PHASE_2_REPORT.md`](docs/PHASE_2_REPORT.md). Phase 3 has research, the judged
+citation-checked summary and targeted re-retrieval; fast mode, the semantic cache, the full
+re-check archive flow and the Phase 3 live acceptance run remain.
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes
@@ -31,7 +31,7 @@ the sexual-minors block.
 | LLM gateway | internal OpenAI-compatible chat/embeddings proxy, aliases, budget, usage, embedding lock |
 | Languages | en/de/fr/es deterministic substance; unsupported input falls back to English |
 | Operations | pinned Postgres+pgvector+AGE, Redis, stock LightRAG v1.5.0, health/readiness |
-| Tests | 59 unit, 23 integration, migration up/down/up, OpenAPI drift, compose checks |
+| Tests | 63 unit, 26 integration, migration up/down/up, OpenAPI drift, compose checks |
 
 Phase 2 so far adds three runtime personas (analyst, mediator, straight-talker), the
 deterministic checks plus a consistency judge with one re-render and a template fallback,
@@ -47,12 +47,17 @@ extracted the text and returned `true_but_misleading` with the image-authenticit
 Phase 2 also includes revocable device tokens with a permission subset
 (`claims:submit` by default, shown once, hashed at rest), persistent archive feedback,
 conversation context with a code-side turn heuristic, and labelled translations of
-non-response-language evidence. The remaining Phase 2 item is the full live persona ×
-language matrix; the mechanical checks are covered for en/de/fr/es. Later phases add
-research, fast mode, the editorial pipeline and the UI. A first Phase 3 slice adds
-research: `POST /v1/search` returns approved documents, passages and archive hits, plus an
-optional attributed summary whose sentences are citation-checked deterministically. The
-summary judge and the fast mode are still open.
+non-response-language evidence. The full live persona × language matrix passed: all twelve
+runs returned a persona narrative with the consistency check passed on the first attempt
+and no warnings. Later phases add fast mode, the editorial pipeline and the UI.
+
+Phase 3 adds research: `POST /v1/search` returns approved documents, passages and archive
+hits, plus an optional attributed summary. Code checks every citation, an independent
+`fs-verify` judge confirms support, and a failed or timed-out summary is withheld. A claim
+with an open confounder triggers one targeted retrieval; the pure gate still downgrades a
+proposed `true` to `insufficient_evidence` with `audit_incomplete`. Contradiction records,
+the staleness downgrade and corpus-gap aggregation are in place. Fast mode with the
+semantic cache and the full re-check archive flow are still open.
 
 ## Quick start (development)
 
