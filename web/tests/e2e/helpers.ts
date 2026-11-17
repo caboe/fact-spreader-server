@@ -20,8 +20,11 @@ export async function signIn(page: Page): Promise<void> {
 }
 
 
-export async function capture(page: Page, name: string): Promise<void> {
-  const base = '../docs/screenshots/phase-7';
+export async function capture(
+  page: Page,
+  name: string,
+  base = '../docs/screenshots/phase-7',
+): Promise<void> {
   const variants: { suffix: string; width: number; height: number; dark: boolean }[] = [
     { suffix: 'light', width: 1280, height: 900, dark: false },
     { suffix: 'dark', width: 1280, height: 900, dark: true },

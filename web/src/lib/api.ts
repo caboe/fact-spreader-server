@@ -384,3 +384,227 @@ export async function probeModel(
     body: JSON.stringify({ capabilities }),
   });
 }
+
+// --- editorial queue, batch submission and editor lists (Phase 8) ---------------
+
+export type DocumentInfo = components['schemas']['DocumentInfo'];
+export type DocumentFigure = components['schemas']['DocumentFigure'];
+export type BatchInfo = components['schemas']['BatchInfo'];
+export type DeviceInfo = components['schemas']['DeviceInfo'];
+
+export interface ReviewQueue {
+  data: DocumentInfo[];
+  counts: Record<string, number>;
+  summary: Record<string, number>;
+}
+
+export async function listReviewQueue(state?: string): Promise<ReviewQueue> {
+  const search = new URLSearchParams();
+  if (state) search.set('state', state);
+  return request(`/v1/review/queue${search.size ? `?${search.toString()}` : ''}`);
+}
+
+export async function getDocument(id: string): Promise<DocumentInfo> {
+  return request(`/v1/documents/${encodeURIComponent(id)}`);
+}
+
+export async function getDocumentContent(id: string): Promise<string> {
+  const response = await fetch(`/v1/documents/${encodeURIComponent(id)}/content`, {
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, 'content_failed', 'The document text could not be loaded.');
+  }
+  return response.text();
+}
+
+export interface ApprovalInput {
+  license_confirmed: boolean;
+  redistribution: 'full_text' | 'excerpts_only' | 'metadata_only';
+  note?: string;
+}
+
+export async function approveDocument(id: string, body: ApprovalInput): Promise<DocumentInfo> {
+  return request(`/v1/documents/${encodeURIComponent(id)}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function rejectDocument(id: string, reason: string): Promise<DocumentInfo> {
+  return request(`/v1/documents/${encodeURIComponent(id)}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function withdrawDocument(id: string, reason: string): Promise<DocumentInfo> {
+  return request(`/v1/documents/${encodeURIComponent(id)}/withdraw`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function updateFigure(
+  documentId: string,
+  figureId: string,
+  description: string,
+): Promise<DocumentInfo> {
+  return request(
+    `/v1/documents/${encodeURIComponent(documentId)}/figures/${encodeURIComponent(figureId)}`,
+    { method: 'PUT', body: JSON.stringify({ description }) },
+  );
+}
+
+export interface EditorContradiction {
+  id: string;
+  statement_text: string;
+  result_ids: string[];
+  supporting: { result_id?: string; document_id?: string; text?: string }[];
+  refuting: { result_id?: string; document_id?: string; text?: string }[];
+  state: string;
+  detected_at: string;
+}
+
+export interface EditorGap {
+  id: string;
+  normalized_topic: string;
+  query: string;
+  language: string;
+  topics: string[];
+  frequency: number;
+  sample_result_ids: string[];
+  state: string;
+  first_seen: string;
+  last_seen: string;
+}
+
+export async function listContradictions(state?: string): Promise<{
+  data: EditorContradiction[];
+  counts: { total: number; open: number };
+}> {
+  const search = new URLSearchParams();
+  if (state) search.set('state', state);
+  return request(`/v1/editor/contradictions?${search.toString()}`);
+}
+
+export async function updateContradiction(id: string, state: string): Promise<void> {
+  await request(`/v1/editor/contradictions/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ state }),
+  });
+}
+
+export async function listGaps(params: { state?: string; sort?: string } = {}): Promise<{
+  data: EditorGap[];
+  counts: { total: number; open: number };
+}> {
+  const search = new URLSearchParams();
+  if (params.state) search.set('state', params.state);
+  if (params.sort) search.set('sort', params.sort);
+  return request(`/v1/editor/gaps?${search.toString()}`);
+}
+
+export async function updateGap(id: string, state: string): Promise<void> {
+  await request(`/v1/editor/gaps/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ state }),
+  });
+}
+
+export async function recheckGap(
+  id: string,
+  limit = 5,
+): Promise<{ jobs: Job[]; skipped_budget: number }> {
+  return request(`/v1/editor/gaps/${encodeURIComponent(id)}/recheck`, {
+    method: 'POST',
+    body: JSON.stringify({ limit }),
+  });
+}
+
+export interface SubmissionMetadata {
+  title?: string;
+  publisher?: string;
+  authors?: string[];
+  publication_date?: string;
+  url?: string;
+  doi?: string;
+  dataset_id?: string;
+  license?: string;
+  redistribution?: string;
+  domain_tags?: string[];
+  language?: string;
+  source_quality_override?: string;
+}
+
+export interface BatchUploadInput {
+  files?: File[];
+  urls?: string[];
+  metadata?: SubmissionMetadata;
+  acceptEstimate?: boolean;
+  force?: boolean;
+}
+
+export async function submitBatch(input: BatchUploadInput): Promise<{ batch: BatchInfo }> {
+  const form = new FormData();
+  form.set(
+    'payload',
+    JSON.stringify({
+      metadata: input.metadata ?? {},
+      urls: input.urls ?? [],
+      accept_estimate: input.acceptEstimate ?? false,
+      force: input.force ?? false,
+    }),
+  );
+  for (const file of input.files ?? []) form.append('files', file);
+  return request('/v1/documents/batches', { method: 'POST', body: form });
+}
+
+export async function getBatch(id: string): Promise<{ batch: BatchInfo }> {
+  return request(`/v1/documents/batches/${encodeURIComponent(id)}`);
+}
+
+export async function approveBatch(
+  id: string,
+  body: { document_ids?: string[]; license_confirmed: boolean; redistribution: string; note?: string },
+): Promise<{ batch: BatchInfo }> {
+  return request(`/v1/documents/batches/${encodeURIComponent(id)}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function rejectBatch(
+  id: string,
+  body: { document_ids?: string[]; reason: string },
+): Promise<{ batch: BatchInfo }> {
+  return request(`/v1/documents/batches/${encodeURIComponent(id)}/reject`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function retryBatch(id: string, documentIds: string[] = []): Promise<{ batch: BatchInfo }> {
+  return request(`/v1/documents/batches/${encodeURIComponent(id)}/retry`, {
+    method: 'POST',
+    body: JSON.stringify({ document_ids: documentIds }),
+  });
+}
+
+export async function listDevices(): Promise<{ data: DeviceInfo[] }> {
+  return request('/v1/devices');
+}
+
+export async function createDevice(
+  name: string,
+  permissions: string[] = ['claims:submit'],
+): Promise<{ device: DeviceInfo; token: string }> {
+  return request('/v1/devices', {
+    method: 'POST',
+    body: JSON.stringify({ name, permissions }),
+  });
+}
+
+export async function revokeDevice(id: string): Promise<void> {
+  await request(`/v1/devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
