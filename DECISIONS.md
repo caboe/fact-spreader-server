@@ -773,3 +773,56 @@ retention runs additive instead of duplicating.
 
 **Rejected:** deleting old usage entirely, keeping detail forever, deriving spend only
 from the rollup (the current month needs request-level attribution for budgets).
+
+## D50 — Capability probes call the provider directly with synthetic content
+
+**What:** `POST /v1/config/models/{id}/probe` sends a tiny chat, a JSON-Schema request, a
+generated test image, an embedding pair and a known moderation hit to the provider's
+OpenAI-compatible endpoints. It runs outside the gateway because no alias exists yet for a
+model being tested. Prompts contain only fixed synthetic strings; no user input or corpus
+content ever leaves the process. Results are stored per model and capability with status
+`tested`/`failed`/`assumed`, latency and time.
+
+**Why:** a capability must be proven before a mandatory role may use it, and the gateway
+only knows aliases that already exist. Treating this operator action like the setup
+provider test keeps the exception narrow and auditable. Rerank has no OpenAI-compatible
+probe, so it stays `assumed` and no role requires it yet.
+
+**Rejected:** trusting declared capabilities, probing through a temporary alias (more
+moving parts in the gateway), probing with real claims or fixture passages, a probe that
+silently downgrades a failure to "assumed".
+
+Probes are charged to the instance: each one records a `consumer = probe` usage event with
+the provider's token counts (marked estimated) and the model's price, and the probe is
+refused with `429 budget_exceeded` when the monthly ceiling is already reached.
+
+## D51 — Role assignments use one pure rule and need tested capabilities
+
+**What:** `services/capabilities.py` maps each gateway alias to required capabilities,
+minimum context, multilingual and embedding dimension. `assignment_reasons` is the single
+source used by the assignment endpoint and the role listing (the UI filter will use it
+too). A declared but untested capability does not satisfy a role; a binding copies the
+model fields and keeps `source_model_id` so probes are not duplicated.
+
+**Why:** hard invariant 10 requires the UI and the backend to agree, and a copied second
+rule is how they drift. Copying fields into the alias row keeps the gateway unchanged while
+the registry keeps the evidence.
+
+**Rejected:** validating in the route only, accepting declared capabilities, a separate
+binding table the gateway would have to join.
+
+## D52 — Publisher overrides re-grade at retrieval and are rebuilt per worker job
+
+**What:** overrides replace a shipped entry's grade/disputed flag by key and never add an
+entry. The effective registry is merged at backend startup and again per worker job, so a
+re-check grades retrieved documents with the current list instead of trusting the grade
+stored at approval. Resolution records `basis.source = local_list` and a version with a
+digest of the override set. The impact endpoint lists cached results whose evidence came
+from a changed publisher.
+
+**Why:** a grade change must affect new retirements without re-indexing, and a long-running
+worker must not keep a stale list. The stored `Document.source_quality` remains the
+approval-time value for provenance, while retrieval resolves the effective value.
+
+**Rejected:** editing `publishers.json`, storing grades only at approval, adding unknown
+publishers through an override (a silent upgrade path), mutating cached results in place.

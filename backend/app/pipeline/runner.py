@@ -620,7 +620,11 @@ class CheckPipeline:
                 await self.session.flush()
             evidence_id = f"E{pool.next_index}"
             pool.next_index += 1
-            basis_data = document.source_quality_basis or {"source": "default_unknown"}
+            resolution = self.publishers.resolve(
+                publisher=document.publisher, url=document.url, doi=document.doi
+            )
+            grade = resolution.grade
+            basis_data = resolution.basis.model_dump(mode="json")
             evidence = Evidence(
                 id=evidence_id,
                 evidence_id=passage.id,
@@ -642,7 +646,7 @@ class CheckPipeline:
                     doi=document.doi,
                     locator=passage.locator,
                     dataset_id=document.dataset_id,
-                    source_quality=document.source_quality,
+                    source_quality=grade,
                     source_quality_basis=SourceQualityBasis(**basis_data),
                     domain_tags=list(document.domain_tags or []),
                     language=document.language,

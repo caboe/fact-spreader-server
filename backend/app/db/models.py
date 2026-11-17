@@ -154,7 +154,10 @@ class ModelRecord(Base):
     provider_id: Mapped[str] = mapped_column(
         ForeignKey("providers.id", ondelete="CASCADE"), index=True
     )
-    gateway_alias: Mapped[str] = mapped_column(String(80), unique=True)
+    gateway_alias: Mapped[str | None] = mapped_column(String(80), unique=True)
+    source_model_id: Mapped[str | None] = mapped_column(
+        ForeignKey("models.id", ondelete="SET NULL"), index=True
+    )
     model_name: Mapped[str] = mapped_column(String(200))
     capabilities: Mapped[list[str]] = mapped_column(JSONB, default=list)
     context_window: Mapped[int | None] = mapped_column(Integer)
@@ -167,6 +170,27 @@ class ModelRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     provider: Mapped[Provider] = relationship(lazy="joined")
+    capability_tests: Mapped[list[ModelCapabilityTest]] = relationship(
+        back_populates="model", cascade="all, delete-orphan"
+    )
+
+
+class ModelCapabilityTest(Base):
+    """Last probe result per capability; only ``tested`` satisfies a mandatory role."""
+
+    __tablename__ = "model_capability_tests"
+    __table_args__ = (UniqueConstraint("model_id", "capability", name="uq_model_capability"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    model_id: Mapped[str] = mapped_column(ForeignKey("models.id", ondelete="CASCADE"), index=True)
+    capability: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(20))
+    detail: Mapped[str] = mapped_column(String(500), default="")
+    dimension: Mapped[int | None] = mapped_column(Integer)
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0)
+    tested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    model: Mapped[ModelRecord] = relationship(back_populates="capability_tests")
 
 
 class Setting(Base):

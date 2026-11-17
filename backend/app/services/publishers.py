@@ -50,7 +50,7 @@ class PublisherRegistry:
                 return PublisherMatch(
                     grade=grade,
                     basis=SourceQualityBasis(
-                        source="shipped_list",
+                        source="local_list" if entry.get("_local_override") else "shipped_list",
                         list_version=self.version,
                         entry=str(entry.get("key") or entry.get("publisher") or "unknown"),
                     ),

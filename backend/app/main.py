@@ -17,6 +17,7 @@ from app.api.internal.llm import _InternalAuthError
 from app.api.internal.llm import router as internal_llm_router
 from app.api.v1.checks import router as checks_router
 from app.api.v1.claims import router as claims_router
+from app.api.v1.config import router as config_router
 from app.api.v1.devices import router as devices_router
 from app.api.v1.documents import router as documents_router
 from app.api.v1.editor import router as editor_router
@@ -37,6 +38,7 @@ from app.retrieval.lightrag import LightRAGClient
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
 from app.services.personas import PersonaRegistry
+from app.services.publisher_overrides import effective_publishers
 from app.services.publishers import PublisherRegistry
 
 logger = logging.getLogger("app.main")
@@ -55,7 +57,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.settings = settings
         app.state.db = database
         app.state.redis = cache
-        app.state.publishers = PublisherRegistry.from_path(settings.publisher_list_path)
+        app.state.publisher_base = PublisherRegistry.from_path(settings.publisher_list_path)
+        async with database.session_factory() as session:
+            app.state.publishers = await effective_publishers(session, settings.publisher_list_path)
         app.state.personas = PersonaRegistry.from_path(settings.personas_path)
         app.state.methodology = Methodology.load(settings.checklist_dir, settings.pattern_list_path)
         app.state.language = LanguageService(
@@ -149,6 +153,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(instance_router)
     app.include_router(checks_router)
+    app.include_router(config_router)
     app.include_router(claims_router)
     app.include_router(devices_router)
     app.include_router(documents_router)

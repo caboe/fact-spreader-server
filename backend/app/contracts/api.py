@@ -458,6 +458,184 @@ class SetupCompleted(ApiModel):
     instance_id: str
 
 
+class ProviderInfo(ApiModel):
+    id: str
+    name: str
+    base_url: str
+    is_local: bool
+    enabled: bool
+    has_key: bool
+    created_at: datetime
+
+
+class ProviderCreate(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    base_url: str = Field(min_length=8, max_length=500)
+    api_key: str | None = Field(default=None, max_length=500)
+    is_local: bool = False
+    test_connection: bool = True
+
+
+class ProviderUpdate(RequestModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    base_url: str | None = Field(default=None, min_length=8, max_length=500)
+    api_key: str | None = Field(default=None, max_length=500)
+    is_local: bool | None = None
+    enabled: bool | None = None
+
+
+class ProviderCreated(ApiModel):
+    provider: ProviderInfo
+    models: list[str] = Field(default_factory=list)
+
+
+class ProviderTestResult(ApiModel):
+    provider_id: str
+    reachable: bool
+    models: list[str] = Field(default_factory=list)
+    latency_ms: int = 0
+
+
+class ModelInfo(ApiModel):
+    id: str
+    provider_id: str
+    model_name: str
+    gateway_alias: str | None = None
+    source_model_id: str | None = None
+    capabilities: list[str] = Field(default_factory=list)
+    tested_capabilities: list[str] = Field(default_factory=list)
+    context_window: int | None = None
+    embedding_dim: int | None = None
+    multilingual: bool = False
+    is_local: bool = False
+    enabled: bool = True
+    input_cost_per_mtok: float = 0.0
+    output_cost_per_mtok: float = 0.0
+    created_at: datetime
+
+
+class ModelCreate(RequestModel):
+    provider_id: str = Field(min_length=1, max_length=64)
+    model_name: str = Field(min_length=1, max_length=200)
+    capabilities: list[str] = Field(default_factory=list)
+    context_window: int | None = Field(default=None, ge=1)
+    embedding_dim: int | None = Field(default=None, ge=1, le=8192)
+    multilingual: bool = False
+    input_cost_per_mtok: float = Field(default=0.0, ge=0)
+    output_cost_per_mtok: float = Field(default=0.0, ge=0)
+
+
+class ModelUpdate(RequestModel):
+    capabilities: list[str] | None = None
+    context_window: int | None = Field(default=None, ge=1)
+    embedding_dim: int | None = Field(default=None, ge=1, le=8192)
+    multilingual: bool | None = None
+    enabled: bool | None = None
+    input_cost_per_mtok: float | None = Field(default=None, ge=0)
+    output_cost_per_mtok: float | None = Field(default=None, ge=0)
+
+
+class CapabilityProbeRequest(RequestModel):
+    capabilities: list[str] = Field(default_factory=list)
+
+
+class CapabilityTestInfo(ApiModel):
+    capability: str
+    status: str
+    detail: str = ""
+    dimension: int | None = None
+    latency_ms: int = 0
+    tested_at: datetime
+
+
+class CapabilityProbeReport(ApiModel):
+    model_id: str
+    results: list[CapabilityTestInfo] = Field(default_factory=list)
+
+
+class RoleInfo(ApiModel):
+    alias: str
+    label: str
+    required_capabilities: list[str] = Field(default_factory=list)
+    min_context: int | None = None
+    multilingual: bool = False
+    embedding_dim: int | None = None
+    model: ModelInfo | None = None
+    suitable: bool = False
+    reasons: list[str] = Field(default_factory=list)
+
+
+class RoleAssignment(ApiModel):
+    model_id: str = Field(min_length=1, max_length=64)
+
+
+class DataFlowPolicy(ApiModel):
+    allow_external: bool = True
+    fallback_alias: str | None = None
+
+
+class PublisherOverride(RequestModel):
+    key: str = Field(min_length=1, max_length=200)
+    grade: Literal["A", "B", "C", "D"] | None = None
+    disputed: bool | None = None
+    note: str | None = Field(default=None, max_length=300)
+
+
+class PublisherOverridesRequest(RequestModel):
+    entries: list[PublisherOverride] = Field(default_factory=list)
+
+
+class PublisherEntryInfo(ApiModel):
+    key: str
+    publisher: str | None = None
+    grade: str
+    disputed: bool = False
+    overridden: bool = False
+
+
+class PublisherListInfo(ApiModel):
+    version: str
+    effective_version: str
+    entries: list[PublisherEntryInfo] = Field(default_factory=list)
+    overrides: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class PublisherDiffEntry(ApiModel):
+    key: str
+    publisher: str | None = None
+    field: str
+    shipped: Any = None
+    local: Any = None
+
+
+class PublisherResolveRequest(RequestModel):
+    publisher: str | None = Field(default=None, max_length=300)
+    url: str | None = Field(default=None, max_length=2000)
+    doi: str | None = Field(default=None, max_length=300)
+
+
+class PublisherResolveResponse(ApiModel):
+    grade: str
+    basis: SourceQualityBasis
+    effective_version: str
+
+
+class PublisherImpactEntry(ApiModel):
+    cache_id: str
+    result_id: str
+    created_at: str
+    publishers: list[str] = Field(default_factory=list)
+
+
+class UsageSummary(ApiModel):
+    period: dict[str, str]
+    currency: str = "USD"
+    totals: dict[str, Any]
+    cards: dict[str, int] = Field(default_factory=dict)
+    series: list[dict[str, Any]] = Field(default_factory=list)
+    breakdowns: dict[str, list[dict[str, Any]]] = Field(default_factory=dict)
+
+
 class UsageMe(ApiModel):
     period: dict[str, str]
     currency: str = "USD"

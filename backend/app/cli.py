@@ -431,9 +431,9 @@ async def create_key(settings: Settings, email: str, name: str) -> int:
             if user is None:
                 print(f"unknown user {email}", file=sys.stderr)
                 return 2
-            _row, plaintext = await create_api_key(
-                session, user=user, name=name, permissions=list(user.permissions)
-            )
+            # A role-based user has an empty explicit permission list; the key inherits
+            # the effective set (role templates plus grants minus denials).
+            _row, plaintext = await create_api_key(session, user=user, name=name)
             await session.commit()
             print(plaintext)
     finally:

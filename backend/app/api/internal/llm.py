@@ -122,8 +122,12 @@ async def _resolve_model(session: AsyncSession, alias: str) -> tuple[ModelRecord
 
 
 async def _budget_error(
-    session: AsyncSession, settings: Settings, user_id: str | None
+    session: AsyncSession, settings: Settings, user_id: str | None, model: ModelRecord
 ) -> JSONResponse | None:
+    # A zero-cost local model spends nothing: blocking it would disable the free
+    # semantic-cache embedding while the paid budget is exhausted.
+    if model.input_cost_per_mtok == 0 and model.output_cost_per_mtok == 0:
+        return None
     now = utcnow()
     month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
     instance = (await session.execute(select(Instance).limit(1))).scalar_one_or_none()
@@ -174,16 +178,42 @@ def _budget_response(now: datetime) -> JSONResponse:
     return response
 
 
+async def _data_flow_policy(session: AsyncSession) -> dict[str, Any]:
+    row = await session.get(Setting, "data_flow.allow_external")
+    value = row.value if row is not None and isinstance(row.value, dict) else {}
+    fallback = value.get("fallback_alias")
+    return {
+        "allow": bool(value.get("allow", True)),
+        "fallback_alias": str(fallback) if fallback else None,
+    }
+
+
 async def _allowed_by_data_flow(
     session: AsyncSession, model: ModelRecord, data_classes: frozenset[str]
 ) -> bool:
     if model.is_local:
         return True
-    row = await session.get(Setting, "data_flow.allow_external")
-    allow = True
-    if row is not None and isinstance(row.value, dict):
-        allow = bool(row.value.get("allow", True))
-    return allow or not (data_classes & {"user_input", "own_corpus", "figure_description"})
+    policy = await _data_flow_policy(session)
+    if policy["allow"]:
+        return True
+    return not (data_classes & {"user_input", "own_corpus", "figure_description"})
+
+
+async def _data_flow_fallback(
+    session: AsyncSession, data_classes: frozenset[str]
+) -> tuple[ModelRecord, Provider] | None:
+    """Resolve the configured fallback only when it is itself allowed for this call."""
+    policy = await _data_flow_policy(session)
+    alias = policy["fallback_alias"]
+    if not alias:
+        return None
+    try:
+        model, provider = await _resolve_model(session, alias)
+    except LookupError:
+        return None
+    if model.is_local or await _allowed_by_data_flow(session, model, data_classes):
+        return model, provider
+    return None
 
 
 async def _embedding_lock(
@@ -321,13 +351,22 @@ async def chat_completions(
             422, "The model does not have the chat capability.", "capability_missing"
         )
     if not await _allowed_by_data_flow(session, model, call.data_classes):
-        return _openai_error(
-            403,
-            "The data-flow policy forbids sending these data classes to this provider.",
-            "data_flow_blocked",
-            "permission_error",
-        )
-    budget = await _budget_error(session, request.app.state.settings, call.user_id)
+        fallback = await _data_flow_fallback(session, call.data_classes)
+        if fallback is None:
+            return _openai_error(
+                403,
+                "The data-flow policy forbids sending these data classes to this provider.",
+                "data_flow_blocked",
+                "permission_error",
+            )
+        model, provider = fallback
+        if "chat" not in (model.capabilities or []):
+            return _openai_error(
+                422,
+                "The fallback model does not have the chat capability.",
+                "capability_missing",
+            )
+    budget = await _budget_error(session, request.app.state.settings, call.user_id, model)
     if budget is not None:
         return budget
     settings: Settings = request.app.state.settings
@@ -427,10 +466,18 @@ async def embeddings(
         return _openai_error(
             422, "The model does not have the embedding capability.", "capability_missing"
         )
+    if not await _allowed_by_data_flow(session, model, call.data_classes):
+        # A fallback would change the corpus embedding model; that needs a re-index.
+        return _openai_error(
+            403,
+            "The data-flow policy forbids sending these data classes to this provider.",
+            "data_flow_blocked",
+            "permission_error",
+        )
     locked = await _embedding_lock(session, model, call.purpose)
     if locked is not None:
         return locked
-    budget = await _budget_error(session, request.app.state.settings, call.user_id)
+    budget = await _budget_error(session, request.app.state.settings, call.user_id, model)
     if budget is not None:
         return budget
     settings: Settings = request.app.state.settings

@@ -422,7 +422,7 @@ human decides.
 
 ## 7. Phase 4 — Document pipeline and editorial workflow
 
-**Status: in progress (2026-11-17).** Done: document submission for pasted text, URL and
+**Status: complete (2026-11-17).** Done: document submission for pasted text, URL and
 files (PDF/DOCX/HTML/Markdown) via the existing readers; metadata, warnings, hash
 duplicates with `duplicate_of`, review queue, detail/content endpoints, approve/reject/
 withdraw, figure-description correction, approval audit and worker-driven LightRAG
@@ -552,6 +552,16 @@ enforced, every user has limits, and personal data follows the retention policy.
 ---
 
 ## 9. Phase 6 — Model registry, capability tests, data flow, usage and re-index
+
+**Status: in progress (2026-11-17).** Done: provider CRUD with encrypted write-only keys
+and a connection test; model registry with a direct capability probe (chat, structured
+output, vision, embedding dimension and cross-lingual similarity, moderation) stored as
+`tested`/`assumed`; one pure role rule used by the assignment endpoint and the role list;
+data-flow policy with an allowed fallback and a transport test proving a blocked call never
+leaves the process; a zero-cost exemption so local cache embeddings keep working when the
+paid budget is exhausted; usage summaries and CSV; publisher overrides merged at retrieval,
+with diff, resolve and cache-impact endpoints. Open: per-key/per-role budgets, persona and
+methodology CRUD, and the explicit re-index flow.
 
 **Goal.** The operator can configure providers and models safely, the UI and backend agree
 on what is suitable, no call can bypass the data-flow policy, and usage is auditable.

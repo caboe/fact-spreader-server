@@ -32,7 +32,7 @@ from app.services.documents import run_document_index_job
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
 from app.services.personas import PersonaRegistry
-from app.services.publishers import PublisherRegistry
+from app.services.publisher_overrides import effective_publishers
 
 logger = logging.getLogger("app.worker")
 
@@ -123,7 +123,7 @@ async def run_once(database: Database, settings: Settings, worker_id: str) -> bo
             result_id = await run_check_job(
                 session,
                 settings=settings,
-                publishers=PublisherRegistry.from_path(settings.publisher_list_path),
+                publishers=await effective_publishers(session, settings.publisher_list_path),
                 methodology=Methodology.load(settings.checklist_dir, settings.pattern_list_path),
                 language=LanguageService(
                     settings.supported_languages, settings.default_response_language
