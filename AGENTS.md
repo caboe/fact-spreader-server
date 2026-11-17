@@ -35,7 +35,8 @@ Three kinds of request share one API:
    read-only claim archive, statement-level SSE/replay/cancellation, multipart file input,
    image input through the vision path, device tokens, archive feedback, conversation
    context and translated evidence are done; the full live persona × language matrix is
-   the remaining Phase 2 acceptance item.
+   the remaining Phase 2 acceptance item. A first Phase 3 slice (retrieval-only research)
+   is in place; its cited summary is still open.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

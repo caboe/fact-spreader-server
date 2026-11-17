@@ -438,3 +438,66 @@ class DeviceCreate(RequestModel):
 class FeedbackRequest(RequestModel):
     kind: Literal["helpful", "unhelpful", "incorrect"]
     comment: str | None = Field(default=None, max_length=500)
+
+
+class ResearchFilters(RequestModel):
+    start: date | None = Field(default=None, alias="from")
+    end: date | None = Field(default=None, alias="to")
+    domains: list[str] = Field(default_factory=list)
+    languages: list[str] = Field(default_factory=list)
+    min_source_quality: str | None = None
+
+
+class ResearchRequest(RequestModel):
+    query: str = Field(min_length=1, max_length=2000)
+    response_language: str | None = None
+    filters: ResearchFilters = Field(default_factory=ResearchFilters)
+    summary: bool = False
+    limit: int = Field(default=20, ge=1, le=50)
+
+
+class ResearchPassage(ApiModel):
+    evidence_id: str
+    passage: str
+    passage_language: str
+    passage_translation: PassageTranslation | None = None
+    locator: str | None = None
+    score: float = 0.0
+    figure: FigureInfo | None = None
+
+
+class ResearchDocumentSummary(ApiModel):
+    id: str
+    title: str
+    publisher: str
+    publication_date: date | None = None
+    source_quality: str
+    language: str
+    url: str | None = None
+    license: str | None = None
+    redistribution: str = "metadata_only"
+
+
+class ResearchDocument(ApiModel):
+    document: ResearchDocumentSummary
+    passages: list[ResearchPassage] = Field(default_factory=list)
+
+
+class ResearchClaim(ApiModel):
+    result_id: str
+    claim_text: str
+    verdict: Verdict | None = None
+    created_at: datetime
+    excerpt: str = ""
+
+
+class ResearchResponse(ApiModel):
+    query: str
+    detected_language: str
+    response_language: str
+    documents: list[ResearchDocument] = Field(default_factory=list)
+    claims: list[ResearchClaim] = Field(default_factory=list)
+    summary: None = None
+    warnings: list[WarningInfo] = Field(default_factory=list)
+    took_ms: int = 0
+    gaps_recorded: bool = False

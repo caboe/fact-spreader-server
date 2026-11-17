@@ -1564,6 +1564,351 @@
         "title": "Rendering",
         "type": "object"
       },
+      "ResearchClaim": {
+        "properties": {
+          "claim_text": {
+            "title": "Claim Text",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "excerpt": {
+            "default": "",
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "result_id": {
+            "title": "Result Id",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "result_id",
+          "claim_text",
+          "created_at"
+        ],
+        "title": "ResearchClaim",
+        "type": "object"
+      },
+      "ResearchDocument": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/ResearchDocumentSummary"
+          },
+          "passages": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchPassage"
+            },
+            "title": "Passages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "title": "ResearchDocument",
+        "type": "object"
+      },
+      "ResearchDocumentSummary": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "publication_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publication Date"
+          },
+          "publisher": {
+            "title": "Publisher",
+            "type": "string"
+          },
+          "redistribution": {
+            "default": "metadata_only",
+            "title": "Redistribution",
+            "type": "string"
+          },
+          "source_quality": {
+            "title": "Source Quality",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "publisher",
+          "source_quality",
+          "language"
+        ],
+        "title": "ResearchDocumentSummary",
+        "type": "object"
+      },
+      "ResearchFilters": {
+        "additionalProperties": false,
+        "properties": {
+          "domains": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "languages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Languages",
+            "type": "array"
+          },
+          "min_source_quality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Source Quality"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "title": "ResearchFilters",
+        "type": "object"
+      },
+      "ResearchPassage": {
+        "properties": {
+          "evidence_id": {
+            "title": "Evidence Id",
+            "type": "string"
+          },
+          "figure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FigureInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locator"
+          },
+          "passage": {
+            "title": "Passage",
+            "type": "string"
+          },
+          "passage_language": {
+            "title": "Passage Language",
+            "type": "string"
+          },
+          "passage_translation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PassageTranslation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "score": {
+            "default": 0.0,
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "passage",
+          "passage_language"
+        ],
+        "title": "ResearchPassage",
+        "type": "object"
+      },
+      "ResearchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/ResearchFilters"
+          },
+          "limit": {
+            "default": 20,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "query": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "response_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Language"
+          },
+          "summary": {
+            "default": false,
+            "title": "Summary",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "ResearchRequest",
+        "type": "object"
+      },
+      "ResearchResponse": {
+        "properties": {
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchClaim"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "detected_language": {
+            "title": "Detected Language",
+            "type": "string"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchDocument"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "gaps_recorded": {
+            "default": false,
+            "title": "Gaps Recorded",
+            "type": "boolean"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "response_language": {
+            "title": "Response Language",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "null"
+          },
+          "took_ms": {
+            "default": 0,
+            "title": "Took Ms",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/WarningInfo"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "query",
+          "detected_language",
+          "response_language"
+        ],
+        "title": "ResearchResponse",
+        "type": "object"
+      },
       "ResultStatus": {
         "enum": [
           "complete",
@@ -3029,6 +3374,47 @@
         "summary": "Openai Models",
         "tags": [
           "openai"
+        ]
+      }
+    },
+    "/v1/search": {
+      "post": {
+        "operationId": "search_v1_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "research"
         ]
       }
     },

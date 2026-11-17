@@ -665,7 +665,7 @@ Warnings are `{"code": string, "statement_id"?: string, "message": string}`. Cod
 `moderation_flagged`, `injection_suspected`, `provider_fallback`,
 `data_flow_restricted`, `budget_low`, `preliminary_result`, `full_result_follows`,
 `duplicate_suspected`, `license_missing`, `low_source_grade`, `parse_warning`,
-`zip_sanitized`, `summary_consistency_failed`, `partial_batch`, `peer_unavailable` (v2).
+`zip_sanitized`, `summary_consistency_failed`, `summary_not_available`, `partial_batch`, `peer_unavailable` (v2).
 
 Unknown warning codes must be ignored by clients.
 

@@ -22,6 +22,7 @@ from app.api.v1.health import router as health_router
 from app.api.v1.instance import router as instance_router
 from app.api.v1.openai import OpenAIAuthError
 from app.api.v1.openai import router as openai_router
+from app.api.v1.research import router as research_router
 from app.api.v1.usage import router as usage_router
 from app.api.web.auth import router as auth_router
 from app.core.config import Settings, get_settings
@@ -147,6 +148,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(claims_router)
     app.include_router(devices_router)
     app.include_router(openai_router)
+    app.include_router(research_router)
     app.include_router(usage_router)
     app.include_router(auth_router)
     app.include_router(internal_llm_router, include_in_schema=False)

@@ -424,3 +424,23 @@ async def test_a_device_token_is_scoped_and_revocable(app: Any, client: httpx.As
     ) as revoked_client:
         denied = await revoked_client.get("/v1/models")
         assert denied.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_research_returns_documents_and_archive_hits(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document_id = await _seed_approved_document(app, None)
+    app.state.lightrag = FakeLightRAG(
+        document_id=document_id,
+        passage="Immigrants commit more crimes, according to the fixture.",
+    )
+    response = await client.post(
+        "/v1/search",
+        json={"query": "immigrants crime statistics", "summary": True},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["documents"][0]["document"]["id"] == document_id
+    assert body["documents"][0]["passages"][0]["passage_language"] == "en"
+    assert any(w["code"] == "summary_not_available" for w in body["warnings"])
