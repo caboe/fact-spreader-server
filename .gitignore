@@ -24,3 +24,6 @@ tests/eval/reference_corpus/
 # OS / editors
 .DS_Store
 .idea/
+
+# Local agent scratch (API keys captured from the CLI)
+.local/

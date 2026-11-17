@@ -6,8 +6,10 @@
 > disagree about a wire shape or endpoint, `PROTOCOL.md` wins. Where this plan and
 > `PURPOSE.md` disagree about behaviour, `PURPOSE.md` wins.
 
-**Status:** proposed. **No application code is written before the human approves this
-plan** (AGENTS.md). Approval also sets the live-model budget in §2.
+**Status:** approved 2026-11-16. **Phase 1 complete 2026-11-17.** The human approved the
+revised specs, this plan, and a live-model budget of **USD 15 total with a hard stop at USD
+20**. Approval also permits the available DeepSeek, OpenRouter and local Ollama credentials
+for the explicit live checks. Phase 1 evidence: [`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md).
 
 ---
 
@@ -51,9 +53,9 @@ make test             # pytest, no network, no real model
 make test-integration # Testcontainers Postgres/Redis; fake LightRAG/provider
 make migrate-check    # alembic upgrade head, downgrade base, upgrade head, check
 make openapi-check    # export OpenAPI, regenerate clients, fail on drift
-make web-check        # svelte-check, vitest, build
 make compose-check    # docker compose config, image pins, no :latest
-make verify           # all of the above
+make verify           # every gate that exists in the current phase
+# make web-check (svelte-check, vitest, build) joins verify in Phase 7.
 ```
 
 Phase-specific additions: `make stack-smoke`, `make e2e`, `make screenshots`,
@@ -76,10 +78,12 @@ The agent reports:
 
 ## 2. Budget and live calls
 
-**Proposed cap: USD 15 total for the whole build, hard stop at USD 20.** The human may set
-a different number; it is recorded here before Phase 1 starts. The agent reports spend per
-phase. Live calls stop when the cap is reached, even if a check is unfinished; the check is
-reported as budget-blocked.
+**Approved cap: USD 15 total for the whole build, hard stop at USD 20** (2026-11-16).
+**Spent through Phase 1: USD 0.1125** (ingestion, smoke runs and one failed verification
+attempt included). The agent reports spend per phase. Live calls stop when the cap is
+reached, even if a check is unfinished; the check is reported as budget-blocked. The available credentials are
+DeepSeek for chat, OpenRouter for vision and local Ollama `bge-m3` for embeddings; they are
+never written to the repository, printed or included in logs or fixtures.
 
 Cost control rules:
 
@@ -176,6 +180,13 @@ dependencies are locked (`uv.lock`, `pnpm-lock.yaml`). New runtime dependencies 
 ---
 
 ## 4. Phase 1 — Vertical slice: one claim through real LightRAG and a real model
+
+**Status: complete (2026-11-17).** `make verify` is green (35 unit, 9 integration, migration
+up/down/up, OpenAPI drift, compose pin checks); the live stack reproduced the canonical
+`true_but_misleading` result with six cited tier-1 sources and a non-downgraded gate, an
+`insufficient_evidence` result for an unsupported claim, and a refused sexual-minors input.
+The minimal SSE endpoint (`state`, `done`) was implemented early; statement/result events
+remain Phase 2. The Phase 1 report is [`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md).
 
 **Goal.** A claim goes through the public API, a worker, stock LightRAG retrieval and a real
 provider, through extraction, verification, audit, gate and deterministic substance, and

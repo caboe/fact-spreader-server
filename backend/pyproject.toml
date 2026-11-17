@@ -1,0 +1,75 @@
+[project]
+name = "fact-spreader-server"
+version = "0.1.0"
+description = "Fact Spreader — fact-check and research service over an approved corpus"
+readme = "../README.md"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+dependencies = [
+    "alembic>=1.14,<2",
+    "argon2-cffi>=23.1,<26",
+    "asyncpg>=0.30,<1",
+    "cryptography>=44,<47",
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "lingua-language-detector>=2.0,<3",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "python-multipart>=0.0.20,<1",
+    "python-ulid>=3.0,<4",
+    "pyyaml>=6.0,<7",
+    "redis>=5.2,<7",
+    "sqlalchemy[asyncio]>=2.0.36,<3",
+    "uvicorn[standard]>=0.32,<1",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.14,<2",
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.25,<2",
+    "pytest-cov>=6,<8",
+    "ruff>=0.8,<1",
+    "testcontainers[postgres,redis]>=4.9,<5",
+    "types-pyyaml>=6.0,<7",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "integration: uses Docker (Testcontainers) or a real service; not run by the unit gate",
+    "live: calls a real model provider; explicit runs only",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:testcontainers",
+    "ignore::DeprecationWarning:testcontainers.*",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
+ignore = ["B008"]  # FastAPI Depends() in defaults is the idiom
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+exclude = ["alembic/versions"]
+
+[[tool.mypy.overrides]]
+module = ["ulid.*", "lingua.*", "testcontainers.*"]
+ignore_missing_imports = true

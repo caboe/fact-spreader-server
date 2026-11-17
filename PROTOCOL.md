@@ -935,6 +935,12 @@ problem type `moderation_unavailable`.
   it is not configurable. For the **check pipeline**, every other category action is
   interpreted as `flag_only`, regardless of the stricter chat policy; this is a hard rule,
   not an operator setting.
+- **Sexual-minors hard floor:** before the configured classifier runs, a narrow
+  deterministic guard detects explicit sexual content involving a minor and blocks it. It
+  is not configurable and does not depend on the backend being available. Its record uses
+  the backend id `hard_floor:sexual_minors`. It is deliberately narrow so that legitimate
+  discussion of child abuse remains checkable; the configured classifier still covers the
+  rest of the category.
 - **Chat policy:** the stricter configured policy applies to the user's own statements.
   `route_abusive` triggers one neutral de-escalation; repeated abuse ends substantive
   engagement for the session. A blocked chat input returns a short refusal, not the

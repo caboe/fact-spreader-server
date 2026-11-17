@@ -23,17 +23,17 @@ Three kinds of request share one API:
 
 ## Status
 
-**Planning — specs revised, `IMPLEMENT.md` awaiting human approval.** The order of work is:
+**Phase 1 complete (2026-11-17). Phase 2 next.** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
-2. ~~Write `IMPLEMENT.md`: phases, each with "Done when" checks tagged `[agent]` or
-   `[human]`. Phase 1 is a vertical slice.~~ Proposed; awaiting approval and the budget.
-3. Implement phase by phase.
+2. ~~Write `IMPLEMENT.md`: phases with "Done when" checks tagged `[agent]` or
+   `[human]`. Phase 1 is a vertical slice.~~ Approved 2026-11-16.
+3. Implement phase by phase. Phase 1 is complete; its live evidence is in
+   `docs/PHASE_1_REPORT.md`. Phase 2 (inputs, SSE, OpenAI surface, rendering) is next.
 
-Do not write application code before the human has approved `IMPLEMENT.md`. On approval,
-start Phase 1. Replace the placeholders in "Setup and verification" below with the real
-commands in the same commit that makes them real.
+The planning gate was satisfied before code was written. At every `[human]` check, stop
+and ask; do not continue on your own.
 
 ## Where the truth lives
 
@@ -43,8 +43,8 @@ commands in the same commit that makes them real.
 | `PURPOSE.md` | Requirements. Code cites it as `PURPOSE §3.1`. |
 | `PROTOCOL.md` | Normative wire formats, endpoints and error shapes. It **wins** over `IMPLEMENT.md` and over code comments. |
 | `PERSONAS.md` | Runtime input, not documentation: parsed for the personas and the Shared Invariants. Editing it changes behaviour. |
-| `IMPLEMENT.md` | Phase plan and "Done when" checks. Proposed until the human approves it. |
-| `DECISIONS.md` | (created in Phase 1) One short entry per non-obvious decision: what, why, alternatives rejected. Decisions, not bug diaries. |
+| `IMPLEMENT.md` | Approved phase plan and "Done when" checks. Phase 1 is complete. |
+| `DECISIONS.md` | One short entry per non-obvious decision: what, why, alternatives rejected. Decisions, not bug diaries. |
 | `methodology/` | Publisher grades, confounder checklists, argument patterns. Content that changes conclusions. |
 | `tests/eval/`, `tests/fixtures/corpus/` | Labelled evaluation sets and the synthetic CI corpus. The carried-over claim set needs repair and re-labelling (IMPLEMENT Phase 9). |
 
@@ -134,9 +134,27 @@ A new runtime dependency or a pinned image bump needs a `DECISIONS.md` entry.
 
 ## Setup and verification
 
-*Not defined yet.* There is nothing to build. The target commands are specified in
-`IMPLEMENT.md` §15; when the scaffold lands, this section lists the exact commands that
-make a green tree, and CI runs exactly those.
+The scaffold exists. The commands below are real and are what Phase 1 was verified with;
+CI must run exactly them. `.env` is required for compose and is never committed.
+
+```bash
+cp .env.example .env      # fill secrets and provider values
+make install              # uv sync --frozen (and pnpm when the web app exists)
+make stack-up             # docker compose up -d --build
+make bootstrap            # instance, admin, providers/models, smoke API key
+make seed-fixtures        # explicitly approve and index the synthetic crime fixtures
+make stack-smoke          # live canonical, no-evidence and moderation-block checks
+make verify               # fmt/lint/typecheck, unit + integration, migrations, OpenAPI, compose
+make test-integration     # Testcontainers Postgres; fake model and retrieval
+make migrate-check        # Alembic up/down/up + drift check on a disposable Postgres
+make openapi-check        # generated docs/openapi.json is current
+make compose-check        # pinned images, no Docker socket, no host network
+```
+
+The Phase 1 live smoke used the approved DeepSeek chat/moderation provider and local
+Ollama `bge-m3` embeddings. OpenRouter is available for Phase 2 vision but was not enabled
+in Phase 1. Regular tests never call a network or a real model; live runs are explicit and
+budgeted.
 
 ## Conventions
 

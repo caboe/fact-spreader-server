@@ -8,25 +8,64 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Planning — specs revised, implementation plan awaiting human approval.** No application
-code has been written yet. The specs below were revised for the v1 scope on 2026-11-16
-using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md) as the decision log; the
-build plan is [`IMPLEMENT.md`](IMPLEMENT.md), whose Phase 1 is a vertical slice through
-stock LightRAG and a real model.
+**Phase 1 complete (2026-11-17). Phase 2 next.** The specs were revised for the v1 scope on
+2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md) as the decision
+log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
+[`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. The Phase 1
+evidence, including live-model spend, is in
+[`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md).
 
-| Path | What | State |
-| --- | --- | --- |
-| [`PURPOSE.md`](PURPOSE.md), [`PROTOCOL.md`](PROTOCOL.md), [`PERSONAS.md`](PERSONAS.md) | Requirements, wire contracts, personas and rendering | Revised for v1 on 2026-11-16 |
-| [`IMPLEMENT.md`](IMPLEMENT.md) | Phases and `[agent]`/`[human]` checks | Proposed; awaiting human approval and the live-model budget |
-| `methodology/` | Publisher grades, confounder checklists, argument patterns | Unchanged copy; valid and referenced by the new specs |
-| [`docs/SOURCE_GRADING.md`](docs/SOURCE_GRADING.md) | Grading criteria for `methodology/publishers.json` | Unchanged copy; path corrected |
-| `tests/eval/` | Hand-labelled claim and moderation sets, reference-corpus manifest | Carried over; `claims.seed.jsonl` currently has duplicate ids and repeated rows and is repaired in Phase 9 |
-| `tests/fixtures/corpus/` | Synthetic CI corpus (19 documents, labelled `FIXTURE — not a real source`) | Unchanged copy with front matter |
+Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
+worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes
+back as a deterministic report with citations. It also proves moderation fail-closed and
+the sexual-minors block.
 
-## Next step
+| Area | Phase 1 state |
+| --- | --- |
+| Check API | text input, async job, `GET` result, minimal SSE (`state`, `done`), idempotency |
+| Pipeline | extraction with spans, retrieval, verification/audit, gate, contradiction/recency, overall verdict |
+| Evidence | approved documents only, provenance, source grades, `contested` model |
+| Moderation | configured classifier, deterministic sexual-minors floor, fail closed |
+| LLM gateway | internal OpenAI-compatible chat/embeddings proxy, aliases, budget, usage, embedding lock |
+| Languages | en/de/fr/es deterministic substance; unsupported input falls back to English |
+| Operations | pinned Postgres+pgvector+AGE, Redis, stock LightRAG v1.5.0, health/readiness |
+| Tests | 35 unit, 9 integration, migration up/down/up, OpenAPI drift, compose checks |
 
-Approve [`IMPLEMENT.md`](IMPLEMENT.md) and set the live-model budget (§2). Phase 1 then
-starts with the repository scaffold and the vertical slice.
+Not yet in Phase 1: file/URL/image input, persona narration and consistency judge, the
+OpenAI-compatible chat surface, research, fast mode/cache, the claim archive endpoints
+beyond usage, the editorial document pipeline, the web UI and Caddy. Those are Phases 2–9
+in [`IMPLEMENT.md`](IMPLEMENT.md).
+
+## Quick start (development)
+
+Requires Docker, Python 3.12 with [`uv`](https://docs.astral.sh/uv/), and a local
+OpenAI-compatible embedding model for this environment (`bge-m3` on host Ollama) or any
+compatible embedding endpoint. Copy `.env.example` to `.env` and fill the secrets and
+provider values; `.env` is gitignored and must never be committed.
+
+```bash
+make install
+make stack-up          # builds Postgres and the backend, starts the pinned stack
+make bootstrap         # creates the instance, admin, providers/models and a smoke API key
+make seed-fixtures     # explicitly approves and indexes the synthetic crime fixtures
+make stack-smoke       # live check of the canonical case, no-evidence case and block case
+make verify            # unit + integration, migrations, OpenAPI drift, compose checks
+```
+
+The stack is bound to loopback: API `http://127.0.0.1:8000`, LightRAG
+`http://127.0.0.1:9621`, Postgres `5432`, Redis `6379`. Caddy/TLS and the web app arrive in
+Phase 9 and Phase 7 respectively.
+
+## Layout
+
+| Path | What |
+| --- | --- |
+| [`PURPOSE.md`](PURPOSE.md), [`PROTOCOL.md`](PROTOCOL.md), [`PERSONAS.md`](PERSONAS.md) | Requirements, normative wire contracts, runtime persona configuration |
+| [`IMPLEMENT.md`](IMPLEMENT.md), [`DECISIONS.md`](DECISIONS.md) | Phase plan and decision log |
+| `backend/` | FastAPI app, worker, Alembic, unit/integration tests |
+| `deploy/` | Pinned Postgres image and static stock-LightRAG configuration |
+| `methodology/` | Publisher grades, confounder checklists, argument patterns |
+| `tests/eval/`, `tests/fixtures/corpus/` | Carried-over evaluation sets and the synthetic CI corpus |
 
 ## Licences
 

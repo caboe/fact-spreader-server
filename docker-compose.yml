@@ -1,0 +1,147 @@
+name: fact-spreader
+
+# Phase 1 stack. Caddy, the static web app and the PWA arrive in Phases 7–9.
+# Everything bindable is bound to loopback only; the internal network carries the rest.
+
+services:
+  postgres:
+    build:
+      context: ./deploy/postgres
+    image: factspreader/postgres-age-pgvector:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-factspreader}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      LIGHTRAG_DB_USER: ${LIGHTRAG_DB_USER:-lightrag}
+      LIGHTRAG_DB_NAME: ${LIGHTRAG_DB_NAME:-lightrag}
+      LIGHTRAG_DB_PASSWORD: ${LIGHTRAG_DB_PASSWORD:?LIGHTRAG_DB_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: factspreader/backend:0.1.0
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-factspreader}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-factspreader}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}
+      REDIS_URL: redis://redis:6379/0
+      LIGHTRAG_BASE_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?LIGHTRAG_API_KEY is required}
+      INTERNAL_LLM_KEY: ${INTERNAL_LLM_KEY:?INTERNAL_LLM_KEY is required}
+      LIGHTRAG_INTERNAL_KEY: ${LIGHTRAG_INTERNAL_KEY:?LIGHTRAG_INTERNAL_KEY is required}
+      INTERNAL_GATEWAY_URL: http://backend:8000/internal/llm/v1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200 else 1)\""]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  lightrag:
+    image: ghcr.io/hkuds/lightrag:v1.5.0
+    restart: unless-stopped
+    env_file:
+      - ./deploy/lightrag/lightrag.env
+    environment:
+      # Secrets and deployment-specific connection details: never baked into the image.
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?LIGHTRAG_API_KEY is required}
+      EMBEDDING_BINDING_API_KEY: ${LIGHTRAG_INTERNAL_KEY:?LIGHTRAG_INTERNAL_KEY is required}
+      EXTRACT_LLM_BINDING_API_KEY: ${LIGHTRAG_INTERNAL_KEY:?LIGHTRAG_INTERNAL_KEY is required}
+      QUERY_LLM_BINDING_API_KEY: ${LIGHTRAG_INTERNAL_KEY:?LIGHTRAG_INTERNAL_KEY is required}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${LIGHTRAG_DB_USER:-lightrag}
+      POSTGRES_PASSWORD: ${LIGHTRAG_DB_PASSWORD:?LIGHTRAG_DB_PASSWORD is required}
+      POSTGRES_DATABASE: ${LIGHTRAG_DB_NAME:-lightrag}
+    volumes:
+      - lightrag-data:/app/data
+    ports:
+      - "127.0.0.1:9621:9621"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9621/health', timeout=3).status == 200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: factspreader/backend:0.1.0
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-factspreader}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-factspreader}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-app}
+      REDIS_URL: redis://redis:6379/0
+      LIGHTRAG_BASE_URL: http://lightrag:9621
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?LIGHTRAG_API_KEY is required}
+      INTERNAL_LLM_KEY: ${INTERNAL_LLM_KEY:?INTERNAL_LLM_KEY is required}
+      INTERNAL_GATEWAY_URL: http://backend:8000/internal/llm/v1
+    depends_on:
+      backend:
+        condition: service_healthy
+      lightrag:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres-data:
+  redis-data:
+  lightrag-data:
