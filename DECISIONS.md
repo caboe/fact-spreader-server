@@ -638,3 +638,18 @@ estimate is billing truth.
 
 **Rejected:** starting the batch and stopping midway on budget, estimating from file size
 alone, a separate batch-usage table, hiding the estimate/actual difference.
+
+## D42 — Batch PDFs parse figures before deciding the file is empty
+
+**What:** in a batch, a PDF's tables and figures are extracted before the empty-text check;
+an image-only or scanned PDF therefore becomes a document with a vision-derived body
+instead of `failed empty_input`. The batch vision estimate was tuned to the measured
+fixture cost (`0.00023` per figure plus `0.0001` per page).
+
+**Why:** the first live batch with an image-only PDF failed because the text layer was
+empty, even though the vision path could read it. Moving the check after asset extraction
+keeps the same rule for genuinely empty files. The estimate coefficient now matches the
+provider's actual per-figure cost closely enough for the 30% planning target.
+
+**Rejected:** accepting empty PDFs as ready without a body, calling vision before the
+budget check, leaving the estimate at a value that overstates cost by more than 70%.

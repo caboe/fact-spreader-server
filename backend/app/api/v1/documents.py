@@ -573,6 +573,19 @@ async def submit_batch(
                 raw_media_type=media,
             )
             continue
+        if metadata.title is None and title:
+            metadata.title = title
+        elif metadata.title is None:
+            metadata.title = filename
+        figures: list[dict[str, Any]] = []
+        if media in {"application/pdf", "application/x-pdf"} or filename.lower().endswith(".pdf"):
+            tables, figures, sections, _pages = await parse_pdf_assets(
+                data,
+                settings=settings,
+                user_id=principal.user_id,
+                request_id=batch.id,
+            )
+            text = "\n\n".join(part for part in [text, tables, *sections] if part.strip())
         if not text.strip():
             await record_failure(
                 session,
@@ -584,20 +597,7 @@ async def submit_batch(
                 raw_media_type=media,
             )
             continue
-        if metadata.title is None and title:
-            metadata.title = title
-        elif metadata.title is None:
-            metadata.title = filename
         decision = request.app.state.language.resolve(text[:4000], metadata.language)
-        figures: list[dict[str, Any]] = []
-        if media in {"application/pdf", "application/x-pdf"} or filename.lower().endswith(".pdf"):
-            tables, figures, sections, _pages = await parse_pdf_assets(
-                data,
-                settings=settings,
-                user_id=principal.user_id,
-                request_id=batch.id,
-            )
-            text = "\n\n".join(part for part in [text, tables, *sections] if part.strip())
         try:
             await create_document(
                 session,

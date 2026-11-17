@@ -293,7 +293,7 @@ def estimate_batch_uploads(uploads: list[tuple[str, bytes, str]], settings: Sett
         except Exception:
             pages = max(1, len(data) // 100_000 + 1)
         images = len(extract_pdf_images(data))
-        estimated += pages * 0.0001 + images * 0.00036
+        estimated += pages * 0.0001 + images * 0.00023
     return round(estimated, 6)
 
 
