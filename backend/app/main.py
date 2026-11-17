@@ -28,6 +28,7 @@ from app.api.v1.research import router as research_router
 from app.api.v1.usage import router as usage_router
 from app.api.v1.users import router as users_router
 from app.api.web.auth import router as auth_router
+from app.api.web.setup import router as setup_router
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError, app_error_handler, problem
 from app.core.logging import RequestContextMiddleware, configure_logging
@@ -157,6 +158,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(research_router)
     app.include_router(usage_router)
     app.include_router(auth_router)
+    app.include_router(setup_router)
     app.include_router(internal_llm_router, include_in_schema=False)
     return app
 

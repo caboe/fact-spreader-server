@@ -41,6 +41,7 @@ from app.services.input_reader import (
     read_file_bytes,
 )
 from app.services.limits import enforce_limits
+from app.services.setup import setup_gate_dependency
 
 router = APIRouter(prefix="/v1", tags=["checks"])
 
@@ -72,6 +73,7 @@ async def create_check(
     request: Request,
     principal: ClaimsSubmit,
     session: Annotated[AsyncSession, Depends(get_session)],
+    _setup: Annotated[None, Depends(setup_gate_dependency)] = None,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> Response:
     content_type = request.headers.get("content-type", "")
@@ -162,7 +164,7 @@ async def create_check(
     await enforce_limits(
         session,
         request.app.state.settings,
-        principal.user_id,
+        principal,
         text_chars=len(body.input.text or "") if body.input.text else None,
         file_bytes=upload_size,
     )

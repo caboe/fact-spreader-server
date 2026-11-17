@@ -11,6 +11,8 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from cryptography.fernet import Fernet, InvalidToken
 
+from app.core.errors import AppError
+
 PASSWORD_HASHER = PasswordHasher()
 API_KEY_PREFIX = "fc_live_"
 DEVICE_TOKEN_PREFIX = "fc_dev_"
@@ -68,3 +70,19 @@ def constant_time_equals(left: str, right: str) -> bool:
 
 def new_csrf_token() -> str:
     return secrets.token_urlsafe(32)
+
+
+def validate_password(password: str, email: str) -> None:
+    """Reject passwords an operator would otherwise leave on a fresh install."""
+    if len(password) < 12:
+        raise AppError(422, "weak_password", "The password needs at least 12 characters.")
+    if not any(character.isalpha() for character in password) or not any(
+        not character.isalpha() for character in password
+    ):
+        raise AppError(422, "weak_password", "The password needs letters and non-letters.")
+    local_part = email.split("@", 1)[0].casefold()
+    lowered = password.casefold()
+    if local_part and local_part in lowered:
+        raise AppError(422, "weak_password", "The password must not contain the email name.")
+    if lowered in {"change-me-now", "changeme", "password", "password1234"}:
+        raise AppError(422, "weak_password", "That password is too common.")

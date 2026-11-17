@@ -1,8 +1,10 @@
 """Retention jobs for context metadata, job events and terminal jobs.
 
 Context text is redacted from old results while the result row and its verdict stay; job
-events and terminal job rows without a result are deleted. Every run writes an audit row
-with counts, including a dry run. Usage events are intentionally left for a later rollup.
+events and terminal job rows without a result are deleted. Usage events older than the
+configured period are aggregated into monthly rollups (bucketed by user, consumer,
+provider and model), then the detail events are purged; the aggregate keeps costs and
+counts, never contents. Every run writes an audit row with counts, including a dry run.
 """
 
 from __future__ import annotations
@@ -10,15 +12,16 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
 from typing import Any, cast
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.ids import new_id, utcnow
-from app.db.models import AuditLog, Job, JobEvent, Result
+from app.db.models import AuditLog, Job, JobEvent, Result, UsageEvent, UsageRollup
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,8 @@ class RetentionReport:
     contexts_redacted: int = 0
     job_events_deleted: int = 0
     jobs_deleted: int = 0
+    usage_events_rolled_up: int = 0
+    usage_events_deleted: int = 0
     dry_run: bool = False
 
     def as_dict(self) -> dict[str, int | bool]:
@@ -35,6 +40,8 @@ class RetentionReport:
             "contexts_redacted": self.contexts_redacted,
             "job_events_deleted": self.job_events_deleted,
             "jobs_deleted": self.jobs_deleted,
+            "usage_events_rolled_up": self.usage_events_rolled_up,
+            "usage_events_deleted": self.usage_events_deleted,
             "dry_run": self.dry_run,
         }
 
@@ -65,12 +72,12 @@ async def run_retention(
         payload = dict(row.input or {})
         if payload.get("context") is None:
             continue
-        payload["context"] = None
-        payload["context_redacted"] = True
-        row.input = payload
         report.contexts_redacted += 1
         if dry_run:
             continue
+        payload["context"] = None
+        payload["context_redacted"] = True
+        row.input = payload
     if rows and not dry_run:
         await session.flush()
 
@@ -89,6 +96,9 @@ async def run_retention(
         Job.state.in_(["done", "failed", "cancelled"]),
         ~exists().where(Result.job_id == Job.id),
     )
+    usage_cutoff = now - timedelta(days=settings.usage_event_retention_days)
+    await _rollup_usage(session, usage_cutoff, report, dry_run=dry_run)
+
     job_ids = (await session.execute(job_query)).scalars().all()
     report.jobs_deleted = len(job_ids)
     if job_ids and not dry_run:
@@ -106,7 +116,83 @@ async def run_retention(
             created_at=now,
         )
     )
-    if not dry_run:
-        await session.commit()
+    # A dry run commits only its audit row: it never assigned redacted payloads above.
+    await session.commit()
     logger.info("retention_run %s", report.as_dict())
     return report
+
+
+async def _rollup_usage(
+    session: AsyncSession,
+    cutoff: Any,
+    report: RetentionReport,
+    *,
+    dry_run: bool,
+) -> None:
+    month = func.date_trunc("month", UsageEvent.created_at).label("month")
+    rows = (
+        await session.execute(
+            select(
+                month,
+                UsageEvent.user_id,
+                UsageEvent.consumer,
+                UsageEvent.provider,
+                UsageEvent.model,
+                func.count(UsageEvent.id),
+                func.coalesce(func.sum(UsageEvent.tokens_in), 0),
+                func.coalesce(func.sum(UsageEvent.tokens_out), 0),
+                func.coalesce(func.sum(UsageEvent.cost_usd), 0),
+            )
+            .where(UsageEvent.created_at < cutoff)
+            .group_by(
+                month,
+                UsageEvent.user_id,
+                UsageEvent.consumer,
+                UsageEvent.provider,
+                UsageEvent.model,
+            )
+        )
+    ).all()
+    report.usage_events_rolled_up = sum(int(row[5]) for row in rows)
+    if dry_run:
+        return
+    for row in rows:
+        month_value = row[0].date() if hasattr(row[0], "date") else row[0]
+        user_key = str(row[1] or "")
+        existing = (
+            await session.execute(
+                select(UsageRollup).where(
+                    UsageRollup.month == month_value,
+                    UsageRollup.user_id == user_key,
+                    UsageRollup.consumer == row[2],
+                    UsageRollup.provider == row[3],
+                    UsageRollup.model == row[4],
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            session.add(
+                UsageRollup(
+                    id=new_id("url"),
+                    month=month_value,
+                    user_id=user_key,
+                    consumer=str(row[2]),
+                    provider=str(row[3]),
+                    model=str(row[4]),
+                    events=int(row[5]),
+                    tokens_in=int(row[6]),
+                    tokens_out=int(row[7]),
+                    cost_usd=Decimal(row[8]),
+                    created_at=utcnow(),
+                )
+            )
+        else:
+            existing.events += int(row[5])
+            existing.tokens_in += int(row[6])
+            existing.tokens_out += int(row[7])
+            existing.cost_usd = Decimal(existing.cost_usd) + Decimal(row[8])
+    result = cast(
+        CursorResult[Any],
+        await session.execute(delete(UsageEvent).where(UsageEvent.created_at < cutoff)),
+    )
+    report.usage_events_deleted = int(result.rowcount or 0)

@@ -2876,6 +2876,406 @@
         "title": "Scope",
         "type": "object"
       },
+      "SetupAdminCreated": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "provisioning_uri": {
+            "title": "Provisioning Uri",
+            "type": "string"
+          },
+          "totp_secret": {
+            "title": "Totp Secret",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "totp_secret",
+          "provisioning_uri"
+        ],
+        "title": "SetupAdminCreated",
+        "type": "object"
+      },
+      "SetupAdminRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 5,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "email",
+          "password",
+          "display_name"
+        ],
+        "title": "SetupAdminRequest",
+        "type": "object"
+      },
+      "SetupCompleted": {
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "instance_id": {
+            "title": "Instance Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "complete",
+          "instance_id"
+        ],
+        "title": "SetupCompleted",
+        "type": "object"
+      },
+      "SetupModelsAssigned": {
+        "properties": {
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "chat_model": {
+            "title": "Chat Model",
+            "type": "string"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "aliases",
+          "chat_model",
+          "embedding_model"
+        ],
+        "title": "SetupModelsAssigned",
+        "type": "object"
+      },
+      "SetupModelsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "chat_model": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Chat Model",
+            "type": "string"
+          },
+          "embedding_dim": {
+            "anyOf": [
+              {
+                "maximum": 8192.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Dim"
+          },
+          "embedding_model": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "multilingual": {
+            "default": true,
+            "title": "Multilingual",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chat_model",
+          "embedding_model"
+        ],
+        "title": "SetupModelsRequest",
+        "type": "object"
+      },
+      "SetupModerationTest": {
+        "properties": {
+          "backend": {
+            "title": "Backend",
+            "type": "string"
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "backend",
+          "flagged"
+        ],
+        "title": "SetupModerationTest",
+        "type": "object"
+      },
+      "SetupOrganizationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "contact": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Budget Usd"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization"
+          },
+          "overview_public": {
+            "default": false,
+            "title": "Overview Public",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SetupOrganizationRequest",
+        "type": "object"
+      },
+      "SetupProviderRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          },
+          "base_url": {
+            "maxLength": 500,
+            "minLength": 8,
+            "title": "Base Url",
+            "type": "string"
+          },
+          "is_local": {
+            "default": false,
+            "title": "Is Local",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "use": {
+            "default": "chat",
+            "enum": [
+              "chat",
+              "embedding"
+            ],
+            "title": "Use",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "base_url"
+        ],
+        "title": "SetupProviderRequest",
+        "type": "object"
+      },
+      "SetupProviderTested": {
+        "properties": {
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "tested_at": {
+            "format": "date-time",
+            "title": "Tested At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "tested_at"
+        ],
+        "title": "SetupProviderTested",
+        "type": "object"
+      },
+      "SetupStatus": {
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "instance": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instance"
+          },
+          "next_step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Step"
+          },
+          "setup_token_required": {
+            "title": "Setup Token Required",
+            "type": "boolean"
+          },
+          "started": {
+            "title": "Started",
+            "type": "boolean"
+          },
+          "steps": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Steps",
+            "type": "object"
+          }
+        },
+        "required": [
+          "started",
+          "complete",
+          "setup_token_required"
+        ],
+        "title": "SetupStatus",
+        "type": "object"
+      },
+      "SetupTotpConfirmed": {
+        "properties": {
+          "recovery_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recovery_codes"
+        ],
+        "title": "SetupTotpConfirmed",
+        "type": "object"
+      },
+      "SetupTotpRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "code"
+        ],
+        "title": "SetupTotpRequest",
+        "type": "object"
+      },
       "SourceQualityBasis": {
         "properties": {
           "declared_grade": {
@@ -3435,6 +3835,11 @@
               }
             ],
             "title": "Text Chars"
+          },
+          "totp_enabled": {
+            "default": false,
+            "title": "Totp Enabled",
+            "type": "boolean"
           }
         },
         "required": [
@@ -3443,6 +3848,22 @@
           "display_name"
         ],
         "title": "UserInfo",
+        "type": "object"
+      },
+      "UserPasswordResetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "UserPasswordResetRequest",
         "type": "object"
       },
       "UserUpdateRequest": {
@@ -3924,6 +4345,274 @@
         "summary": "Me",
         "tags": [
           "web-auth"
+        ]
+      }
+    },
+    "/api/setup/admin": {
+      "post": {
+        "operationId": "create_admin_api_setup_admin_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupAdminRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupAdminCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Admin",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/api/setup/admin/totp": {
+      "post": {
+        "operationId": "confirm_admin_totp_api_setup_admin_totp_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupTotpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupTotpConfirmed"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Admin Totp",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/api/setup/complete": {
+      "post": {
+        "operationId": "complete_api_setup_complete_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupCompleted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Complete",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/api/setup/models": {
+      "post": {
+        "operationId": "models_api_setup_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupModelsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupModelsAssigned"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Models",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/api/setup/moderation-test": {
+      "post": {
+        "operationId": "moderation_test_api_setup_moderation_test_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupModerationTest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Moderation Test",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/api/setup/organization": {
+      "post": {
+        "operationId": "organization_api_setup_organization_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupOrganizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Organization",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/api/setup/provider": {
+      "post": {
+        "operationId": "provider_api_setup_provider_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupProviderTested"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Provider",
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/api/setup/status": {
+      "get": {
+        "operationId": "status_api_setup_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status",
+        "tags": [
+          "setup"
         ]
       }
     },
@@ -5912,6 +6601,52 @@
           }
         },
         "summary": "Update User",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/v1/users/{user_id}/password": {
+      "post": {
+        "description": "Set a new password without email and end every existing session of that user.\n\n``users:manage`` is a privileged permission, so the resetter has TOTP; the target does\nnot need an email address. Old sessions and TOTP recovery codes are invalidated so a\ncompromised session cannot survive the reset.",
+        "operationId": "reset_password_v1_users__user_id__password_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset Password",
         "tags": [
           "users"
         ]

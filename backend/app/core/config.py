@@ -56,7 +56,9 @@ class Settings(BaseSettings):
     user_text_chars: int = 20_000
     user_max_file_bytes: int = 20_000_000
     user_max_batch_files: int = 100
+    setup_token: SecretStr = SecretStr("")
     context_retention_days: int = 90
+    usage_event_retention_days: int = 90
     job_event_retention_days: int = 30
     job_retention_days: int = 90
 

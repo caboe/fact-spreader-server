@@ -24,14 +24,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.ids import new_id, sha256_text, utcnow
-from app.core.security import SecretBox, hash_password
+from app.core.security import hash_password
 from app.db.models import (
     ApiKey,
     Document,
     DocumentVersion,
     Instance,
-    ModelRecord,
-    Provider,
     Result,
     Setting,
     UsageEvent,
@@ -52,6 +50,7 @@ from app.llm.aliases import (
 )
 from app.retrieval.lightrag import LightRAGClient
 from app.services.auth import all_permissions, create_api_key
+from app.services.providers import upsert_model, upsert_provider
 from app.services.publishers import PublisherMatch, PublisherRegistry
 from app.services.retention import run_retention
 
@@ -67,10 +66,6 @@ DEFAULT_FIXTURES = (
     "crime-stale-figure",
     "crime-german-only",
 )
-
-
-def _box(settings: Settings) -> SecretBox:
-    return SecretBox(settings.secret_material)
 
 
 async def bootstrap(settings: Settings, *, print_api_key: bool) -> int:
@@ -131,25 +126,24 @@ async def bootstrap(settings: Settings, *, print_api_key: bool) -> int:
             if not settings.deepseek_api_key.get_secret_value():
                 print("DEEPSEEK_API_KEY is required for the Phase 1 bootstrap.", file=sys.stderr)
                 return 2
-            box = _box(settings)
-            chat_provider = await _upsert_provider(
+            chat_provider = await upsert_provider(
                 session,
+                settings,
                 name="deepseek",
                 base_url=settings.provider_chat_base_url,
                 api_key=settings.deepseek_api_key.get_secret_value(),
                 is_local=False,
-                box=box,
             )
-            embedding_provider = await _upsert_provider(
+            embedding_provider = await upsert_provider(
                 session,
+                settings,
                 name="ollama-local",
                 base_url=settings.provider_embedding_base_url,
                 api_key=None,
                 is_local=True,
-                box=box,
             )
             for alias in (FS_CHAT, FS_EXTRACT, FS_VERIFY, FS_AUDIT, FS_MODERATION):
-                await _upsert_model(
+                await upsert_model(
                     session,
                     provider=chat_provider,
                     alias=alias,
@@ -162,7 +156,7 @@ async def bootstrap(settings: Settings, *, print_api_key: bool) -> int:
                     input_cost=Decimal(str(settings.llm_input_cost_per_mtok)),
                     output_cost=Decimal(str(settings.llm_output_cost_per_mtok)),
                 )
-            await _upsert_model(
+            await upsert_model(
                 session,
                 provider=embedding_provider,
                 alias=FS_EMBEDDING,
@@ -176,15 +170,15 @@ async def bootstrap(settings: Settings, *, print_api_key: bool) -> int:
                 output_cost=Decimal("0"),
             )
             if settings.vision_enabled and settings.openrouter_api_key.get_secret_value():
-                vision_provider = await _upsert_provider(
+                vision_provider = await upsert_provider(
                     session,
+                    settings,
                     name="openrouter",
                     base_url=settings.provider_vision_base_url,
                     api_key=settings.openrouter_api_key.get_secret_value(),
                     is_local=False,
-                    box=box,
                 )
-                await _upsert_model(
+                await upsert_model(
                     session,
                     provider=vision_provider,
                     alias=FS_VISION,
@@ -232,89 +226,6 @@ async def bootstrap(settings: Settings, *, print_api_key: bool) -> int:
     else:
         print("Bootstrap complete. Admin:", settings.bootstrap_admin_email, file=sys.stderr)
     return 0
-
-
-async def _upsert_provider(
-    session: AsyncSession,
-    *,
-    name: str,
-    base_url: str,
-    api_key: str | None,
-    is_local: bool,
-    box: SecretBox,
-) -> Provider:
-    provider = (
-        await session.execute(select(Provider).where(Provider.name == name))
-    ).scalar_one_or_none()
-    encrypted = box.encrypt(api_key) if api_key else None
-    if provider is None:
-        provider = Provider(
-            id=new_id("prv"),
-            name=name,
-            kind="openai_compatible",
-            base_url=base_url,
-            api_key_enc=encrypted,
-            is_local=is_local,
-            enabled=True,
-            created_at=utcnow(),
-        )
-        session.add(provider)
-        await session.flush()
-    else:
-        provider.base_url = base_url
-        provider.api_key_enc = encrypted or provider.api_key_enc
-        provider.is_local = is_local
-        provider.enabled = True
-    return provider
-
-
-async def _upsert_model(
-    session: AsyncSession,
-    *,
-    provider: Provider,
-    alias: str,
-    model_name: str,
-    capabilities: list[str],
-    context_window: int | None,
-    embedding_dim: int | None,
-    multilingual: bool,
-    is_local: bool,
-    input_cost: Decimal,
-    output_cost: Decimal,
-) -> ModelRecord:
-    model = (
-        await session.execute(select(ModelRecord).where(ModelRecord.gateway_alias == alias))
-    ).scalar_one_or_none()
-    if model is None:
-        model = ModelRecord(
-            id=new_id("mdl"),
-            provider_id=provider.id,
-            gateway_alias=alias,
-            model_name=model_name,
-            capabilities=capabilities,
-            context_window=context_window,
-            embedding_dim=embedding_dim,
-            multilingual=multilingual,
-            is_local=is_local,
-            enabled=True,
-            input_cost_per_mtok=input_cost,
-            output_cost_per_mtok=output_cost,
-            created_at=utcnow(),
-        )
-        session.add(model)
-    else:
-        model.provider_id = provider.id
-        model.model_name = model_name
-        model.capabilities = capabilities
-        model.context_window = context_window
-        model.embedding_dim = embedding_dim
-        model.multilingual = multilingual
-        model.is_local = is_local
-        model.enabled = True
-        model.input_cost_per_mtok = input_cost
-        model.output_cost_per_mtok = output_cost
-    await session.flush()
-    return model
 
 
 def _parse_markdown(path: Path) -> tuple[dict[str, Any], str]:
@@ -611,10 +522,6 @@ def main() -> None:
     raise SystemExit(code)
 
 
-if __name__ == "__main__":
-    main()
-
-
 async def retention_job(settings: Settings, *, dry_run: bool) -> int:
     database = Database(settings)
     try:
@@ -624,3 +531,7 @@ async def retention_job(settings: Settings, *, dry_run: bool) -> int:
             return 0
     finally:
         await database.dispose()
+
+
+if __name__ == "__main__":
+    main()

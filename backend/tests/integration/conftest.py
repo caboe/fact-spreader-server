@@ -48,6 +48,7 @@ async def settings(postgres: str) -> Settings:
         redis_url="redis://127.0.0.1:6399/15",
         app_secret_key=SecretStr("test-app-secret-" + "x" * 32),
         internal_llm_key=SecretStr("test-internal-key"),
+        setup_token=SecretStr("test-setup-token"),
         lightrag_internal_key=SecretStr("test-lightrag-key"),
         deepseek_api_key=SecretStr("test-provider-key"),
         bootstrap_admin_email="admin@test.invalid",

@@ -98,6 +98,10 @@ class ApiKey(Base):
     key_hash: Mapped[str] = mapped_column(String(64), unique=True)
     key_prefix: Mapped[str] = mapped_column(String(24))
     permissions: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    requests_per_day: Mapped[int | None] = mapped_column(Integer)
+    text_chars: Mapped[int | None] = mapped_column(Integer)
+    max_file_bytes: Mapped[int | None] = mapped_column(Integer)
+    max_batch_files: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -371,6 +375,33 @@ class UsageEvent(Base):
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[int] = mapped_column(Integer, default=200)
     data_classes: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class UsageRollup(Base):
+    """Monthly usage aggregates kept after the detail events are purged.
+
+    The rollup has no request id and no content, only counts and costs (hard invariant 16).
+    ``user_id`` is the empty string for system calls so the unique key is enforceable.
+    """
+
+    __tablename__ = "usage_rollups"
+    __table_args__ = (
+        UniqueConstraint(
+            "month", "user_id", "consumer", "provider", "model", name="uq_usage_rollup"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    month: Mapped[date] = mapped_column(Date, index=True)
+    user_id: Mapped[str] = mapped_column(String(64), default="")
+    consumer: Mapped[str] = mapped_column(String(40))
+    provider: Mapped[str] = mapped_column(String(100))
+    model: Mapped[str] = mapped_column(String(200))
+    events: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_in: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_out: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=Decimal("0"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

@@ -380,6 +380,84 @@ class InstanceInfo(ApiModel):
     features: dict[str, bool] = Field(default_factory=dict)
 
 
+class SetupStatus(ApiModel):
+    started: bool
+    complete: bool
+    setup_token_required: bool
+    steps: dict[str, bool] = Field(default_factory=dict)
+    next_step: str | None = None
+    instance: dict[str, Any] | None = None
+
+
+class SetupAdminRequest(RequestModel):
+    token: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=5, max_length=320)
+    password: str = Field(min_length=1, max_length=500)
+    display_name: str = Field(min_length=1, max_length=200)
+
+
+class SetupAdminCreated(ApiModel):
+    user_id: str
+    email: str
+    totp_secret: str
+    provisioning_uri: str
+
+
+class SetupTotpRequest(RequestModel):
+    token: str = Field(min_length=1, max_length=200)
+    code: str = Field(min_length=6, max_length=64)
+
+
+class SetupTotpConfirmed(ApiModel):
+    recovery_codes: list[str]
+
+
+class SetupOrganizationRequest(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    organization: str | None = Field(default=None, max_length=200)
+    contact: str | None = Field(default=None, max_length=200)
+    overview_public: bool = False
+    monthly_budget_usd: float | None = Field(default=None, gt=0, le=1_000_000)
+
+
+class SetupProviderRequest(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    base_url: str = Field(min_length=8, max_length=500)
+    api_key: str | None = Field(default=None, max_length=500)
+    is_local: bool = False
+    use: Literal["chat", "embedding"] = "chat"
+
+
+class SetupProviderTested(ApiModel):
+    provider_id: str
+    models: list[str] = Field(default_factory=list)
+    tested_at: datetime
+
+
+class SetupModelsRequest(RequestModel):
+    chat_model: str = Field(min_length=1, max_length=200)
+    embedding_model: str = Field(min_length=1, max_length=200)
+    embedding_dim: int | None = Field(default=None, ge=1, le=8192)
+    multilingual: bool = True
+
+
+class SetupModelsAssigned(ApiModel):
+    aliases: list[str]
+    chat_model: str
+    embedding_model: str
+
+
+class SetupModerationTest(ApiModel):
+    backend: str
+    flagged: bool
+    categories: list[str] = Field(default_factory=list)
+
+
+class SetupCompleted(ApiModel):
+    complete: bool
+    instance_id: str
+
+
 class UsageMe(ApiModel):
     period: dict[str, str]
     currency: str = "USD"
@@ -744,6 +822,7 @@ class UserInfo(ApiModel):
     max_file_bytes: int | None = None
     max_batch_files: int | None = None
     is_active: bool = True
+    totp_enabled: bool = False
 
 
 class UserCreateRequest(RequestModel):
@@ -752,6 +831,10 @@ class UserCreateRequest(RequestModel):
     password: str = Field(min_length=8, max_length=500)
     roles: list[str] = Field(default_factory=list)
     permissions: list[str] = Field(default_factory=list)
+
+
+class UserPasswordResetRequest(RequestModel):
+    password: str = Field(min_length=1, max_length=500)
 
 
 class UserUpdateRequest(RequestModel):

@@ -31,7 +31,7 @@ SESSION_COOKIE = "fs_session"
 SESSION_HOURS = 12
 TOTP_ISSUER = "Fact Spreader"
 TOTP_REQUIRED_PERMISSIONS = frozenset(
-    {"config:manage", "methodology:manage", "users:manage", "documents:review"}
+    {"config:manage", "methodology:manage", "users:manage", "documents:review", "quality:read"}
 )
 
 
@@ -44,6 +44,8 @@ class Principal:
     permissions: frozenset[str]
     api_key_id: str | None = None
     via: str = "session"
+    totp_enabled: bool = True
+    totp_pending: bool = False
 
     def has(self, permission: str) -> bool:
         return permission in self.permissions
@@ -157,13 +159,19 @@ async def _authenticate_session(request: Request, session: AsyncSession, cookie:
         if not csrf or csrf != token.csrf_token:
             raise AppError(403, "csrf_failed", "The CSRF token is missing or invalid.")
     token.last_seen_at = now
+    permissions = effective_permissions(user)
+    pending = totp_required(permissions) and not user.totp_enabled
+    if pending:
+        permissions = permissions - TOTP_REQUIRED_PERMISSIONS
     return Principal(
         user_id=user.id,
         principal_id=f"usr_{user.id}",
         email=user.email,
         display_name=user.display_name,
-        permissions=effective_permissions(user),
+        permissions=permissions,
         via="session",
+        totp_enabled=user.totp_enabled,
+        totp_pending=pending,
     )
 
 
@@ -173,6 +181,12 @@ def require_permission(permission: str) -> Callable[..., Awaitable[Principal]]:
         session: Annotated[AsyncSession, Depends(get_session)],
     ) -> Principal:
         principal = await authenticate(request, session)
+        if principal.totp_pending and permission in TOTP_REQUIRED_PERMISSIONS:
+            raise AppError(
+                403,
+                "totp_setup_required",
+                "Enable TOTP before using this permission.",
+            )
         if not principal.has(permission):
             raise permission_denied(f"The credential needs {permission}.")
         return principal
@@ -187,23 +201,41 @@ async def current_principal(
     return await authenticate(request, session)
 
 
+API_KEY_LIMIT_FIELDS = ("requests_per_day", "text_chars", "max_file_bytes", "max_batch_files")
+
+
 async def create_api_key(
     session: AsyncSession,
     *,
     user: User,
     name: str,
     permissions: list[str] | None = None,
+    limits: dict[str, int] | None = None,
 ) -> tuple[ApiKey, str]:
+    """Create a key scoped to the owner.
+
+    Permissions are intersected with the owner's effective permissions, so an API key can
+    never carry more rights than its user (hard invariant 9). Limits may only tighten: the
+    enforcement path takes the minimum of key, user and deployment default.
+    """
     plaintext, prefix, digest = new_api_key()
     now = utcnow()
+    allowed = effective_permissions(user)
+    requested = set(permissions) if permissions is not None else allowed
+    limit_values = {
+        field: int(limits[field])
+        for field in API_KEY_LIMIT_FIELDS
+        if limits is not None and limits.get(field) is not None
+    }
     key = ApiKey(
         id=new_id("key"),
         user_id=user.id,
         name=name,
         key_hash=digest,
         key_prefix=prefix,
-        permissions=(permissions if permissions is not None else list(effective_permissions(user))),
+        permissions=sorted(requested & allowed),
         created_at=now,
+        **limit_values,
     )
     session.add(key)
     await session.flush()

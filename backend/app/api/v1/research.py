@@ -13,6 +13,7 @@ from app.llm.client import LLMClient
 from app.services.auth import Principal, require_permission
 from app.services.language import LanguageService
 from app.services.research import ResearchService
+from app.services.setup import setup_gate_dependency
 
 router = APIRouter(prefix="/v1", tags=["research"])
 SearchUse = Annotated[Principal, Depends(require_permission("search:use"))]
@@ -24,6 +25,7 @@ async def search(
     body: ResearchRequest,
     principal: SearchUse,
     session: Annotated[AsyncSession, Depends(get_session)],
+    _setup: Annotated[None, Depends(setup_gate_dependency)] = None,
 ) -> ResearchResponse:
     languages: LanguageService = request.app.state.language
     decision = languages.resolve(body.query, body.response_language)

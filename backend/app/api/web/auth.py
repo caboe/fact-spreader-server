@@ -19,6 +19,7 @@ from app.services.auth import (
     SESSION_COOKIE,
     SESSION_HOURS,
     TOTP_ISSUER,
+    TOTP_REQUIRED_PERMISSIONS,
     Principal,
     authenticate_password,
     create_session,
@@ -60,7 +61,8 @@ async def login(
     user = await authenticate_password(session, body.email, body.password)
     if user is None:
         raise AppError(401, "invalid_credentials", "Email or password is incorrect.")
-    setup_required = totp_required(user.permissions) and not user.totp_enabled
+    effective = effective_permissions(user)
+    setup_required = totp_required(effective) and not user.totp_enabled
     if user.totp_enabled:
         if not body.totp_code:
             raise AppError(403, "totp_required", "A TOTP code is required for this account.")
@@ -77,12 +79,15 @@ async def login(
         ip_hash=hash_ip(client, request.app.state.settings.app_secret_key.get_secret_value()),
     )
     await session.commit()
+    permissions = effective
+    if setup_required:
+        permissions = permissions - TOTP_REQUIRED_PERMISSIONS
     payload = {
         "user": {
             "id": user.id,
             "email": user.email,
             "display_name": user.display_name,
-            "permissions": sorted(effective_permissions(user)),
+            "permissions": sorted(permissions),
         },
         "csrf_token": csrf,
         "totp_setup_required": setup_required,

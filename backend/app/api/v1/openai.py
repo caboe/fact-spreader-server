@@ -36,6 +36,7 @@ from app.services.checks import create_check_job, load_response
 from app.services.fast import run_fast
 from app.services.limits import enforce_limits
 from app.services.personas import PersonaRegistry
+from app.services.setup import setup_gate
 
 router = APIRouter(prefix="/v1", tags=["openai"])
 
@@ -289,6 +290,11 @@ async def chat_completions(
         body = OpenAIChatRequest.model_validate(raw)
     except ValidationError as exc:
         return _error(400, "unsupported_parameter", _validation_message(exc))
+    async with request.app.state.db.session_factory() as setup_session:
+        try:
+            await setup_gate(setup_session)
+        except AppError as exc:
+            return _error(503, exc.code, exc.detail)
     try:
         extension = _parse_factcheck(body.factcheck)
         persona_id, output_format = _resolve_persona(
@@ -357,9 +363,7 @@ async def _create_job(
 ) -> tuple[JobRow, str]:
     session_factory = request.app.state.db.session_factory
     async with session_factory() as session:
-        await enforce_limits(
-            session, request.app.state.settings, principal.user_id, text_chars=len(text)
-        )
+        await enforce_limits(session, request.app.state.settings, principal, text_chars=len(text))
         job, _moderation = await create_check_job(
             session,
             settings=request.app.state.settings,
@@ -397,9 +401,7 @@ async def _fast_check(
     full result can always be version 2.
     """
     async with request.app.state.db.session_factory() as session:
-        await enforce_limits(
-            session, request.app.state.settings, principal.user_id, text_chars=len(text)
-        )
+        await enforce_limits(session, request.app.state.settings, principal, text_chars=len(text))
         job, _moderation = await create_check_job(
             session,
             settings=request.app.state.settings,

@@ -488,13 +488,18 @@ approved, indexed, withdrawn and versioned; approval and withdrawal trigger re-c
 
 ## 8. Phase 5 — Identity, roles, setup, limits and retention
 
-**Status: in progress (2026-11-17).** Done: TOTP enrolment/confirmation through the web
-session, encrypted secrets, one-time hashed recovery codes and TOTP-gated login once
-enabled; privileged accounts without TOTP receive `totp_setup_required`. Retention redacts
-old context, deletes old job events and unreferenced terminal jobs, and writes an audit
-row. Role templates, explicit grants/denials and per-user request/text/file/batch limits
-are enforced, with `/v1/users` administration. Open: first-run wizard, the full
-permission-matrix test and mandatory-TOTP enforcement for privileged roles.
+**Status: complete (2026-11-17).** The first-run wizard (setup token, admin + TOTP,
+organisation, tested provider and models, moderation test, completion gate) ran on a fresh
+volume from `docker compose down -v` to the first successful check in **28.1 s**; checks,
+research and chat answer `503 setup_required` before completion. TOTP is enrolled through
+the web session with one-time hashed recovery codes; a privileged session without TOTP is
+blocked with `totp_setup_required`, while a plain user stays optional. The permission
+matrix covers every protected route in both directions, API keys and device tokens are
+intersected with their owner, and revocations are immediate. Role templates, explicit
+grants/denials, per-user limits and per-key lower limits are enforced before a job exists.
+Retention redacts old context, purges job events and unreferenced terminal jobs, rolls
+usage events into monthly aggregates, and audits every run including a dry run. The report
+is [`docs/PHASE_5_REPORT.md`](docs/PHASE_5_REPORT.md).
 
 **Goal.** The installation can be set up safely by a human, roles and permissions are
 enforced, every user has limits, and personal data follows the retention policy.

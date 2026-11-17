@@ -8,12 +8,17 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.contracts.api import UserCreateRequest, UserInfo, UserUpdateRequest
+from app.contracts.api import (
+    UserCreateRequest,
+    UserInfo,
+    UserPasswordResetRequest,
+    UserUpdateRequest,
+)
 from app.contracts.enums import PERMISSIONS, ROLE_TEMPLATES
 from app.core.errors import AppError
 from app.core.ids import new_id, utcnow
-from app.core.security import hash_password
-from app.db.models import AuditLog, User
+from app.core.security import hash_password, validate_password
+from app.db.models import AuditLog, SessionToken, User
 from app.db.session import get_session
 from app.services.auth import Principal, effective_permissions, require_permission
 
@@ -35,6 +40,7 @@ def _info(user: User) -> UserInfo:
         max_file_bytes=user.max_file_bytes,
         max_batch_files=user.max_batch_files,
         is_active=user.is_active,
+        totp_enabled=user.totp_enabled,
     )
 
 
@@ -85,6 +91,7 @@ async def create_user(
     existing = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if existing is not None:
         raise AppError(409, "email_exists", "A user with this email exists.")
+    validate_password(body.password, email)
     now = utcnow()
     user = User(
         id=new_id("usr"),
@@ -160,3 +167,46 @@ async def update_user(
     )
     await session.commit()
     return _info(user)
+
+
+@router.post("/users/{user_id}/password", status_code=204)
+async def reset_password(
+    user_id: str,
+    body: UserPasswordResetRequest,
+    principal: UsersManage,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    """Set a new password without email and end every existing session of that user.
+
+    ``users:manage`` is a privileged permission, so the resetter has TOTP; the target does
+    not need an email address. Old sessions and TOTP recovery codes are invalidated so a
+    compromised session cannot survive the reset.
+    """
+    user = await session.get(User, user_id)
+    if user is None:
+        raise AppError(404, "not_found", "The user does not exist.")
+    validate_password(body.password, user.email)
+    user.password_hash = hash_password(body.password)
+    user.updated_at = utcnow()
+    sessions = (
+        await session.execute(
+            select(SessionToken).where(
+                SessionToken.user_id == user.id, SessionToken.revoked_at.is_(None)
+            )
+        )
+    ).scalars()
+    for token in sessions:
+        token.revoked_at = utcnow()
+    session.add(
+        AuditLog(
+            id=new_id("aud"),
+            actor_id=principal.user_id,
+            actor_type="user",
+            action="user_password_reset",
+            object_type="user",
+            object_id=user.id,
+            detail={},
+            created_at=utcnow(),
+        )
+    )
+    await session.commit()

@@ -212,7 +212,7 @@ async def submit_document(
     await enforce_limits(
         session,
         settings,
-        principal.user_id,
+        principal,
         text_chars=len(content),
         file_bytes=size or len(content.encode()),
     )
@@ -529,7 +529,7 @@ async def submit_batch(
     await enforce_limits(
         session,
         settings,
-        principal.user_id,
+        principal,
         file_bytes=sum(len(data) for _, data, _ in uploads),
         batch_files=len(uploads) + len(body.urls),
     )

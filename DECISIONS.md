@@ -720,3 +720,56 @@ Checking the daily counter before creating a job means a blocked request spends 
 
 **Rejected:** hard-coding permissions per user only, letting a manager escalate beyond
 their own set, a separate quota table, enforcing limits after moderation/model calls.
+
+## D47 — The setup wizard is token-gated and completes before any check
+
+**What:** a fresh instance exposes `GET /api/setup/status` and a wizard under `/api/setup`.
+Until the first admin exists, `POST /api/setup/admin` and `/admin/totp` require
+`SETUP_TOKEN`; after that every wizard step requires a session with `config:manage`.
+The admin is created together with a pending TOTP secret and confirms a code before the
+wizard proceeds. Provider configuration tests `GET /models` with the stored key and stores
+the key encrypted; the moderation step runs one benign sample through the gateway. Only a
+complete wizard sets `instance.setup_complete`; checks, research and the OpenAI chat layer
+return `503 setup_required` until then. `make bootstrap` remains for CI and reproduces the
+same end state.
+
+**Why:** an unauthenticated "create the first admin" endpoint on a reachable host is a
+takeover. A deployment token is the smallest control that keeps setup human-only without
+adding email. The setup ordering is enforced server-side, not by the future UI.
+
+**Rejected:** trusting the first visitor, relying on a private network, creating an admin
+from environment variables again (that path cannot prove provider and moderation work),
+finishing setup after a check has already run.
+
+## D48 — Session TOTP is enforced where the privileged permission is used
+
+**What:** `require_permission` rejects a session that lacks an enrolled TOTP when the
+route needs `config:manage`, `methodology:manage`, `users:manage`, `documents:review` or
+`quality:read`, with `403 totp_setup_required`. The login response advertises the reduced
+permission set and `totp_setup_required=true`. API keys and device tokens are machine
+credentials and are not asked for a code on every request; their permissions are still
+intersected with the owner's effective set.
+
+**Why:** the policy is about the human account, not each transport. Restricting the
+session instead of refusing login keeps the enrolment page reachable and makes the block
+explicit at the permission boundary. API keys cannot be used to bypass a missing second
+factor because creating one through the browser needs the restricted session anyway.
+
+**Rejected:** blocking privileged logins entirely, requiring TOTP per API call (no shared
+secret), treating API keys as a second factor.
+
+## D49 — Retention rolls usage events into monthly aggregates before purging details
+
+**What:** `usage_event_retention_days` (default 90) controls the detail window. Retention
+groups older events by month, user, consumer, provider and model into `usage_rollups`
+(counts, tokens, cost), then deletes the detail rows; the audit row reports both the
+rolled-up and the deleted event count. Current-month budget checks keep reading the
+unpurged detail rows (the window is longer than a month).
+
+**Why:** cost and quantity history must outlive the request-level events, and hard
+invariant 16 says usage shows quantities, not contents. A rollup gives that without
+keeping per-request detail beyond the stated period. The unique key makes repeated
+retention runs additive instead of duplicating.
+
+**Rejected:** deleting old usage entirely, keeping detail forever, deriving spend only
+from the rollup (the current month needs request-level attribution for budgets).
