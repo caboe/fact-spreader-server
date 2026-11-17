@@ -8,7 +8,7 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phases 1–3 complete; Phase 4 in progress (2026-11-17).** The specs were revised
+**Phases 1–4 complete (2026-11-17).** The specs were revised
 for the v1 scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md)
 as the decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
 [`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. Live
@@ -30,8 +30,9 @@ for contradictions and gaps are available. Batch submission with multiple files,
 reports per-file states, applies CSV/JSON metadata sidecars and supports batch
 approve/reject. HTML and digital-PDF tables become Markdown; PDF figures get vision
 descriptions. Failed batch entries can be retried from stored bytes; batch estimates are checked
-against the remaining budget before parsing and actual usage is reported. Docling
-layout/OCR is still open.
+against the remaining budget before parsing and actual usage is reported. Phase 4 is
+complete; Docling layout/OCR is recorded as a follow-up. The live evidence is in
+[`docs/PHASE_4_REPORT.md`](docs/PHASE_4_REPORT.md).
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes

@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–3 complete; Phase 4 in progress (2026-11-17).** The order of work is:
+**Phases 1–4 complete; Phase 5 not started (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -41,8 +41,9 @@ Three kinds of request share one API:
    in place, as are bounded re-checks on approval/withdrawal and the editor
    contradiction/gap lists, plus batch submission with ZIP sanitisation and per-file
    states, HTML/digital-PDF tables become Markdown, PDF figures get vision descriptions,
-   and batch metadata sidecars apply per file. Docling layout/OCR remains the main open parsing item; batch estimates
-   and the budget block are in place.
+   and batch metadata sidecars apply per file; retries, estimates and the budget block
+   are in place. Phase 4 is complete; Docling layout/OCR is recorded as a follow-up, not a
+   gate, in the phase report.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.
