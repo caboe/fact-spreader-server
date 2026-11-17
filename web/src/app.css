@@ -6,13 +6,17 @@
   --fs-text: #0f172a;
   --fs-muted: #475569;
   --fs-border: #cbd5e1;
-  --fs-accent: #1d4ed8;
+  --fs-accent: #0f6f64;
+  --fs-accent-contrast: #ffffff;
+  --fs-accent-soft: #d7f0ea;
+  --fs-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.07);
+  --fs-shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.05);
   --fs-true: #166534;
   --fs-misleading: #92400e;
   --fs-false: #991b1b;
   --fs-contested: #6b21a8;
   --fs-insufficient: #334155;
-  --fs-radius: 0.75rem;
+  --fs-radius: 0.9rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,7 +26,11 @@
     --fs-text: #e2e8f0;
     --fs-muted: #94a3b8;
     --fs-border: #334155;
-    --fs-accent: #93c5fd;
+    --fs-accent: #5eead4;
+    --fs-accent-contrast: #062522;
+    --fs-accent-soft: #123b36;
+    --fs-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+    --fs-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.28);
     --fs-true: #86efac;
     --fs-misleading: #fcd34d;
     --fs-false: #fca5a5;
@@ -40,10 +48,16 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  line-height: 1.6;
 }
 
 a {
   color: var(--fs-accent);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

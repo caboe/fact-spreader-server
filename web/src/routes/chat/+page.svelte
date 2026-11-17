@@ -126,9 +126,9 @@
   }
   .message {
     background: var(--fs-surface);
-    border: 1px solid var(--fs-border);
     border-radius: var(--fs-radius);
-    padding: 0.75rem 1rem;
+    box-shadow: var(--fs-shadow-soft);
+    padding: 0.9rem 1.1rem;
   }
   .message.user {
     border-left: 4px solid var(--fs-accent);
@@ -163,7 +163,7 @@
     border-radius: 0.5rem;
     border: none;
     background: var(--fs-accent);
-    color: #fff;
+    color: var(--fs-accent-contrast);
     font: inherit;
     font-weight: 600;
     cursor: pointer;

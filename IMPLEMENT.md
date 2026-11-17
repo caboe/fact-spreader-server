@@ -636,8 +636,11 @@ Playwright suite proves archive, chat render, localization, accessibility, a rea
 check through SSE to the report and a Markdown file check, and stores light/dark/360/1440
 screenshots. The image E2E test stopped on `provider_rejected: Insufficient Balance` from
 DeepSeek; the URL test did not run, and no chat send was executed before the balance ran
-out. A human decision on topping up or changing the chat/moderation provider is needed
-before the remaining live E2E and the visual acceptance. The report is
+out. After the human reported a top-up, the provider key still returned
+`402 Insufficient Balance`, so the remaining live E2E is blocked on the account, not the
+code. The first visual review asked for more spacing, a non-default accent and shadows
+instead of borders; that revision is applied and the screenshots are regenerated. The
+report is
 [`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md).
 
 **Goal.** A person can sign in, check text/file/image/URL, read the report, browse the

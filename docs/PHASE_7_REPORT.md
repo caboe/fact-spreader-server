@@ -39,14 +39,29 @@ image in `docs/screenshots/phase-7/` is a Playwright capture of the running app.
   360 px.
 - Language switching was exercised live: the check heading changes through de/fr/es.
 
+## Visual revision after the first review
+
+The first human review asked for spacing/density changes, a brand accent that is not the
+default link blue, and shadows instead of borders. Applied: the accent is now a deep teal
+(`#0f6f64`, dark mode `#5eead4`), cards, evidence, warnings, messages and the checker use
+soft layered shadows instead of borders, the header is shorter and sticky with a shadow,
+section gaps and the reading measure grew, evidence cards got more internal room, and the
+primary button uses an accent-contrast token so the dark-mode mint stays readable. Persona
+options are humanised labels. The screenshots in `docs/screenshots/phase-7/` were
+regenerated with the new tokens (report screenshots use an existing completed job so the
+capture spends no model budget).
+
 ## Blocked: the live provider balance
 
 The image E2E test failed with `provider_rejected: Insufficient Balance` from DeepSeek, and
-the URL test did not run because it is ordered after it. The failure is the provider
-account balance, not the UI or the pipeline: the job was created, reached the worker and
-stopped at the first paid call. DeepSeek balance exhaustion also means no further live
-check can run until the account is topped up or the chat/moderation role is moved to a
-provider the human approves.
+the URL test did not run because it is ordered after it. After the human reported a
+top-up, a direct capability probe and a browser check still returned
+`provider_error:402:Insufficient Balance` (request ids `085c4d94…` and the preceding
+`f64e4609…`), so the account still has no usable credit from this deployment's key. The
+failure is the provider balance, not the UI or the pipeline: the job was created, reached
+the worker and stopped at the first paid call. No further live check can run until the
+account really has credit or the human approves moving chat/moderation to another
+provider.
 
 Consequences for the Phase 7 done-when list:
 
@@ -57,12 +72,13 @@ Consequences for the Phase 7 done-when list:
 
 ## Gaps to close before the human gate can pass
 
-1. Top up the DeepSeek account (or approve another chat/moderation provider), then re-run
-   `make web-e2e`; the image test uses the probed OpenRouter vision model (role `fs-vision`)
-   and the URL test uses `https://example.com/`.
-2. Capture the chat answer (one send) and the regenerated report screenshots after that run.
-3. Human visual acceptance against PURPOSE §3.14 (the Phase 7 `[human]` check). The agent
-   stops here with the screenshot links.
+1. Confirm the DeepSeek key/account that the stack actually uses (the wizard stored the
+   key from `.env`); the current key still answers 402 after the reported top-up. Then re-run
+   `make web-e2e`; the image test uses the probed OpenRouter vision model (role
+   `fs-vision`) and the URL test uses `https://example.com/`.
+2. Capture the chat answer (one send) after that run.
+3. Human visual acceptance of the revised screenshots against PURPOSE §3.14. The agent
+   stops here.
 
 ## Spend
 

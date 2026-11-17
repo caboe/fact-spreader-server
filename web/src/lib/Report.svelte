@@ -156,17 +156,17 @@
 <style>
   .report {
     display: grid;
-    gap: 1.5rem;
-    max-width: 60rem;
+    gap: 2rem;
+    max-width: 64rem;
   }
   .verdict {
     display: flex;
     gap: 1rem;
     align-items: flex-start;
-    border: 2px solid var(--fs-border);
     border-radius: var(--fs-radius);
-    padding: 1rem;
+    padding: 1.25rem 1.35rem;
     background: var(--fs-surface);
+    box-shadow: var(--fs-shadow);
   }
   .mark {
     font-size: 2rem;
@@ -181,22 +181,23 @@
     letter-spacing: 0.08em;
   }
   h2 {
-    margin: 0.1rem 0 0.4rem;
-    font-size: 1.5rem;
+    margin: 0.15rem 0 0.5rem;
+    font-size: 1.65rem;
   }
   .explanation {
     margin: 0;
   }
   .statement {
-    border-top: 1px solid var(--fs-border);
-    padding-top: 1rem;
-    margin-top: 1rem;
+    border-top: 1px solid color-mix(in srgb, var(--fs-border) 55%, transparent);
+    padding-top: 1.25rem;
+    margin-top: 1.25rem;
   }
   .statement-verdict {
     font-weight: 600;
     margin: 0.35rem 0;
   }
   h3 {
+    margin: 0 0 0.9rem;
     font-size: 1.05rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -217,14 +218,14 @@
   }
   .evidence {
     display: grid;
-    gap: 0.75rem;
+    gap: 1rem;
     padding-left: 1.2rem;
   }
   .evidence li {
     background: var(--fs-surface);
-    border: 1px solid var(--fs-border);
     border-radius: var(--fs-radius);
-    padding: 0.75rem;
+    box-shadow: var(--fs-shadow-soft);
+    padding: 1rem 1.15rem;
   }
   .source {
     margin: 0 0 0.35rem;
@@ -237,9 +238,9 @@
   }
   .warnings {
     background: var(--fs-surface);
-    border: 1px solid var(--fs-border);
     border-radius: var(--fs-radius);
-    padding: 0.75rem 1rem;
+    box-shadow: var(--fs-shadow-soft);
+    padding: 0.9rem 1.15rem;
   }
   .narrative-text {
     white-space: pre-wrap;

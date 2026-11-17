@@ -133,9 +133,9 @@
   }
   .claims li {
     background: var(--fs-surface);
-    border: 1px solid var(--fs-border);
     border-radius: var(--fs-radius);
-    padding: 0.85rem 1rem;
+    box-shadow: var(--fs-shadow-soft);
+    padding: 1rem 1.15rem;
   }
   .claims a {
     font-weight: 600;

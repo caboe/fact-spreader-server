@@ -213,9 +213,9 @@
     gap: 1rem;
     max-width: 48rem;
     background: var(--fs-surface);
-    border: 1px solid var(--fs-border);
     border-radius: var(--fs-radius);
-    padding: 1.25rem;
+    box-shadow: var(--fs-shadow);
+    padding: 1.5rem;
   }
   .modes {
     display: flex;
@@ -223,8 +223,9 @@
     flex-wrap: wrap;
   }
   .modes button {
-    border: 1px solid var(--fs-border);
+    border: none;
     background: var(--fs-bg);
+    box-shadow: var(--fs-shadow-soft);
     color: var(--fs-text);
     border-radius: 999px;
     padding: 0.35rem 0.8rem;
@@ -232,9 +233,10 @@
     cursor: pointer;
   }
   .modes button.active {
-    border-color: var(--fs-accent);
+    background: var(--fs-accent-soft);
+    color: var(--fs-accent);
     font-weight: 700;
-    text-decoration: underline;
+    box-shadow: inset 0 0 0 2px var(--fs-accent);
   }
   .field {
     display: grid;
@@ -249,14 +251,21 @@
   textarea,
   input,
   select {
-    padding: 0.6rem 0.7rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--fs-border);
+    padding: 0.65rem 0.8rem;
+    border-radius: 0.6rem;
+    border: 1px solid color-mix(in srgb, var(--fs-border) 60%, transparent);
     background: var(--fs-bg);
     color: var(--fs-text);
     font: inherit;
     width: 100%;
     box-sizing: border-box;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+  textarea:focus,
+  input:focus,
+  select:focus {
+    outline: 2px solid var(--fs-accent);
+    outline-offset: 1px;
   }
   .row {
     display: grid;
@@ -269,7 +278,7 @@
     border-radius: 0.5rem;
     border: none;
     background: var(--fs-accent);
-    color: #fff;
+    color: var(--fs-accent-contrast);
     font: inherit;
     font-weight: 700;
     cursor: pointer;

@@ -59,9 +59,9 @@
     max-width: 26rem;
     margin: 2rem auto;
     background: var(--fs-surface);
-    border: 1px solid var(--fs-border);
     border-radius: var(--fs-radius);
-    padding: 1.5rem;
+    box-shadow: var(--fs-shadow);
+    padding: 1.75rem;
   }
   form {
     display: grid;
@@ -75,7 +75,7 @@
   input {
     padding: 0.55rem 0.7rem;
     border-radius: 0.5rem;
-    border: 1px solid var(--fs-border);
+    border: 1px solid color-mix(in srgb, var(--fs-border) 60%, transparent);
     background: var(--fs-bg);
     color: var(--fs-text);
     font: inherit;
@@ -85,7 +85,7 @@
     border-radius: 0.5rem;
     border: none;
     background: var(--fs-accent);
-    color: #fff;
+    color: var(--fs-accent-contrast);
     font: inherit;
     font-weight: 600;
     cursor: pointer;

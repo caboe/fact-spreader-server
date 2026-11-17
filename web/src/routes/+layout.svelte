@@ -73,9 +73,12 @@
     flex-wrap: wrap;
     gap: 0.75rem 1.5rem;
     align-items: center;
-    padding: 0.75rem 1.25rem;
-    border-bottom: 1px solid var(--fs-border);
+    padding: 0.6rem 1.25rem;
     background: var(--fs-surface);
+    box-shadow: var(--fs-shadow-soft);
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
   .brand {
     font-weight: 700;

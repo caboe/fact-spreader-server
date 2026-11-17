@@ -178,7 +178,10 @@ export async function listPersonas(): Promise<
     .filter((model) => model.factcheck?.persona_id && model.id !== 'factcheck')
     .map((model) => ({
       id: model.id,
-      label: model.factcheck?.persona_id ?? model.id,
+      label: (model.factcheck?.persona_id ?? model.id)
+        .split(/[-_]/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' '),
       output_formats: ['substance', 'persona'],
     }));
 }
