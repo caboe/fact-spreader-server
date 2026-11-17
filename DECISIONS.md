@@ -826,3 +826,62 @@ approval-time value for provenance, while retrieval resolves the effective value
 
 **Rejected:** editing `publishers.json`, storing grades only at approval, adding unknown
 publishers through an override (a silent upgrade path), mutating cached results in place.
+
+## D53 — Persona and methodology overrides live in the database, never in code
+
+**What:** `personas.overrides` and `methodology.overrides` are JSON settings merged over
+the shipped files at backend startup and per worker job. Persona overrides can tune the
+catalog fields, checks and rules or add a local persona; they cannot touch the Shared
+Invariants because the write schema has no such field and the effective registry always
+takes the invariants from `PERSONAS.md`. A persona write runs its canonical example
+through the deterministic checks and needs `override_test=true` to store a failure.
+Methodology overrides may reword an existing pattern or adjust a checklist's staleness and
+known confounders; they may not add patterns, topics or confounders, and every write bumps
+a local version.
+
+**Why:** the files stay reviewable defaults, while an operator can correct tone or a
+stale window without a redeploy. One merge path for backend and worker avoids the stale
+config that a per-process cache would create. Rejecting new taxonomy entries keeps a
+reviewed change in the repository.
+
+**Rejected:** rewriting `PERSONAS.md`/JSON at runtime, per-process caching, allowing new
+patterns through the API, letting a persona write drop the invariants.
+
+## D54 — Re-index addresses LightRAG ids and waits for asynchronous deletion
+
+**What:** the re-index endpoint requires `confirm=true`, moves the embedding lock to the
+currently assigned `fs-embedding` model, and creates a `reindex` job. The job resolves our
+`doc@v` sources to LightRAG's internal document ids, deletes those ids, polls until the
+sources are absent, sets the documents back to `approved` and enqueues one
+`document_index` job each. The job is marked done when the dispatch is complete; the
+index jobs carry the actual indexing progress. Withdrawal uses the same id resolution.
+Document index and re-index jobs now finish as `done` instead of staying `running`.
+
+**Why:** live testing showed that passing a file source to
+`DELETE /documents/delete_document` answers `200` but deletes nothing, which made
+withdrawal a silent no-op and made re-insert fail with `409 already contains`. The delete
+endpoint also returns before the clearing pipeline finishes, so an immediate insert hits
+`409 pipeline is clearing`. Resolving ids and polling closes both races. The lock move
+happens only here, which is the explicit confirmation the embedding immutability rule
+requires.
+
+**Rejected:** patching LightRAG, sleeping a fixed interval, deleting from Postgres and
+hoping the index follows, marking the re-index job done before the dispatch (hidden
+partial state).
+
+## D55 — Zero-cost calls bypass the paid budget; role budgets are checked in the gateway
+
+**What:** a model whose input and output price are both zero is not blocked by the
+monthly budget, so the local `fs-embedding` semantic-cache lookup keeps working when the
+paid budget is exhausted. A `budgets.roles` setting adds a monthly USD ceiling per gateway
+alias; the gateway sums the role's usage events for the month and returns the documented
+`429 budget_exceeded` with `Retry-After`. Per-key daily, text, file and batch limits remain
+the key-level ceiling; a per-key monthly USD ledger is a later hardening item.
+
+**Why:** blocking a free local embedding at the paid ceiling would disable the cache and
+turn a budget stop into a service stop. A role ceiling lets an operator cap expensive
+render/audit calls without touching the user budget. The check sits in the gateway where
+every call already passes, not in each pipeline step.
+
+**Rejected:** pre-blocking the fast path, a per-role table instead of a setting, silently
+dropping the role check when no limit is configured.

@@ -782,7 +782,7 @@ async def test_documents_are_submitted_reviewed_indexed_withdrawn_and_deduplicat
     )
     assert withdrawn.status_code == 200, withdrawn.text
     assert withdrawn.json()["state"] == "withdrawn"
-    assert fake_lightrag.deleted == [f"{document_id}@v1"]
+    assert fake_lightrag.deleted == ["doc-lightrag-0"]
 
 
 @pytest.mark.asyncio

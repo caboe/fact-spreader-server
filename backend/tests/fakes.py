@@ -183,6 +183,33 @@ class FakeLightRAG:
         self.deleted.extend(doc_ids)
         return {"status": "ok"}
 
+    async def document_status(self) -> dict[str, Any]:
+        return {
+            "statuses": {
+                "processed": [
+                    {"id": f"doc-lightrag-{index}", "file_path": entry["file_source"]}
+                    for index, entry in enumerate(self.inserted)
+                ]
+            }
+        }
+
+    async def wait_until_sources_absent(
+        self, file_sources: list[str], *, timeout_seconds: float = 300.0
+    ) -> bool:
+        return True
+
+    async def delete_by_file_source(self, file_sources: list[str]) -> int:
+        wanted = set(file_sources)
+        payload = await self.document_status()
+        ids = [
+            entry["id"]
+            for entry in payload["statuses"]["processed"]
+            if entry["file_path"] in wanted
+        ]
+        if ids:
+            await self.delete_documents(ids)
+        return len(ids)
+
     async def query_data(self, query: str, **kwargs: Any) -> RetrievalResult:
         self.queries.append(query)
         content = (

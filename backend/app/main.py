@@ -37,6 +37,8 @@ from app.db.session import Database
 from app.retrieval.lightrag import LightRAGClient
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
+from app.services.methodology_overrides import effective_methodology_for
+from app.services.persona_overrides import effective_personas
 from app.services.personas import PersonaRegistry
 from app.services.publisher_overrides import effective_publishers
 from app.services.publishers import PublisherRegistry
@@ -60,8 +62,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.publisher_base = PublisherRegistry.from_path(settings.publisher_list_path)
         async with database.session_factory() as session:
             app.state.publishers = await effective_publishers(session, settings.publisher_list_path)
-        app.state.personas = PersonaRegistry.from_path(settings.personas_path)
-        app.state.methodology = Methodology.load(settings.checklist_dir, settings.pattern_list_path)
+        app.state.persona_base = PersonaRegistry.from_path(settings.personas_path)
+        app.state.methodology_base = Methodology.load(
+            settings.checklist_dir, settings.pattern_list_path
+        )
+        async with database.session_factory() as session:
+            app.state.personas = await effective_personas(session, settings.personas_path)
+            app.state.methodology = await effective_methodology_for(
+                session, settings.checklist_dir, settings.pattern_list_path
+            )
         app.state.language = LanguageService(
             settings.supported_languages, settings.default_response_language
         )

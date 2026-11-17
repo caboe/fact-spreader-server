@@ -392,7 +392,9 @@ async def withdraw_document(
     if document.state not in {"approved", "indexing", "indexed"}:
         raise AppError(409, "invalid_state", "Only an approved document can be withdrawn.")
     try:
-        await request.app.state.lightrag.delete_documents([f"{document.id}@v{document.version}"])
+        await request.app.state.lightrag.delete_by_file_source(
+            [f"{document.id}@v{document.version}"]
+        )
     except Exception as exc:
         raise AppError(502, "index_unavailable", "The document could not be removed.") from exc
     document.state = "withdrawn"

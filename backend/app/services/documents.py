@@ -36,6 +36,7 @@ from app.services.checks import create_check_job
 from app.services.image_input import extract_image_text, prepare_image
 from app.services.input_reader import UrlFetchError, read_file_bytes
 from app.services.methodology import Methodology
+from app.services.methodology_overrides import effective_methodology_for
 from app.services.publishers import PublisherRegistry
 
 logger = logging.getLogger(__name__)
@@ -435,7 +436,9 @@ async def run_document_index_job(
     if instance is not None:
         await update_corpus_version(session, instance)
     publishers = PublisherRegistry.from_path(settings.publisher_list_path)
-    methodology = Methodology.load(settings.checklist_dir, settings.pattern_list_path)
+    methodology = await effective_methodology_for(
+        session, settings.checklist_dir, settings.pattern_list_path
+    )
     summary = await enqueue_rechecks_for_document(
         session,
         settings=settings,

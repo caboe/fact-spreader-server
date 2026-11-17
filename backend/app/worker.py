@@ -30,9 +30,10 @@ from app.retrieval.lightrag import LightRAGClient
 from app.services.checks import run_check_job
 from app.services.documents import run_document_index_job
 from app.services.language import LanguageService
-from app.services.methodology import Methodology
-from app.services.personas import PersonaRegistry
+from app.services.methodology_overrides import effective_methodology_for
+from app.services.persona_overrides import effective_personas
 from app.services.publisher_overrides import effective_publishers
+from app.services.reindex import run_reindex_job
 
 logger = logging.getLogger("app.worker")
 
@@ -55,6 +56,15 @@ async def claim_job(session: AsyncSession, worker_id: str) -> JobRow | None:
     job.attempts = int(job.attempts or 0) + 1
     await session.commit()
     return job
+
+
+async def mark_job_done(session: AsyncSession, job_id: str) -> None:
+    row = await session.get(JobRow, job_id)
+    if row is None:
+        return
+    row.state = "done"
+    row.progress = 1.0
+    row.finished_at = utcnow()
 
 
 async def fail_or_retry(
@@ -110,6 +120,14 @@ async def run_once(database: Database, settings: Settings, worker_id: str) -> bo
 
     async with database.session_factory() as session:
         try:
+            if job.kind == "reindex":
+                await run_reindex_job(
+                    session, settings=settings, lightrag=LightRAGClient(settings), job=job
+                )
+                await mark_job_done(session, job.id)
+                await session.commit()
+                logger.info("job_done", extra={"event": "job", "job_id": job.id})
+                return True
             if job.kind == "document_index":
                 await run_document_index_job(
                     session,
@@ -117,6 +135,7 @@ async def run_once(database: Database, settings: Settings, worker_id: str) -> bo
                     lightrag=LightRAGClient(settings),
                     job=job,
                 )
+                await mark_job_done(session, job.id)
                 await session.commit()
                 logger.info("job_done", extra={"event": "job", "job_id": job.id})
                 return True
@@ -124,12 +143,14 @@ async def run_once(database: Database, settings: Settings, worker_id: str) -> bo
                 session,
                 settings=settings,
                 publishers=await effective_publishers(session, settings.publisher_list_path),
-                methodology=Methodology.load(settings.checklist_dir, settings.pattern_list_path),
+                methodology=await effective_methodology_for(
+                    session, settings.checklist_dir, settings.pattern_list_path
+                ),
                 language=LanguageService(
                     settings.supported_languages, settings.default_response_language
                 ),
                 lightrag=LightRAGClient(settings),
-                personas=PersonaRegistry.from_path(settings.personas_path),
+                personas=await effective_personas(session, settings.personas_path),
                 job=job,
                 on_statement=emit_statement,
             )

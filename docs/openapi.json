@@ -398,6 +398,40 @@
         "title": "CheckResponse",
         "type": "object"
       },
+      "ChecklistOverrideRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confounders": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ConfounderOverride"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confounders"
+          },
+          "staleness_days": {
+            "anyOf": [
+              {
+                "maximum": 3650.0,
+                "minimum": 30.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staleness Days"
+          }
+        },
+        "title": "ChecklistOverrideRequest",
+        "type": "object"
+      },
       "CompactReport": {
         "properties": {
           "bottom_line": {
@@ -471,6 +505,58 @@
           "language"
         ],
         "title": "CompactReport",
+        "type": "object"
+      },
+      "ConfounderOverride": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "retrieval_hint": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieval Hint"
+          },
+          "retrieval_hint_de": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieval Hint De"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ConfounderOverride",
         "type": "object"
       },
       "ConsistencyInfo": {
@@ -1986,6 +2072,45 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "MethodologySummary": {
+        "properties": {
+          "checklists": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Checklists",
+            "type": "array"
+          },
+          "overrides": {
+            "additionalProperties": true,
+            "title": "Overrides",
+            "type": "object"
+          },
+          "patterns": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Patterns",
+            "type": "array"
+          },
+          "patterns_version": {
+            "title": "Patterns Version",
+            "type": "string"
+          },
+          "version": {
+            "default": 0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patterns_version"
+        ],
+        "title": "MethodologySummary",
+        "type": "object"
+      },
       "ModelCreate": {
         "additionalProperties": false,
         "properties": {
@@ -2375,6 +2500,344 @@
           "text"
         ],
         "title": "PassageTranslation",
+        "type": "object"
+      },
+      "PatternOverrideRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "definition": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "mechanism": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mechanism"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "PatternOverrideRequest",
+        "type": "object"
+      },
+      "PersonaInfo": {
+        "properties": {
+          "address_mode": {
+            "default": "direct",
+            "title": "Address Mode",
+            "type": "string"
+          },
+          "checks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "custom": {
+            "default": false,
+            "title": "Custom",
+            "type": "boolean"
+          },
+          "didactics": {
+            "default": "answer",
+            "title": "Didactics",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "forbidden": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Forbidden",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "max_words": {
+            "default": 180,
+            "title": "Max Words",
+            "type": "integer"
+          },
+          "moral_framing": {
+            "default": false,
+            "title": "Moral Framing",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "overridden": {
+            "default": false,
+            "title": "Overridden",
+            "type": "boolean"
+          },
+          "rules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "substance_display": {
+            "default": "expanded",
+            "title": "Substance Display",
+            "type": "string"
+          },
+          "test_issues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Test Issues",
+            "type": "array"
+          },
+          "tone": {
+            "default": "",
+            "title": "Tone",
+            "type": "string"
+          },
+          "verdict_in_text": {
+            "default": false,
+            "title": "Verdict In Text",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version"
+        ],
+        "title": "PersonaInfo",
+        "type": "object"
+      },
+      "PersonaWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "address_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "direct",
+                  "impersonal"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Mode"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checks"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "didactics": {
+            "anyOf": [
+              {
+                "enum": [
+                  "answer",
+                  "socratic"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Didactics"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "example_output": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Output"
+          },
+          "forbidden": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forbidden"
+          },
+          "max_words": {
+            "anyOf": [
+              {
+                "maximum": 1000.0,
+                "minimum": 40.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Words"
+          },
+          "moral_framing": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moral Framing"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "override_test": {
+            "default": false,
+            "title": "Override Test",
+            "type": "boolean"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rules"
+          },
+          "substance_display": {
+            "anyOf": [
+              {
+                "enum": [
+                  "expanded",
+                  "compact"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Substance Display"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tone"
+          },
+          "verdict_in_text": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict In Text"
+          }
+        },
+        "title": "PersonaWrite",
         "type": "object"
       },
       "PipelineInfo": {
@@ -3150,6 +3613,104 @@
         "title": "RecheckRequest",
         "type": "object"
       },
+      "ReindexAccepted": {
+        "properties": {
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "embedding_model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Model Id"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "model_changed": {
+            "default": false,
+            "title": "Model Changed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "job_id",
+          "documents"
+        ],
+        "title": "ReindexAccepted",
+        "type": "object"
+      },
+      "ReindexRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "ReindexRequest",
+        "type": "object"
+      },
+      "ReindexStatus": {
+        "properties": {
+          "documents": {
+            "default": 0,
+            "title": "Documents",
+            "type": "integer"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "progress": {
+            "default": 0.0,
+            "title": "Progress",
+            "type": "number"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "state"
+        ],
+        "title": "ReindexStatus",
+        "type": "object"
+      },
       "RejectRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3672,6 +4233,19 @@
           "model_id"
         ],
         "title": "RoleAssignment",
+        "type": "object"
+      },
+      "RoleBudgets": {
+        "properties": {
+          "roles": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Roles",
+            "type": "object"
+          }
+        },
+        "title": "RoleBudgets",
         "type": "object"
       },
       "RoleInfo": {
@@ -5956,6 +6530,66 @@
         ]
       }
     },
+    "/v1/config/budgets": {
+      "get": {
+        "operationId": "get_budgets_v1_config_budgets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleBudgets"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Budgets",
+        "tags": [
+          "config"
+        ]
+      },
+      "put": {
+        "operationId": "set_budgets_v1_config_budgets_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleBudgets"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleBudgets"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Budgets",
+        "tags": [
+          "config"
+        ]
+      }
+    },
     "/v1/config/data-flow": {
       "get": {
         "operationId": "get_data_flow_v1_config_data_flow_get",
@@ -6011,6 +6645,131 @@
           }
         },
         "summary": "Set Data Flow",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/methodology": {
+      "get": {
+        "operationId": "get_methodology_v1_config_methodology_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MethodologySummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Methodology",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/methodology/checklists/{topic}": {
+      "put": {
+        "operationId": "write_methodology_checklist_v1_config_methodology_checklists__topic__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "topic",
+            "required": true,
+            "schema": {
+              "title": "Topic",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChecklistOverrideRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MethodologySummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Methodology Checklist",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/methodology/patterns/{pattern_id}": {
+      "put": {
+        "operationId": "write_methodology_pattern_v1_config_methodology_patterns__pattern_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pattern_id",
+            "required": true,
+            "schema": {
+              "title": "Pattern Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatternOverrideRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MethodologySummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Methodology Pattern",
         "tags": [
           "config"
         ]
@@ -6179,6 +6938,116 @@
           }
         },
         "summary": "Probe Model",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/personas": {
+      "get": {
+        "operationId": "list_personas_v1_config_personas_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PersonaInfo"
+                  },
+                  "title": "Response List Personas V1 Config Personas Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Personas",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/personas/{persona_id}": {
+      "delete": {
+        "operationId": "delete_persona_v1_config_personas__persona_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "persona_id",
+            "required": true,
+            "schema": {
+              "title": "Persona Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Persona",
+        "tags": [
+          "config"
+        ]
+      },
+      "put": {
+        "operationId": "write_persona_v1_config_personas__persona_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "persona_id",
+            "required": true,
+            "schema": {
+              "title": "Persona Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonaWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonaInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Write Persona",
         "tags": [
           "config"
         ]
@@ -6490,6 +7359,89 @@
           }
         },
         "summary": "Resolve Publisher",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/reindex": {
+      "post": {
+        "operationId": "start_reindex_v1_config_reindex_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReindexRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReindexAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Reindex",
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/v1/config/reindex/{job_id}": {
+      "get": {
+        "operationId": "reindex_status_v1_config_reindex__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReindexStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reindex Status",
         "tags": [
           "config"
         ]

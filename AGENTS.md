@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–5 complete (2026-11-17).** The order of work is:
+**Phases 1–6 complete (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -47,7 +47,11 @@ Three kinds of request share one API:
    fresh volume to its first check in 28.1 s, TOTP is mandatory for privileged permissions,
    the permission matrix covers every protected route, API keys and device tokens never
    exceed their owner, and retention rolls usage events into monthly aggregates. Its report
-   is `docs/PHASE_5_REPORT.md`. Next is Phase 6, the model registry and capability tests.
+   is `docs/PHASE_5_REPORT.md`. Phase 6 is complete: provider and model registry with
+   encrypted keys and tested capabilities, one role rule, a data-flow policy with fallback,
+   role budgets, usage summaries/CSV, publisher, persona and methodology overrides, and an
+   explicit re-index job. Its report is `docs/PHASE_6_REPORT.md`. Next is Phase 7, the web
+   UI.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

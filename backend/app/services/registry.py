@@ -485,3 +485,33 @@ async def set_data_flow(session: AsyncSession, policy: DataFlowPolicy) -> DataFl
         row.updated_at = utcnow()
     await session.commit()
     return policy
+
+
+async def get_role_budgets(session: AsyncSession) -> dict[str, float]:
+    row = await session.get(Setting, "budgets.roles")
+    value: dict[str, Any] = {}
+    if row is not None and isinstance(row.value, dict):
+        value = row.value
+    raw = value.get("roles")
+    roles = raw if isinstance(raw, dict) else {}
+    return {str(alias): float(limit) for alias, limit in dict(roles).items() if limit is not None}
+
+
+async def set_role_budgets(session: AsyncSession, roles: dict[str, float]) -> dict[str, float]:
+    clean: dict[str, float] = {}
+    for alias, limit in roles.items():
+        if alias not in ALL_ALIASES:
+            raise AppError(422, "unknown_alias", f"Unknown gateway role {alias!r}.")
+        amount = float(limit)
+        if amount < 0:
+            raise AppError(422, "invalid_budget", "A role budget cannot be negative.")
+        clean[alias] = amount
+    row = await session.get(Setting, "budgets.roles")
+    value = {"roles": clean}
+    if row is None:
+        session.add(Setting(key="budgets.roles", value=value, updated_at=utcnow()))
+    else:
+        row.value = value
+        row.updated_at = utcnow()
+    await session.commit()
+    return clean

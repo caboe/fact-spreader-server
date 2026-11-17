@@ -574,6 +574,10 @@ class DataFlowPolicy(ApiModel):
     fallback_alias: str | None = None
 
 
+class RoleBudgets(ApiModel):
+    roles: dict[str, float] = Field(default_factory=dict)
+
+
 class PublisherOverride(RequestModel):
     key: str = Field(min_length=1, max_length=200)
     grade: Literal["A", "B", "C", "D"] | None = None
@@ -625,6 +629,90 @@ class PublisherImpactEntry(ApiModel):
     result_id: str
     created_at: str
     publishers: list[str] = Field(default_factory=list)
+
+
+class PersonaInfo(ApiModel):
+    id: str
+    name: str
+    version: int
+    enabled: bool = True
+    custom: bool = False
+    overridden: bool = False
+    address_mode: str = "direct"
+    tone: str = ""
+    didactics: str = "answer"
+    moral_framing: bool = False
+    verdict_in_text: bool = False
+    substance_display: str = "expanded"
+    max_words: int = 180
+    rules: list[str] = Field(default_factory=list)
+    forbidden: list[str] = Field(default_factory=list)
+    checks: list[str] = Field(default_factory=list)
+    test_issues: list[str] = Field(default_factory=list)
+
+
+class PersonaWrite(RequestModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    enabled: bool | None = None
+    address_mode: Literal["direct", "impersonal"] | None = None
+    tone: str | None = Field(default=None, max_length=1000)
+    didactics: Literal["answer", "socratic"] | None = None
+    moral_framing: bool | None = None
+    verdict_in_text: bool | None = None
+    substance_display: Literal["expanded", "compact"] | None = None
+    max_words: int | None = Field(default=None, ge=40, le=1000)
+    rules: list[str] | None = None
+    forbidden: list[str] | None = None
+    checks: list[str] | None = None
+    example_output: str | None = Field(default=None, max_length=10_000)
+    override_test: bool = False
+
+
+class MethodologySummary(ApiModel):
+    patterns_version: str
+    version: int = 0
+    checklists: list[dict[str, Any]] = Field(default_factory=list)
+    patterns: list[dict[str, Any]] = Field(default_factory=list)
+    overrides: dict[str, Any] = Field(default_factory=dict)
+
+
+class PatternOverrideRequest(RequestModel):
+    name: str | None = Field(default=None, max_length=200)
+    definition: str | None = Field(default=None, max_length=4000)
+    mechanism: str | None = Field(default=None, max_length=4000)
+
+
+class ConfounderOverride(RequestModel):
+    id: str = Field(min_length=1, max_length=100)
+    label: str | None = Field(default=None, max_length=500)
+    retrieval_hint: str | None = Field(default=None, max_length=500)
+    retrieval_hint_de: str | None = Field(default=None, max_length=500)
+
+
+class ChecklistOverrideRequest(RequestModel):
+    staleness_days: int | None = Field(default=None, ge=30, le=3650)
+    confounders: list[ConfounderOverride] | None = None
+
+
+class ReindexRequest(RequestModel):
+    confirm: bool = False
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class ReindexAccepted(ApiModel):
+    job_id: str
+    documents: int
+    embedding_model_id: str | None = None
+    model_changed: bool = False
+
+
+class ReindexStatus(ApiModel):
+    job_id: str
+    state: str
+    progress: float = 0.0
+    documents: int = 0
+    error: dict[str, Any] | None = None
 
 
 class UsageSummary(ApiModel):

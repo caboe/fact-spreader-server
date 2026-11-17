@@ -113,6 +113,60 @@ class LightRAGClient:
             "DELETE", "/documents/delete_document", json={"doc_ids": doc_ids}
         )
 
+    async def delete_by_file_source(self, file_sources: list[str]) -> int:
+        """Delete stored documents whose ``file_path`` is one of our ``doc@v`` sources.
+
+        LightRAG's delete endpoint addresses its internal document id, not the file
+        source; passing the source silently deletes nothing (it answers 200 with a
+        warning). Resolve the ids first so a withdrawal or re-index really removes the
+        old index entry.
+        """
+        wanted = set(file_sources)
+        if not wanted:
+            return 0
+        payload = await self.document_status()
+        statuses = payload.get("statuses") or {}
+        ids: list[str] = []
+        if isinstance(statuses, dict):
+            for entries in statuses.values():
+                for entry in entries or []:
+                    if isinstance(entry, dict) and (
+                        entry.get("file_path") in wanted or entry.get("id") in wanted
+                    ):
+                        ids.append(str(entry["id"]))
+        if not ids:
+            return 0
+        await self.delete_documents(ids)
+        return len(ids)
+
+    async def wait_until_sources_absent(
+        self, file_sources: list[str], *, timeout_seconds: float = 300.0
+    ) -> bool:
+        """Wait until LightRAG's asynchronous deletion no longer lists our sources.
+
+        The delete endpoint returns before the clearing pipeline has finished; inserting
+        the same file source in that window is rejected with a 409. Polling the document
+        list closes that race without sleeping a fixed time.
+        """
+        wanted = set(file_sources)
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            payload = await self.document_status()
+            statuses = payload.get("statuses") or {}
+            present = False
+            if isinstance(statuses, dict):
+                for entries in statuses.values():
+                    for entry in entries or []:
+                        if isinstance(entry, dict) and entry.get("file_path") in wanted:
+                            present = True
+                            break
+                    if present:
+                        break
+            if not present:
+                return True
+            await asyncio.sleep(0.5)
+        return False
+
     async def query_data(
         self,
         query: str,

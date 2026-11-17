@@ -85,6 +85,48 @@ async def test_a_lower_api_key_limit_fails_while_the_owner_session_still_works(
 
 
 @pytest.mark.asyncio
+async def test_a_lower_key_daily_limit_blocks_the_key_but_not_the_owner_session(
+    app: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user = await _user(app, text_chars=1000, requests_per_day=50)
+    async with app.state.db.session_factory() as session:
+        _row, token = await create_api_key(
+            session, user=user, name="daily-key", limits={"requests_per_day": 1}
+        )
+        await session.commit()
+    monkeypatch.setattr(
+        checks_service, "LLMClient", lambda settings, consumer="pipeline": fakes.FakeLLM()
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        first = await client.post(
+            "/v1/factcheck",
+            json={"input": {"type": "text", "text": CLAIM}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert first.status_code == 202, first.text
+        second = await client.post(
+            "/v1/factcheck",
+            json={"input": {"type": "text", "text": CLAIM}},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert second.status_code == 429
+        assert second.json()["code"] == "rate_limit_exceeded"
+
+        login = await client.post(
+            "/api/auth/login",
+            json={"email": user.email, "password": "limits-password-77"},
+        )
+        assert login.status_code == 200, login.text
+        session_response = await client.post(
+            "/v1/factcheck",
+            json={"input": {"type": "text", "text": CLAIM}},
+            headers={"X-CSRF-Token": login.json()["csrf_token"]},
+        )
+        assert session_response.status_code == 202, session_response.text
+
+
+@pytest.mark.asyncio
 async def test_the_daily_request_limit_is_enforced_before_the_second_job(
     app: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:

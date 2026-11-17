@@ -43,7 +43,7 @@ class _FreeTransport:
 
 @pytest.mark.asyncio
 async def test_exhausted_budget_returns_429_but_zero_cost_embeddings_still_run(
-    app: Any, monkeypatch: pytest.MonkeyPatch
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with app.state.db.session_factory() as session:
         instance = (await session.execute(select(Instance).limit(1))).scalar_one()
@@ -79,6 +79,24 @@ async def test_exhausted_budget_returns_429_but_zero_cost_embeddings_still_run(
         )
         assert free.status_code == 200, free.text
         assert _FreeTransport.calls and _FreeTransport.calls[0].endswith("/embeddings")
+
+        # A role budget blocks only that role: the paid chat role is stopped, the free
+        # embedding role still serves the semantic cache.
+        await client.put("/v1/config/budgets", json={"roles": {"fs-chat": 0}})
+        role_blocked = await internal.post(
+            "/internal/llm/v1/chat/completions",
+            headers=headers,
+            json={"model": "fs-chat", "messages": [{"role": "user", "content": "hello"}]},
+        )
+        assert role_blocked.status_code == 429
+        assert role_blocked.json()["error"]["code"] == "budget_exceeded"
+        still_free = await internal.post(
+            "/internal/llm/v1/embeddings",
+            headers=embedding_headers,
+            json={"model": "fs-embedding", "input": "hello"},
+        )
+        assert still_free.status_code == 200
+        await client.put("/v1/config/budgets", json={"roles": {}})
     async with app.state.db.session_factory() as session:
         instance = (await session.execute(select(Instance).limit(1))).scalar_one()
         instance.monthly_budget_usd = Decimal("15.000000")

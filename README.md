@@ -8,7 +8,7 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phases 1–5 complete (2026-11-17).** The specs were revised
+**Phases 1–6 complete (2026-11-17).** The specs were revised
 for the v1 scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md)
 as the decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
 [`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. Live
@@ -39,8 +39,12 @@ privileged permissions; the permission matrix covers every protected route; API 
 device tokens cannot exceed their owner; per-user and per-key limits are enforced before
 work starts; and retention redacts old context, purges job data and rolls usage events
 into monthly aggregates. Its evidence is in
-[`docs/PHASE_5_REPORT.md`](docs/PHASE_5_REPORT.md). Next is Phase 6, the model registry
-and capability tests.
+[`docs/PHASE_5_REPORT.md`](docs/PHASE_5_REPORT.md). Phase 6 is complete: providers and
+models are managed with encrypted keys and probed capabilities, a single role rule validates
+assignments, the data-flow policy blocks before transport, role budgets and usage summaries
+are in place, publisher/persona/methodology overrides are local and reversible, and a
+confirmed re-index rebuilds from approved documents. Its evidence is in
+[`docs/PHASE_6_REPORT.md`](docs/PHASE_6_REPORT.md). Next is Phase 7, the web UI.
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes

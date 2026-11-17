@@ -144,6 +144,23 @@ async def _budget_error(
     ).scalar_one()
     if Decimal(spent_instance) >= instance.monthly_budget_usd:
         return _budget_response(now)
+    role_row = await session.get(Setting, "budgets.roles")
+    role_budget: float | None = None
+    if role_row is not None and isinstance(role_row.value, dict):
+        roles = role_row.value.get("roles")
+        if isinstance(roles, dict) and roles.get(model.gateway_alias) is not None:
+            role_budget = float(roles[model.gateway_alias])
+    if role_budget is not None:
+        spent_role = (
+            await session.execute(
+                select(func.coalesce(func.sum(UsageEvent.cost_usd), 0)).where(
+                    UsageEvent.created_at >= month_start,
+                    UsageEvent.role == model.gateway_alias,
+                )
+            )
+        ).scalar_one()
+        if Decimal(spent_role) >= Decimal(str(role_budget)):
+            return _budget_response(now)
     if user_id:
         user = await session.get(User, user_id)
         if user is None:

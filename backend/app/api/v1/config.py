@@ -6,7 +6,7 @@ assignment endpoint and the model list use the same rule from ``services.capabil
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,10 +14,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.contracts.api import (
     CapabilityProbeReport,
     CapabilityProbeRequest,
+    ChecklistOverrideRequest,
     DataFlowPolicy,
+    MethodologySummary,
     ModelCreate,
     ModelInfo,
     ModelUpdate,
+    PatternOverrideRequest,
+    PersonaInfo,
+    PersonaWrite,
     ProviderCreate,
     ProviderCreated,
     ProviderInfo,
@@ -30,11 +35,23 @@ from app.contracts.api import (
     PublisherOverridesRequest,
     PublisherResolveRequest,
     PublisherResolveResponse,
+    ReindexAccepted,
+    ReindexRequest,
+    ReindexStatus,
     RoleAssignment,
+    RoleBudgets,
     RoleInfo,
 )
+from app.core.errors import AppError
+from app.db.models import Job as JobRow
 from app.db.session import get_session
-from app.services import publisher_overrides, registry
+from app.services import (
+    methodology_overrides,
+    persona_overrides,
+    publisher_overrides,
+    registry,
+    reindex,
+)
 from app.services.auth import Principal, require_permission
 
 router = APIRouter(prefix="/v1/config", tags=["config"])
@@ -221,3 +238,202 @@ async def publisher_impact(
     overrides = await publisher_overrides.load_overrides(session)
     affected = await publisher_overrides.affected_cache_entries(session, base, overrides)
     return [PublisherImpactEntry(**entry) for entry in affected]
+
+
+def _persona_info(persona: Any, base: Any, overrides: dict[str, Any]) -> PersonaInfo:
+    stored = overrides.get(persona.id) or {}
+    return PersonaInfo(
+        id=persona.id,
+        name=persona.name,
+        version=persona.version,
+        enabled=persona.enabled,
+        custom=base.get(persona.id) is None,
+        overridden=persona.id in overrides,
+        address_mode=persona.address_mode,
+        tone=persona.tone,
+        didactics=persona.didactics,
+        moral_framing=persona.moral_framing,
+        verdict_in_text=persona.verdict_in_text,
+        substance_display=persona.substance_display,
+        max_words=persona.max_words,
+        rules=list(persona.rules),
+        forbidden=list(persona.forbidden),
+        checks=list(persona.checks),
+        test_issues=[str(item) for item in stored.get("test_issues") or []],
+    )
+
+
+@router.get("/personas", response_model=list[PersonaInfo])
+async def list_personas(
+    request: Request, principal: ConfigManage, session: SessionDep
+) -> list[PersonaInfo]:
+    base = request.app.state.persona_base
+    overrides = await persona_overrides.load_overrides(session)
+    effective = persona_overrides.effective_registry(base, overrides)
+    return [_persona_info(persona, base, overrides) for persona in effective.personas.values()]
+
+
+@router.put("/personas/{persona_id}", response_model=PersonaInfo)
+async def write_persona(
+    persona_id: str,
+    body: PersonaWrite,
+    request: Request,
+    principal: ConfigManage,
+    session: SessionDep,
+) -> PersonaInfo:
+    base = request.app.state.persona_base
+    fields = body.model_dump(exclude_none=True, exclude={"override_test"})
+    await persona_overrides.write_persona(
+        session,
+        base,
+        persona_id,
+        fields,
+        override_test=body.override_test,
+        actor_id=principal.user_id,
+    )
+    overrides = await persona_overrides.load_overrides(session)
+    request.app.state.personas = persona_overrides.effective_registry(base, overrides)
+    return _persona_info(
+        persona_overrides.build_persona(base, persona_id, overrides), base, overrides
+    )
+
+
+@router.delete("/personas/{persona_id}", status_code=204)
+async def delete_persona(
+    persona_id: str,
+    request: Request,
+    principal: ConfigManage,
+    session: SessionDep,
+) -> None:
+    base = request.app.state.persona_base
+    await persona_overrides.delete_persona(session, base, persona_id)
+    overrides = await persona_overrides.load_overrides(session)
+    request.app.state.personas = persona_overrides.effective_registry(base, overrides)
+
+
+@router.get("/methodology", response_model=MethodologySummary)
+async def get_methodology(
+    request: Request, principal: ConfigManage, session: SessionDep
+) -> MethodologySummary:
+    base = request.app.state.methodology_base
+    overrides = await methodology_overrides.load_overrides(session)
+    effective = methodology_overrides.effective_methodology(base, overrides)
+    return MethodologySummary(
+        patterns_version=effective.patterns_version,
+        version=int(overrides.get("version", 0)),
+        checklists=[
+            {
+                "topic": checklist.topic,
+                "name": checklist.name,
+                "version": checklist.version,
+                "staleness_days": checklist.staleness_days,
+                "confounders": [
+                    {
+                        "id": confounder.id,
+                        "label": confounder.label,
+                        "retrieval_hint": confounder.retrieval_hint,
+                    }
+                    for confounder in checklist.confounders
+                ],
+            }
+            for checklist in effective.checklists.values()
+        ],
+        patterns=[{"id": pattern_id, **value} for pattern_id, value in effective.patterns.items()],
+        overrides=overrides,
+    )
+
+
+@router.put("/methodology/patterns/{pattern_id}", response_model=MethodologySummary)
+async def write_methodology_pattern(
+    pattern_id: str,
+    body: PatternOverrideRequest,
+    request: Request,
+    principal: ConfigManage,
+    session: SessionDep,
+) -> MethodologySummary:
+    base = request.app.state.methodology_base
+    await methodology_overrides.write_pattern(
+        session,
+        base,
+        pattern_id,
+        body.model_dump(exclude_none=True),
+        actor_id=principal.user_id,
+    )
+    request.app.state.methodology = await methodology_overrides.effective_methodology_for(
+        session,
+        request.app.state.settings.checklist_dir,
+        request.app.state.settings.pattern_list_path,
+    )
+    return await get_methodology(request, principal, session)
+
+
+@router.put("/methodology/checklists/{topic}", response_model=MethodologySummary)
+async def write_methodology_checklist(
+    topic: str,
+    body: ChecklistOverrideRequest,
+    request: Request,
+    principal: ConfigManage,
+    session: SessionDep,
+) -> MethodologySummary:
+    base = request.app.state.methodology_base
+    fields: dict[str, Any] = {}
+    if body.staleness_days is not None:
+        fields["staleness_days"] = body.staleness_days
+    if body.confounders is not None:
+        fields["confounders"] = [item.model_dump(exclude_none=True) for item in body.confounders]
+    await methodology_overrides.write_checklist(
+        session, base, topic, fields, actor_id=principal.user_id
+    )
+    request.app.state.methodology = await methodology_overrides.effective_methodology_for(
+        session,
+        request.app.state.settings.checklist_dir,
+        request.app.state.settings.pattern_list_path,
+    )
+    return await get_methodology(request, principal, session)
+
+
+@router.post("/reindex", status_code=202, response_model=ReindexAccepted)
+async def start_reindex(
+    body: ReindexRequest,
+    request: Request,
+    principal: ConfigManage,
+    session: SessionDep,
+) -> ReindexAccepted:
+    job, documents, model_id, changed = await reindex.create_reindex_job(
+        session,
+        request.app.state.settings,
+        user_id=principal.user_id,
+        reason=body.reason,
+        confirm=body.confirm,
+    )
+    return ReindexAccepted(
+        job_id=job.id, documents=documents, embedding_model_id=model_id, model_changed=changed
+    )
+
+
+@router.get("/reindex/{job_id}", response_model=ReindexStatus)
+async def reindex_status(
+    job_id: str, principal: ConfigManage, session: SessionDep
+) -> ReindexStatus:
+    job = await session.get(JobRow, job_id)
+    if job is None or job.kind != "reindex":
+        raise AppError(404, "not_found", "The re-index job does not exist.")
+    return ReindexStatus(
+        job_id=job.id,
+        state=job.state,
+        progress=job.progress,
+        documents=len((job.payload or {}).get("document_ids") or []),
+        error=job.error,
+    )
+
+
+@router.get("/budgets", response_model=RoleBudgets)
+async def get_budgets(principal: ConfigManage, session: SessionDep) -> RoleBudgets:
+    return RoleBudgets(roles=await registry.get_role_budgets(session))
+
+
+@router.put("/budgets", response_model=RoleBudgets)
+async def set_budgets(
+    body: RoleBudgets, principal: ConfigManage, session: SessionDep
+) -> RoleBudgets:
+    return RoleBudgets(roles=await registry.set_role_budgets(session, body.roles))
