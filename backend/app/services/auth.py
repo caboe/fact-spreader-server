@@ -23,7 +23,7 @@ from app.core.security import (
     new_csrf_token,
     verify_password,
 )
-from app.db.models import ApiKey, SessionToken, User
+from app.db.models import ApiKey, DeviceToken, SessionToken, User
 from app.db.session import get_session
 
 SESSION_COOKIE = "fs_session"
@@ -66,7 +66,7 @@ async def authenticate(request: Request, session: AsyncSession) -> Principal:
 
 async def _authenticate_token(session: AsyncSession, token: str) -> Principal:
     if token.startswith("fc_dev_"):
-        raise AppError(403, "device_token_not_supported", "Device tokens arrive in Phase 5.")
+        return await _authenticate_device(session, token)
     if not token.startswith("fc_live_"):
         raise _authentication_error("Unknown credential type.")
     row = (
@@ -94,6 +94,32 @@ async def _authenticate_token(session: AsyncSession, token: str) -> Principal:
         permissions=permissions,
         api_key_id=key.id,
         via="api_key",
+    )
+
+
+async def _authenticate_device(session: AsyncSession, token: str) -> Principal:
+    row = (
+        await session.execute(
+            select(DeviceToken, User)
+            .join(User, User.id == DeviceToken.user_id)
+            .where(DeviceToken.token_hash == hash_token(token))
+        )
+    ).first()
+    if row is None:
+        raise _authentication_error("The device token is invalid.")
+    device, user = row
+    now = utcnow()
+    if device.revoked_at is not None or not user.is_active:
+        raise _authentication_error("The device token is revoked or the user is inactive.")
+    permissions = frozenset(device.permissions) & frozenset(user.permissions)
+    device.last_seen_at = now
+    return Principal(
+        user_id=user.id,
+        principal_id=f"dev_{device.id}",
+        email=user.email,
+        display_name=user.display_name,
+        permissions=permissions,
+        via="device",
     )
 
 

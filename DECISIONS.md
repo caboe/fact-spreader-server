@@ -300,3 +300,19 @@ sanitization and dimension cap.
 **Rejected:** passing original bytes with EXIF to the provider, checking authenticity
 (explicitly out of v1), using the chat model for images (no tested vision capability),
 storing the image bytes in the job payload or corpus.
+
+
+## D22 — Device tokens and feedback are first-class rows, not API-key aliases
+
+**What:** the extension receives a `fc_dev_` token with an explicit permission subset
+(default `claims:submit`), stored hashed and revocable; the effective permissions are the
+intersection with its owner's. Feedback is one row per user and result, upserted, with
+counts and the caller's own value in the claim detail.
+
+**Why:** a device token must not be a long-lived full API key, and revocation must be
+immediate. Feedback is content-adjacent and belongs to its author; a unique row prevents
+double counting while allowing a user to change their assessment.
+
+**Rejected:** reusing API keys for the extension (too broad), storing device tokens in
+plaintext (hard invariant 15), a feedback table per kind (three columns and no single
+upsert), anonymous feedback (no author to scope or delete).

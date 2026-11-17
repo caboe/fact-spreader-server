@@ -289,9 +289,9 @@ checks plus the consistency judge, one re-render and template fallback, output m
 `GET /v1/models`, `POST /v1/chat/completions` with checked streaming, SSRF-guarded URL
 input (HTML/PDF readers), multipart file input (PDF/DOCX/HTML/Markdown/text), image input
 through the vision path, a read-only claim archive and durable statement-level SSE with
-`Last-Event-ID` replay and queued cancellation; 55 unit and 20 integration tests are green.
-Open: conversation history, translated evidence, archive feedback, a device-token handoff
-and the remaining multilingual checks.
+`Last-Event-ID` replay and queued cancellation, revocable device tokens and archive
+feedback; 55 unit and 21 integration tests are green. Open: conversation history,
+translated evidence and the remaining multilingual checks.
 
 **Goal.** The check works for text, files, URLs and images, streams partial results, and is
 usable by the extension through the OpenAI-compatible endpoint with a checked persona

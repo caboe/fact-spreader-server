@@ -12,9 +12,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.contracts.api import ArchiveEntry, CheckResponse
+from app.contracts.api import ArchiveEntry, CheckResponse, FeedbackRequest
 from app.core.errors import AppError
-from app.db.models import Result
+from app.core.ids import new_id, utcnow
+from app.db.models import Feedback, Result
 from app.db.session import get_session
 from app.services.auth import Principal, current_principal
 from app.services.checks import load_response
@@ -113,6 +114,18 @@ async def get_claim(
     response: CheckResponse | None = await load_response(session, result_id)
     if response is None:
         raise AppError(404, "not_found", "The claim does not exist.")
+    feedback_rows = (
+        (await session.execute(select(Feedback).where(Feedback.result_id == result_id)))
+        .scalars()
+        .all()
+    )
+    counts = {"helpful": 0, "unhelpful": 0, "incorrect": 0}
+    my_feedback = None
+    for feedback in feedback_rows:
+        if feedback.kind in counts:
+            counts[feedback.kind] += 1
+        if feedback.user_id == principal.user_id:
+            my_feedback = feedback.kind
     submitted_by = None
     if row.user_id and (row.user_id == principal.user_id or principal.has("quality:read")):
         submitted_by = row.user_id
@@ -127,6 +140,41 @@ async def get_claim(
                 "current": True,
             }
         ],
-        "feedback": {"helpful": 0, "unhelpful": 0, "incorrect": 0, "my_feedback": None},
+        "feedback": {**counts, "my_feedback": my_feedback},
         "submitted_by": submitted_by,
     }
+
+
+@router.post("/{result_id}/feedback", status_code=204)
+async def submit_feedback(
+    result_id: str,
+    body: FeedbackRequest,
+    principal: CurrentPrincipal,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    result = await session.get(Result, result_id)
+    if result is None or result.deleted:
+        raise AppError(404, "not_found", "The claim does not exist.")
+    existing = (
+        await session.execute(
+            select(Feedback).where(
+                Feedback.result_id == result_id, Feedback.user_id == principal.user_id
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        session.add(
+            Feedback(
+                id=new_id("fbk"),
+                result_id=result_id,
+                user_id=principal.user_id,
+                kind=body.kind,
+                comment=body.comment,
+                created_at=utcnow(),
+            )
+        )
+    else:
+        existing.kind = body.kind
+        existing.comment = body.comment
+        existing.created_at = utcnow()
+    await session.commit()

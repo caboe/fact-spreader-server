@@ -414,3 +414,27 @@ class ArchiveEntry(ApiModel):
     preliminary: bool = False
     has_contradiction: bool = False
     submitted_by: str | None = None
+
+
+class DeviceInfo(ApiModel):
+    id: str
+    name: str
+    permissions: list[str] = Field(default_factory=list)
+    created_at: datetime
+    last_seen_at: datetime | None = None
+    revoked_at: datetime | None = None
+
+
+class DeviceCreated(ApiModel):
+    device: DeviceInfo
+    token: str
+
+
+class DeviceCreate(RequestModel):
+    name: str = Field(min_length=1, max_length=200)
+    permissions: list[str] = Field(default_factory=lambda: ["claims:submit"])
+
+
+class FeedbackRequest(RequestModel):
+    kind: Literal["helpful", "unhelpful", "incorrect"]
+    comment: str | None = Field(default=None, max_length=500)

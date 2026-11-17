@@ -220,6 +220,14 @@ async def test_worker_persists_the_job_state_and_the_result(
     assert detail.status_code == 200
     assert detail.json()["result"]["result"]["overall_verdict"] == "true_but_misleading"
     assert detail.json()["submitted_by"] is not None
+    feedback = await client.post(
+        f"/v1/claims/{result['id']}/feedback",
+        json={"kind": "helpful", "comment": "Useful context."},
+    )
+    assert feedback.status_code == 204
+    after_feedback = await client.get(f"/v1/claims/{result['id']}")
+    assert after_feedback.json()["feedback"]["helpful"] == 1
+    assert after_feedback.json()["feedback"]["my_feedback"] == "helpful"
 
     async with app.state.db.session_factory() as event_session:
         statement = result["statements"][0]
@@ -389,3 +397,30 @@ async def test_image_upload_uses_the_vision_extraction(
         assert job.payload["source_image"] is True
         assert "Image text:" in job.payload["text"]
         assert "Immigrants commit more crimes." in job.payload["text"]
+
+
+@pytest.mark.asyncio
+async def test_a_device_token_is_scoped_and_revocable(app: Any, client: httpx.AsyncClient) -> None:
+    created = await client.post("/v1/devices", json={"name": "Firefox on macOS"})
+    assert created.status_code == 201
+    payload = created.json()
+    token = payload["token"]
+    assert token.startswith("fc_dev_")
+    assert payload["device"]["permissions"] == ["claims:submit"]
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as device_client:
+        models = await device_client.get("/v1/models")
+        assert models.status_code == 200
+    revoked = await client.delete(f"/v1/devices/{payload['device']['id']}")
+    assert revoked.status_code == 204
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {token}"},
+    ) as revoked_client:
+        denied = await revoked_client.get("/v1/models")
+        assert denied.status_code == 401
