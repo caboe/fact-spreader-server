@@ -12,7 +12,12 @@ from starlette.datastructures import UploadFile
 
 from app.contracts.api import (
     ApprovalRequest,
+    BatchActionRequest,
+    BatchRejectRequest,
+    BatchResponse,
+    BatchSubmitRequest,
     DocumentInfo,
+    DocumentMetadata,
     DocumentSubmitRequest,
     DocumentSubmitResponse,
     FigureUpdateRequest,
@@ -23,11 +28,18 @@ from app.contracts.api import (
 )
 from app.core.errors import AppError
 from app.core.ids import new_id, normalize_text, utcnow
-from app.db.models import AuditLog, Document, DocumentVersion, Instance
+from app.db.models import AuditLog, Document, DocumentBatch, DocumentVersion, Instance
 from app.db.models import Job as JobRow
 from app.db.session import get_session
 from app.llm.client import LLMClient, LLMError
 from app.services.auth import Principal, require_permission
+from app.services.batches import (
+    batch_to_api,
+    create_batch,
+    finalise_batch,
+    record_failure,
+    sanitise_zip,
+)
 from app.services.documents import (
     _record_recheck_summary,
     create_document,
@@ -435,3 +447,262 @@ async def review_queue(
         counts=counts,
         summary={"total": sum(counts.values()), "returned": len(data)},
     )
+
+
+@router.post("/documents/batches", status_code=202, response_model=BatchResponse)
+async def submit_batch(
+    request: Request,
+    principal: Submit,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BatchResponse:
+    content_type = request.headers.get("content-type", "")
+    if not content_type.startswith("multipart/form-data"):
+        raise AppError(422, "invalid_input", "A batch upload must be multipart.")
+    form = await request.form()
+    payload_part = form.get("payload")
+    payload_raw = payload_part if isinstance(payload_part, str) else "{}"
+    try:
+        body = BatchSubmitRequest.model_validate_json(payload_raw)
+    except ValueError as exc:
+        raise AppError(422, "validation_error", "The batch payload is invalid.") from exc
+    settings = request.app.state.settings
+
+    uploads: list[tuple[str, bytes, str]] = []
+    for key, value in form.multi_items():
+        if key in {"files", "file"} and isinstance(value, UploadFile):
+            data = await value.read()
+            await value.close()
+            uploads.append(
+                (value.filename or "upload", data, value.content_type or "application/octet-stream")
+            )
+    zip_warnings: list[str] = []
+    archive = form.get("archive")
+    if isinstance(archive, UploadFile):
+        zip_data = await archive.read()
+        await archive.close()
+        zipped, zip_warnings = sanitise_zip(zip_data, settings)
+        uploads.extend(zipped)
+    if len(uploads) + len(body.urls) > 100:
+        raise AppError(413, "payload_too_large", "A batch accepts at most 100 files.")
+    total = sum(len(data) for _, data, _ in uploads)
+    if total > 200_000_000:
+        raise AppError(413, "payload_too_large", "The batch exceeds the total size limit.")
+
+    batch = await create_batch(session, user_id=principal.user_id)
+    instance = (await session.execute(select(Instance).limit(1))).scalar_one()
+    for filename, data, media in uploads:
+        override = body.overrides.get(filename)
+        metadata = body.metadata
+        if override is not None:
+            merged = body.metadata.model_dump()
+            merged.update(override.model_dump(exclude_unset=True, exclude_none=True))
+            metadata = DocumentMetadata.model_validate(merged)
+        if len(data) > settings.upload_max_bytes:
+            await record_failure(
+                session,
+                batch=batch,
+                filename=filename,
+                reason="payload_too_large",
+                user_id=principal.user_id,
+            )
+            continue
+        if media.startswith("image/"):
+            await record_failure(
+                session,
+                batch=batch,
+                filename=filename,
+                reason="image documents are not supported in a batch yet",
+                user_id=principal.user_id,
+            )
+            continue
+        try:
+            text, title = read_file_bytes(
+                filename=filename, content_type=media, data=data, settings=settings
+            )
+        except (UrlFetchError, ValueError) as exc:
+            await record_failure(
+                session,
+                batch=batch,
+                filename=filename,
+                reason=str(exc),
+                user_id=principal.user_id,
+            )
+            continue
+        if not text.strip():
+            await record_failure(
+                session,
+                batch=batch,
+                filename=filename,
+                reason="empty_input",
+                user_id=principal.user_id,
+            )
+            continue
+        if metadata.title is None and title:
+            metadata.title = title
+        elif metadata.title is None:
+            metadata.title = filename
+        decision = request.app.state.language.resolve(text[:4000], metadata.language)
+        try:
+            await create_document(
+                session,
+                settings=settings,
+                publishers=request.app.state.publishers,
+                instance=instance,
+                user_id=principal.user_id,
+                content=text,
+                content_type="text/markdown",
+                size_bytes=len(data),
+                metadata=metadata,
+                detected_language=decision.detected,
+                unsupported_language=decision.unsupported,
+                source_url=None,
+                batch_id=batch.id,
+                force=body.force,
+            )
+        except (ValueError, OSError) as exc:
+            await record_failure(
+                session,
+                batch=batch,
+                filename=filename,
+                reason=str(exc) or "parse_failed",
+                user_id=principal.user_id,
+            )
+    for url in body.urls:
+        try:
+            page = await fetch_readable(url, settings)
+        except (UrlSafetyError, UrlFetchError) as exc:
+            await record_failure(
+                session,
+                batch=batch,
+                filename=url,
+                reason=str(exc),
+                user_id=principal.user_id,
+            )
+            continue
+        metadata = body.metadata
+        if metadata.title is None:
+            metadata.title = page.title or url
+        decision = request.app.state.language.resolve(page.text[:4000], metadata.language)
+        try:
+            await create_document(
+                session,
+                settings=settings,
+                publishers=request.app.state.publishers,
+                instance=instance,
+                user_id=principal.user_id,
+                content=page.text,
+                content_type=page.content_type,
+                size_bytes=page.size_bytes,
+                metadata=metadata,
+                detected_language=decision.detected,
+                unsupported_language=decision.unsupported,
+                source_url=page.url,
+                batch_id=batch.id,
+                force=body.force,
+            )
+        except (ValueError, OSError) as exc:
+            await record_failure(
+                session,
+                batch=batch,
+                filename=url,
+                reason=str(exc) or "parse_failed",
+                user_id=principal.user_id,
+            )
+    await finalise_batch(session, batch)
+    await session.commit()
+    info = await batch_to_api(session, batch, warnings=zip_warnings)
+    return BatchResponse(batch=info)
+
+
+@router.get("/documents/batches/{batch_id}", response_model=BatchResponse)
+async def get_batch(
+    batch_id: str,
+    principal: Annotated[Principal, Depends(require_permission("documents:submit"))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BatchResponse:
+    batch = await session.get(DocumentBatch, batch_id)
+    if batch is None:
+        raise AppError(404, "not_found", "The batch does not exist.")
+    if batch.submitted_by != principal.user_id and not principal.has("documents:review"):
+        raise AppError(404, "not_found", "The batch does not exist.")
+    return BatchResponse(batch=await batch_to_api(session, batch))
+
+
+@router.post("/documents/batches/{batch_id}/approve")
+async def approve_batch(
+    batch_id: str,
+    body: BatchActionRequest,
+    request: Request,
+    principal: Review,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    batch = await session.get(DocumentBatch, batch_id)
+    if batch is None:
+        raise AppError(404, "not_found", "The batch does not exist.")
+    if not body.license_confirmed:
+        raise AppError(422, "license_not_confirmed", "The license must be confirmed.")
+    if not body.document_ids:
+        raise AppError(422, "invalid_input", "At least one document id is required.")
+    results: list[dict[str, Any]] = []
+    for document_id in body.document_ids:
+        document = await session.get(Document, document_id)
+        if document is None or document.batch_id != batch.id:
+            results.append({"document_id": document_id, "error": "not_found"})
+            continue
+        if document.state not in {"ready", "warning", "parsed"}:
+            results.append({"document_id": document_id, "error": "invalid_state"})
+            continue
+        if (
+            request.app.state.settings.four_eyes_enabled
+            and document.submitted_by == principal.user_id
+        ):
+            results.append({"document_id": document_id, "error": "four_eyes_required"})
+            continue
+        now = utcnow()
+        document.state = "approved"
+        document.approved_by = principal.user_id
+        document.approved_at = now
+        document.redistribution = body.redistribution
+        document.notes = body.note
+        document.updated_at = now
+        session.add(
+            JobRow(
+                id=new_id("job"),
+                kind="document_index",
+                state="queued",
+                payload={"document_id": document.id, "version": document.version},
+                progress=0.0,
+                user_id=principal.user_id,
+                created_at=now,
+            )
+        )
+        results.append({"document_id": document_id, "state": "approved"})
+    await batch_to_api(session, batch)
+    batch.state = "approved"
+    batch.updated_at = utcnow()
+    await session.commit()
+    return {"results": results}
+
+
+@router.post("/documents/batches/{batch_id}/reject")
+async def reject_batch(
+    batch_id: str,
+    body: BatchRejectRequest,
+    principal: Review,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    batch = await session.get(DocumentBatch, batch_id)
+    if batch is None:
+        raise AppError(404, "not_found", "The batch does not exist.")
+    results: list[dict[str, Any]] = []
+    for document_id in body.document_ids:
+        document = await session.get(Document, document_id)
+        if document is None or document.batch_id != batch.id:
+            results.append({"document_id": document_id, "error": "not_found"})
+            continue
+        document.state = "rejected"
+        document.notes = body.reason
+        document.updated_at = utcnow()
+        results.append({"document_id": document_id, "state": "rejected"})
+    await session.commit()
+    return {"results": results}

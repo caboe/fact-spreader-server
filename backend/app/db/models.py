@@ -193,6 +193,7 @@ class Document(Base):
     figures: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     notes: Mapped[str | None] = mapped_column(Text)
     duplicate_of: Mapped[str | None] = mapped_column(String(64))
+    batch_id: Mapped[str | None] = mapped_column(String(64), index=True)
     curator_organization: Mapped[str | None] = mapped_column(String(200))
     submitted_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
     approved_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
@@ -204,6 +205,18 @@ class Document(Base):
     versions: Mapped[list[DocumentVersion]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+
+
+class DocumentBatch(Base):
+    __tablename__ = "document_batches"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    state: Mapped[str] = mapped_column(String(30), default="received", index=True)
+    counts: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    estimated_usd: Mapped[str] = mapped_column(String(30), default="0")
+    submitted_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class DocumentVersion(Base):

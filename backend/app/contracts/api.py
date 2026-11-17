@@ -668,3 +668,54 @@ class EditorGap(ApiModel):
 
 class EditorStateRequest(RequestModel):
     state: str
+
+
+class BatchCounts(ApiModel):
+    total: int = 0
+    ready: int = 0
+    warning: int = 0
+    duplicate: int = 0
+    failed: int = 0
+
+
+class BatchFile(ApiModel):
+    document_id: str
+    filename: str
+    state: str
+    warnings: list[DocumentWarning] = Field(default_factory=list)
+
+
+class BatchInfo(ApiModel):
+    id: str
+    state: str
+    counts: BatchCounts
+    estimated_usd: float = 0.0
+    budget_remaining_usd: float | None = None
+    files: list[BatchFile] = Field(default_factory=list)
+    warnings: list[DocumentWarning] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+class BatchResponse(ApiModel):
+    batch: BatchInfo
+
+
+class BatchSubmitRequest(RequestModel):
+    metadata: DocumentMetadata = Field(default_factory=DocumentMetadata)
+    overrides: dict[str, DocumentMetadata] = Field(default_factory=dict)
+    urls: list[str] = Field(default_factory=list, max_length=100)
+    force: bool = False
+    accept_estimate: bool = False
+
+
+class BatchActionRequest(RequestModel):
+    document_ids: list[str] = Field(default_factory=list)
+    license_confirmed: bool = False
+    redistribution: Literal["full_text", "excerpts_only", "metadata_only"] = "metadata_only"
+    note: str | None = None
+
+
+class BatchRejectRequest(RequestModel):
+    document_ids: list[str] = Field(default_factory=list)
+    reason: str = Field(min_length=1, max_length=1000)

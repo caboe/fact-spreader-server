@@ -528,3 +528,21 @@ de-duplicated jobs avoid a corpus update re-checking the same claim many times. 
 
 **Rejected:** re-checking every archived claim on every approval, unbounded queue growth,
 dropping over-budget claims without a record, hard-coding four-eyes off.
+
+## D35 — Batches are a bracket of independent document submissions
+
+**What:** `POST /v1/documents/batches` accepts multiple uploaded files, an optional ZIP and
+a list of URLs, maps common and per-file metadata, and stores one Document per file with
+the shared `batch_id`. ZIP entries with absolute paths, parent traversal or symlink mode
+are skipped while safe entries continue; the batch carries `zip_sanitized` warnings.
+Counts are `ready`, `warning`, `duplicate`, `failed`; duplicates use the same content-hash
+path as single submissions. Batch approval/rejection validates each document and records
+per-file results without rolling back successful items.
+
+**Why:** IMPLEMENT Phase 4 requires a batch to survive one bad file and to report per-file
+state. Creating ordinary Documents keeps one lifecycle, one warning model and one approval
+path; the batch is only a grouping and count record. Skipping unsafe ZIP entries is safer
+than rejecting the whole archive and is visible in the response.
+
+**Rejected:** a separate batch-document model (two sources of truth), aborting the batch on
+the first failure, trusting ZIP member names, approving a batch as one document.

@@ -430,9 +430,11 @@ indexing with a corpus-version bump. Live: a Destatis housing report was submitt
 and indexed in 10.1 s; a rent claim cited it; a resubmission returned state `duplicate`.
 Approval and withdrawal now trigger bounded re-checks for matching or citing claims, with
 a `budget_low` warning when the daily budget stops the run; four-eyes approval is enforced
-and the editor contradiction/gap endpoints are present. Open: Docling tables/scans, figure
-extraction and vision descriptions, batch upload/ZIP, cost estimates and the remaining
-Phase 4 batch/editor re-check flows.
+and the editor contradiction/gap endpoints are present. Batch submission with multiple
+files, URLs and a sanitised ZIP produces per-file states, duplicate detection, counts and
+batch approve/reject. Open: Docling tables/scans and OCR, figure extraction and vision
+descriptions, batch metadata sidecar and per-file retry, cost estimation/budget blocking,
+and the editor re-check-from-gap action.
 
 **Goal.** Documents can be submitted singly or in batches, parsed, warned about, reviewed,
 approved, indexed, withdrawn and versioned; approval and withdrawal trigger re-checks.

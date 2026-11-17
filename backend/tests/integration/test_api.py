@@ -872,3 +872,51 @@ async def test_four_eyes_and_the_daily_recheck_budget_are_enforced(
     after = await client.get(f"/v1/documents/{document_id}")
     codes = [warning["code"] for warning in after.json()["warnings"]]
     assert "budget_low" in codes
+
+
+@pytest.mark.asyncio
+async def test_batch_upload_sanitises_zip_and_reports_per_file_states(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    import io
+    import zipfile
+
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("safe-one.md", "# Housing\n\nRents rose by 4 percent in 2025.")
+        zf.writestr("safe-two.md", "# Housing\n\nRents rose by 4 percent in 2025.")
+        zf.writestr("../escape.md", "malicious")
+        link = zipfile.ZipInfo("link.md")
+        link.external_attr = 0o120777 << 16
+        zf.writestr(link, "target")
+    payload = {
+        "metadata": {
+            "publisher": "Federal Statistical Office of Germany (Destatis)",
+            "license": "dl-de/by-2-0",
+            "redistribution": "full_text",
+            "domain_tags": ["housing"],
+            "language": "en",
+        }
+    }
+    response = await client.post(
+        "/v1/documents/batches",
+        data={"payload": __import__("json").dumps(payload)},
+        files=[
+            (
+                "files",
+                ("first.md", b"# Housing\n\nRents rose by 4 percent in 2025.", "text/markdown"),
+            ),
+            ("archive", ("batch.zip", archive.getvalue(), "application/zip")),
+        ],
+    )
+    assert response.status_code == 202, response.text
+    batch = response.json()["batch"]
+    assert batch["counts"]["total"] == 3
+    assert batch["counts"]["ready"] == 1
+    assert batch["counts"]["duplicate"] == 2
+    assert any(item["code"] == "zip_sanitized" for item in batch["warnings"])
+    assert len(batch["files"]) == 3
+
+    detail = await client.get(f"/v1/documents/batches/{batch['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["batch"]["counts"]["total"] == 3

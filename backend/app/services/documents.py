@@ -192,6 +192,7 @@ async def create_document(
     source_url: str | None,
     figures: list[dict[str, Any]] | None = None,
     force: bool = False,
+    batch_id: str | None = None,
 ) -> tuple[Document, DocumentVersion, list[DocumentWarning], str | None, DocumentEstimate]:
     content = content.strip()
     if not content:
@@ -256,6 +257,7 @@ async def create_document(
         warnings=[item.model_dump(mode="json") for item in warnings],
         figures=figures or [],
         duplicate_of=duplicate_of,
+        batch_id=batch_id,
         submitted_by=user_id,
         deleted=False,
         created_at=now,
