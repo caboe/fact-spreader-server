@@ -351,16 +351,16 @@ roles/TOTP.
 
 ## 6. Phase 3 — Audit depth, contradictions, research and fast mode
 
-**Status: in progress (2026-11-17).** Done: retrieval research with archive hits and a
-citation-checked summary (deterministic citation checks, independent `fs-verify` judge,
-metadata-only quotation limit, timeout warning), contradiction records, the staleness
-downgrade, the `audit_incomplete` downgrade for `true`, corpus-gap aggregation and one
-targeted re-retrieval round for an open confounder, fast mode with the pgvector semantic
-cache, and versioned preliminary/full results. Live fast-mode measurements: cold
-preliminary 9.6 s, cache hit 1.3–1.7 s. Manual re-checks create a new version from the
-stored input under a daily budget; QS deletion soft-deletes the whole chain and writes an
-audit entry. Open: automatic re-check on corpus changes (Phase 4 event), the
-contradiction/staleness live run and the Phase 3 latency report.
+**Status: complete (2026-11-17).** Live: the contradiction fixture pair returned
+`contested` with both sides cited and a same-period record; the 2016 stale fixture returned
+`insufficient_evidence` with `stale_evidence` and `audit_incomplete`; a German-only
+burglary figure returned `true` with a labelled English translation (16.6 s); research
+returned a judged, fully cited summary (17.0 s); fast mode returned a cold preliminary in
+3.5–9.6 s and an idle cache hit in 1.33–1.70 s, with the full result as version 2.
+Re-check and QS deletion are covered by integration tests. `make verify` is green with 63
+unit and 30 integration tests. The live evidence and latency table are in
+[`docs/PHASE_3_REPORT.md`](docs/PHASE_3_REPORT.md). Automatic re-check on a corpus-change
+event is deferred to the Phase 4 document event; the manual path and budget are in place.
 
 **Goal.** The pipeline handles the hard cases (missing context, corpus conflicts, recency,
 no evidence), research works, and the extension gets a preliminary result in under 15 s with

@@ -8,14 +8,17 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phase 1 and Phase 2 complete; Phase 3 in progress (2026-11-17).** The specs were revised
+**Phases 1–3 complete (2026-11-17).** The specs were revised
 for the v1 scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md)
 as the decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
 [`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. Live
 evidence, including spend, is in [`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md) and
-[`docs/PHASE_2_REPORT.md`](docs/PHASE_2_REPORT.md). Phase 3 has research, the judged
-citation-checked summary and targeted re-retrieval; fast mode, the semantic cache, the full
-re-check archive flow and the Phase 3 live acceptance run remain.
+[`docs/PHASE_2_REPORT.md`](docs/PHASE_2_REPORT.md). Phase 3 delivered research with the judged
+citation-checked summary, targeted re-retrieval, contradiction and staleness handling, fast
+mode with a pgvector semantic cache, versioned preliminary/full results, archive version
+chains, manual re-checks and QS soft deletion. Its live evidence and latency table are in
+[`docs/PHASE_3_REPORT.md`](docs/PHASE_3_REPORT.md). Automatic re-checks on corpus changes
+wait for the Phase 4 document event.
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes

@@ -61,6 +61,10 @@ DEFAULT_FIXTURES = (
     "crime-convictions-international",
     "crime-pks-methodology-de",
     "crime-adjusted-study-shared-dataset",
+    "crime-contradiction-a",
+    "crime-contradiction-b",
+    "crime-stale-figure",
+    "crime-german-only",
 )
 
 

@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phase 1 and Phase 2 complete; Phase 3 in progress (2026-11-17).** The order of work is:
+**Phases 1–3 complete; Phase 4 not started (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -32,13 +32,12 @@ Three kinds of request share one API:
 3. Implement phase by phase. Phase 1 is complete; its live evidence is in
    `docs/PHASE_1_REPORT.md`. Phase 2 is complete; its live inputs, streaming traces,
    twelve-combination persona matrix and spend are in `docs/PHASE_2_REPORT.md`. Phase 3 is
-   in progress: research retrieval and the citation-checked summary with its independent
-   judge, one targeted re-retrieval round for an open confounder, contradiction records,
-   the staleness downgrade, the `audit_incomplete` gate and corpus-gap aggregation are in
-   place, as are fast mode with the pgvector semantic cache, versioned preliminary/full
-   results and the archive's newest-version view; manual re-checks and QS soft deletion
-   are in place. Automatic re-checks on corpus changes and the Phase 3 live acceptance run
-   remain.
+   complete; its live acceptance, latency table and spend are in
+   `docs/PHASE_3_REPORT.md`. Research with the judged summary, targeted re-retrieval,
+   contradiction and staleness handling, corpus gaps, fast mode with the pgvector semantic
+   cache, versioned preliminary/full results, newest-version archive views, manual
+   re-checks and QS soft deletion are in place. Automatic re-checks wait for the Phase 4
+   document event.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.
