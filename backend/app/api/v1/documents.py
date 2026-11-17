@@ -46,6 +46,7 @@ from app.services.documents import (
     document_to_api,
     enqueue_rechecks_for_document,
     extract_pdf_images,
+    extract_pdf_tables,
     latest_version,
     queue_review_counts,
     update_corpus_version,
@@ -156,7 +157,7 @@ async def submit_document(
                 if media in {"application/pdf", "application/x-pdf"} or filename.lower().endswith(
                     ".pdf"
                 ):
-                    sections = [file_text]
+                    sections = [file_text, extract_pdf_tables(data)]
                     for index, (page_number, image_bytes) in enumerate(
                         extract_pdf_images(data), start=1
                     ):

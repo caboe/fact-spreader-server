@@ -222,6 +222,50 @@ class _TextExtractor(HTMLParser):
         return "\n".join(line for line in lines if line)
 
 
+def _markdown_table(rows: list[list[str]]) -> str | None:
+    cleaned = [
+        [" ".join(cell.split()).replace("|", "\\|") for cell in row]
+        for row in rows
+        if any(cell.strip() for cell in row)
+    ]
+    if not cleaned:
+        return None
+    width = max(len(row) for row in cleaned)
+    padded = [row + [""] * (width - len(row)) for row in cleaned]
+    lines = ["| " + " | ".join(padded[0]) + " |"]
+    lines.append("| " + " | ".join(["---"] * width) + " |")
+    for row in padded[1:]:
+        lines.append("| " + " | ".join(row) + " |")
+    return "\n".join(lines)
+
+
+def _html_tables(decoded: str) -> tuple[str, list[str]]:
+    """Replace HTML tables with Markdown blocks and return the remaining HTML."""
+    try:
+        from lxml import etree  # type: ignore[import-untyped]
+        from lxml import html as lxml_html
+    except ImportError:  # pragma: no cover - pinned dependency
+        return decoded, []
+    try:
+        tree = lxml_html.fromstring(decoded)
+    except (ValueError, etree.ParserError):
+        return decoded, []
+    tables: list[str] = []
+    for table in tree.xpath("//table"):
+        rows: list[list[str]] = []
+        for row in table.xpath(".//tr"):
+            cells = row.xpath("./th|./td")
+            if cells:
+                rows.append([cell.text_content() for cell in cells])
+        markdown = _markdown_table(rows)
+        if markdown:
+            tables.append(markdown)
+        parent = table.getparent()
+        if parent is not None:
+            parent.remove(table)
+    return etree.tostring(tree, encoding="unicode", method="html"), tables
+
+
 def _extract_html(content: bytes) -> tuple[str, str | None]:
     for encoding in ("utf-8", "latin-1"):
         try:
@@ -231,7 +275,11 @@ def _extract_html(content: bytes) -> tuple[str, str | None]:
             continue
     else:
         decoded = content.decode("utf-8", errors="replace")
+    cleaned, tables = _html_tables(decoded)
     parser = _TextExtractor()
-    parser.feed(decoded)
+    parser.feed(cleaned)
     title = " ".join(" ".join(parser.title_parts).split()) or None
-    return parser.text(), title
+    text = parser.text()
+    if tables:
+        text += "\n\n" + "\n\n".join(tables)
+    return text, title

@@ -38,6 +38,41 @@ from app.services.publishers import PublisherRegistry
 logger = logging.getLogger(__name__)
 
 
+def extract_pdf_tables(data: bytes, *, max_pages: int = 20, max_tables: int = 10) -> str:
+    """Return PDF tables as Markdown blocks, bounded by page and table count."""
+    try:
+        from io import BytesIO
+
+        import pdfplumber
+
+        sections: list[str] = []
+        with pdfplumber.open(BytesIO(data)) as pdf:
+            for page_number, page in enumerate(pdf.pages[:max_pages], start=1):
+                for table_index, table in enumerate(page.extract_tables(), start=1):
+                    rows = [
+                        [" ".join((cell or "").split()).replace("|", "\\|") for cell in row]
+                        for row in table
+                        if row
+                    ]
+                    if not rows:
+                        continue
+                    width = max(len(row) for row in rows)
+                    padded = [row + [""] * (width - len(row)) for row in rows]
+                    lines = ["| " + " | ".join(padded[0]) + " |"]
+                    lines.append("| " + " | ".join(["---"] * width) + " |")
+                    for row in padded[1:]:
+                        lines.append("| " + " | ".join(row) + " |")
+                    sections.append(
+                        f"## Table: page {page_number} table {table_index}\n\n" + "\n".join(lines)
+                    )
+                    if len(sections) >= max_tables:
+                        return "\n\n".join(sections)
+        return "\n\n".join(sections)
+    except Exception:
+        logger.warning("pdf_table_extraction_failed")
+        return ""
+
+
 def extract_pdf_images(data: bytes, limit: int = 5) -> list[tuple[int, bytes]]:
     """Return up to ``limit`` embedded PDF images with their 1-based page number."""
     try:

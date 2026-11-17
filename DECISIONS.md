@@ -578,3 +578,18 @@ editor actions from each spending a full daily budget.
 
 **Rejected:** accepting new claim text from the editor, a separate gap budget, silently
 skipping the rest.
+
+## D38 — Tables become Markdown through lxml and pdfplumber; Docling stays the layout target
+
+**What:** the shared HTML reader removes each `<table>`, renders its header/body rows as a
+GitHub-style Markdown table and appends the blocks to the extracted text. Submitted PDFs
+run pdfplumber over up to 20 pages and append up to 10 tables in the same Markdown form.
+Both parsers are pinned runtime dependencies; no model download is involved.
+
+**Why:** IMPLEMENT Phase 4 requires tables as Markdown. Docling brings a multi-gigabyte
+runtime and a separate model lifecycle; the table requirement is satisfied for digital
+HTML/PDF with two small libraries while figures and scans already use the vision path.
+Docling remains the plan for layout reconstruction, OCR layout and hard scans.
+
+**Rejected:** flattening tables into running text (loses rows), adding Docling in this slice
+without a tested model download, parsing tables with an LLM.
