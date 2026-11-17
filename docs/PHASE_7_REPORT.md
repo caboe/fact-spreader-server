@@ -29,11 +29,12 @@ image in `docs/screenshots/phase-7/` is a Playwright capture of the running app.
   succeeds, generated client is regenerated and drift-checked.
 - `make verify` green: 76 unit tests, 66 integration tests, migration up/down/up, OpenAPI
   drift, compose pin/no-socket/no-host-network, plus the web check above.
-- Playwright E2E (`web/tests/e2e`, serial against the live stack): **5 passed** —
-  archive search → claim → feedback, chat screen render, check screen (localization,
-  axe, 360 px overflow), real text check from input through SSE to the report (32.5 s
-  including the model), and a Markdown file check. Screenshots for check/report/archive/
-  claim/chat in light, dark, 360 px and 1440 px were written to
+- Playwright E2E (`web/tests/e2e`, serial against the live stack): the first run had
+  **5 passed** (archive search → claim → feedback, chat render, check screen with
+  localization/axe/360 px, real text check through SSE in 32.5 s, Markdown file check);
+  the final run after the provider key was replaced had **12 passed, 1 skipped**, adding
+  the image and URL checks and a streamed chat answer. Screenshots for check/report/
+  archive/claim/chat in light, dark, 360 px and 1440 px are in
   `docs/screenshots/phase-7/`.
 - Axe (check and chat screens): no serious or critical violations; no horizontal scroll at
   360 px.
@@ -51,36 +52,49 @@ options are humanised labels. The screenshots in `docs/screenshots/phase-7/` wer
 regenerated with the new tokens (report screenshots use an existing completed job so the
 capture spends no model budget).
 
-## Blocked: the live provider balance
+## Live E2E after the provider key was replaced
 
-The image E2E test failed with `provider_rejected: Insufficient Balance` from DeepSeek, and
-the URL test did not run because it is ordered after it. After the human reported a
-top-up, a direct capability probe and a browser check still returned
-`provider_error:402:Insufficient Balance` (request ids `085c4d94…` and the preceding
-`f64e4609…`), so the account still has no usable credit from this deployment's key. The
-failure is the provider balance, not the UI or the pipeline: the job was created, reached
-the worker and stopped at the first paid call. No further live check can run until the
-account really has credit or the human approves moving chat/moderation to another
-provider.
+The blocked image run was a provider-account problem, not a pipeline bug: the admin
+console showed the stored DeepSeek key answering `402 Insufficient Balance` while its free
+`/models` call passed. The human replaced the key in the admin UI; a capability probe of
+`fs-moderation` then returned `200`, and the same image check went through on the next
+attempt. The vision role stayed on OpenRouter `google/gemini-2.5-flash` (probed).
 
-Consequences for the Phase 7 done-when list:
+The full suite then ran against the live stack with the non-TOTP test account
+`browser@fact-spreader.local` (the operator account keeps its own TOTP):
 
-- text and file checks are proven end to end in the browser;
-- image and URL checks are implemented and wired, but their live E2E run is not green;
-- chat sends through the checked-streaming endpoint, but a costly E2E send was not run
-  before the balance ran out.
+**12 passed, 1 skipped** in 4.8 min (`pnpm test:e2e`):
 
-## Gaps to close before the human gate can pass
+- check screen: accessibility, localization (de/fr/es heading), 360 px overflow;
+- real text check through SSE to the report;
+- Markdown file check;
+- image check (OpenRouter vision for the figure description);
+- URL check against `https://example.com/`;
+- archive search → claim → version → feedback (with the mine filter cleared so the
+  non-owner account sees the corpus);
+- chat render and axe;
+- admin console: overview, providers/roles/users/usage, settings and the confirmed
+  re-index guard (mocked contract fixtures, so no registry mutation);
+- design capture: 20 screenshots, light/dark/360/1440.
 
-1. Confirm the DeepSeek key/account that the stack actually uses (the wizard stored the
-   key from `.env`); the current key still answers 402 after the reported top-up. Then re-run
-   `make web-e2e`; the image test uses the probed OpenRouter vision model (role
-   `fs-vision`) and the URL test uses `https://example.com/`.
-2. Capture the chat answer (one send) after that run.
-3. Human visual acceptance of the revised screenshots against PURPOSE §3.14. The agent
-   stops here.
+The one skip is the optional TOTP re-enrolment flow, gated by `FS_E2E_TOTP_SETUP=1` so a
+routine run does not touch the operator's authenticator.
+
+A separate chat send was run twice: the first run streamed the checked answer and the
+report link but failed the last assertion on a wrong CSS selector; after fixing the
+selector the test passes in 48.2 s and shows the streamed answer plus the report link.
+No SSE or checked-streaming change was needed.
+
+## Visual acceptance
+
+The human reviewed the revised screenshots and the running app (Check, Report, Archive,
+Claim, Chat, admin) and replied on 2026-11-17 that everything is fine from their side. The
+`[human]` gate in IMPLEMENT Phase 7 is recorded as accepted; the design revision (teal
+accent, shadows instead of borders, more spacing and reading measure, dark-mode contrast,
+humanised persona labels) is what was reviewed.
 
 ## Spend
 
-Post-fresh-volume ledger: USD 0.045748 (7 checks, 6 results) of which the browser runs are
-USD ~0.04. Cumulative across the project: **USD 0.692702 of USD 15.00**.
+Post-fresh-volume ledger: **USD 0.091973** (14 checks, 13 results; probes, setup, LightRAG
+and embeddings included). The browser E2E live runs — text, file, image, URL and the chat
+send — added USD ~0.042. Cumulative across the project: **USD 0.738927 of USD 15.00**.

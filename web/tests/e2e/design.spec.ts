@@ -11,6 +11,9 @@ test('capture the design screens', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Chat with the check' })).toBeVisible();
   await capture(page, 'chat');
   await page.goto('/archive');
+  // Search the whole archive: this account may not own the earlier checks.
+  const mine = page.getByRole('checkbox');
+  if (await mine.isChecked()) await mine.uncheck();
   await page.getByRole('searchbox').fill('Berlin');
   await page.getByRole('button', { name: 'Search checked claims' }).click();
   await expect(page.getByRole('link', { name: /Berlin Wall/ }).first()).toBeVisible();

@@ -7,6 +7,9 @@ test('the archive finds a checked claim and accepts feedback', async ({ page }) 
   test.skip(!hasCredentials, 'FS_E2E_EMAIL/FS_E2E_PASSWORD are not set');
   await signIn(page);
   await page.goto('/archive');
+  // Search the whole archive: this account may not own the earlier checks.
+  const mine = page.getByRole('checkbox');
+  if (await mine.isChecked()) await mine.uncheck();
   await page.getByRole('searchbox').fill('Berlin');
   await page.getByRole('button', { name: 'Search checked claims' }).click();
   const entry = page.getByRole('link', { name: /Berlin Wall/ }).first();

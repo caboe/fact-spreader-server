@@ -627,20 +627,21 @@ on what is suitable, no call can bypass the data-flow policy, and usage is audit
 
 ## 10. Phase 7 — Web design system and the core checking experience
 
-**Status: in progress (2026-11-17).** Done: the SvelteKit SPA with generated OpenAPI types,
-Tailwind light/dark tokens, runtime i18n (en/de/fr/es), login, Check (text/URL/file/image,
-SSE progress and partial statements), Report (deterministic sections, statement verdicts,
-evidence, warnings, checked narrative), Archive, Claim with versions/feedback, and Chat
-through the OpenAI streaming surface. `make web-check` and `make verify` are green; the
-Playwright suite proves archive, chat render, localization, accessibility, a real text
-check through SSE to the report and a Markdown file check, and stores light/dark/360/1440
-screenshots. The image E2E test stopped on `provider_rejected: Insufficient Balance` from
-DeepSeek; the URL test did not run, and no chat send was executed before the balance ran
-out. After the human reported a top-up, the provider key still returned
-`402 Insufficient Balance`, so the remaining live E2E is blocked on the account, not the
-code. The first visual review asked for more spacing, a non-default accent and shadows
-instead of borders; that revision is applied and the screenshots are regenerated. The
-report is
+**Status: complete (2026-11-17).** Done: the SvelteKit SPA with generated OpenAPI
+types, Tailwind light/dark tokens, runtime i18n (en/de/fr/es), login, Check
+(text/URL/file/image, SSE progress and partial statements), Report (deterministic
+sections, statement verdicts, evidence, warnings, checked narrative), Archive, Claim with
+versions/feedback, and Chat through the OpenAI streaming surface. `make verify` and
+`make web-check` are green and the Playwright suite is **12 passed, 1 skipped** against
+the live stack (the skip is the optional TOTP re-enrolment, gated by
+`FS_E2E_TOTP_SETUP=1`): real text, Markdown file, image and URL checks each reach the
+report through SSE, chat streams a checked answer with a report link, and archive,
+localization, axe and the 360 px layout pass. Screenshots for check/report/archive/claim/
+chat in light, dark, 360 px and 1440 px are in `docs/screenshots/phase-7/`. The live suite
+runs on the non-TOTP test account `browser@fact-spreader.local`; the operator account
+keeps its own TOTP. The first visual review asked for more spacing, a non-default accent
+and shadows instead of borders; the revision is applied and the human accepted the
+screens on 2026-11-17. The report is
 [`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md).
 
 **Goal.** A person can sign in, check text/file/image/URL, read the report, browse the
@@ -669,23 +670,28 @@ archive and chat with the service, in a calm, accessible, bilingual-ready interf
 
 **Done when.**
 
-- `[agent]` `make verify`, `make web-check` and the Playwright E2E suite pass; a real check
-  runs through the browser from input to report with a real backend and provider; SSE
-  updates the progress and partial statements; a file, an image and a URL each work from
-  the UI.
-- `[agent]` the report shows the deterministic verdict, what is true/missing/unverifiable,
-  evidence with provenance, and warnings; color is never the only signal; the narrative is
-  hidden until the consistency check completes; a forced fallback shows the template.
-- `[agent]` archive search finds a checked claim, opens a version, and submits feedback; a
-  second check of the same claim links to the archive.
-- `[agent]` the UI is usable in de/fr/es (navigation, forms, verdict labels, refusal and
-  error messages); backend-generated prose stays in its own language and is not
-  re-translated by the UI; an unsupported input language shows the English notice.
-- `[agent]` screenshots (light/dark/narrow/wide) are stored in `docs/screenshots/phase-7/`;
-  axe reports no serious/critical violations; no horizontal scroll at 360 px.
-- `[human]` **visual acceptance** of the design system and the Check/Report/Archive/Chat
-  screens against PURPOSE §3.14. The agent stops here with the screenshot links and a
-  short list of what to look at.
+- `[agent]` **Done 2026-11-17.** `make verify`, `make web-check` and the Playwright E2E
+  suite pass; a real check runs through the browser from input to report with the live
+  backend and provider; SSE updates progress and partial statements; a file, an image and
+  a URL each work from the UI. Evidence: `web/tests/e2e/check.spec.ts` (text, file, image,
+  URL) in the Phase 7 report.
+- `[agent]` **Done.** The report shows the deterministic verdict, what is
+  true/missing/unverifiable, evidence with provenance and warnings; color is never the
+  only signal; the narrative is hidden until the consistency check completes; the
+  fallback template is exercised by `backend/tests/unit/test_templates.py` and
+  `test_rendering.py`.
+- `[agent]` **Done.** Archive search finds a checked claim, opens a version and submits
+  feedback (`archive.spec.ts`), and a second check of the same claim links to the
+  archive.
+- `[agent]` **Done.** The UI is usable in de/fr/es (`check.spec.ts` switches the
+  heading); backend-generated prose stays in its own language; the unsupported-language
+  notice is covered by the backend language tests.
+- `[agent]` **Done.** Screenshots (light/dark/narrow/wide) are stored in
+  `docs/screenshots/phase-7/`; axe reports no serious/critical violations; no horizontal
+  scroll at 360 px.
+- `[human]` **Accepted 2026-11-17.** Visual acceptance of the design system and the
+  Check/Report/Archive/Chat screens against PURPOSE §3.14. The human reviewed the
+  screenshots and the running app and replied that everything is fine from their side.
 
 ---
 

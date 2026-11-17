@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–6 complete; Phase 7 in progress (2026-11-17).** The order of work is:
+**Phases 1–7 complete; Phase 8 in progress (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -50,11 +50,12 @@ Three kinds of request share one API:
    is `docs/PHASE_5_REPORT.md`. Phase 6 is complete: provider and model registry with
    encrypted keys and tested capabilities, one role rule, a data-flow policy with fallback,
    role budgets, usage summaries/CSV, publisher, persona and methodology overrides, and an
-   explicit re-index job. Its report is `docs/PHASE_6_REPORT.md`. Phase 7 has the SvelteKit
-   SPA, i18n, login, Check/Report/Archive/Claim/Chat, generated client and Playwright
-   screenshots in place; `make verify` includes `web-check`. Live image/URL E2E runs are
-   blocked by the DeepSeek account balance (`Insufficient Balance`), so the visual
-   acceptance check is not reached yet. See `docs/PHASE_7_REPORT.md`. Phase 8 has started
+   explicit re-index job. Its report is `docs/PHASE_6_REPORT.md`. Phase 7 is complete: the SvelteKit SPA, i18n, login,
+   Check/Report/Archive/Claim/Chat, generated client and Playwright screenshots are in
+   place; `make verify` includes `web-check`. Against the live stack the Playwright suite
+   is 12 passed, 1 skipped (the optional TOTP re-enrolment): text, file, image, URL and a
+   streamed chat answer all reach the report, and the human accepted the visual design on
+   2026-11-17. See `docs/PHASE_7_REPORT.md`. Phase 8 has started
    with the operator admin console (registry, role assignment, users, usage, data-flow and
    budget settings, re-index); the editorial, batch, remaining settings, plugin and PWA
    slices are open. See `docs/PHASE_8_REPORT.md`.
