@@ -11,8 +11,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.datastructures import UploadFile
 
 from app.contracts.api import CheckRequest, JobAccepted, JobEnvelope
 from app.contracts.enums import JobState, TurnType
@@ -29,24 +31,99 @@ from app.services.checks import (
     load_response,
     request_hash,
 )
-from app.services.input_reader import UrlFetchError, UrlSafetyError, fetch_readable
+from app.services.input_reader import (
+    UrlFetchError,
+    UrlSafetyError,
+    fetch_readable,
+    read_file_bytes,
+)
 
 router = APIRouter(prefix="/v1", tags=["checks"])
+
+_CHECK_REQUEST_SCHEMA = CheckRequest.model_json_schema()
+_CHECK_BODY_OPENAPI = {
+    "required": True,
+    "content": {
+        "application/json": {"schema": _CHECK_REQUEST_SCHEMA},
+        "multipart/form-data": {
+            "schema": {
+                "type": "object",
+                "required": ["payload", "file"],
+                "properties": {
+                    "payload": {
+                        "type": "string",
+                        "description": "JSON CheckRequest with input.type=file",
+                    },
+                    "file": {"type": "string", "format": "binary"},
+                },
+            }
+        },
+    },
+}
 ClaimsSubmit = Annotated[Principal, Depends(require_permission("claims:submit"))]
 
 
-@router.post("/factcheck", status_code=202)
+@router.post("/factcheck", status_code=202, openapi_extra={"requestBody": _CHECK_BODY_OPENAPI})
 async def create_check(
-    body: CheckRequest,
     request: Request,
     principal: ClaimsSubmit,
     session: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> Response:
+    content_type = request.headers.get("content-type", "")
+    is_multipart = content_type.startswith("multipart/form-data")
+    upload_name: str | None = None
+    upload_media: str | None = None
+    upload_size: int | None = None
+    file_text: str | None = None
+    try:
+        if is_multipart:
+            form = await request.form()
+            payload_part = form.get("payload")
+            if not isinstance(payload_part, str):
+                raise AppError(422, "invalid_input", "A multipart check needs a payload part.")
+            body = CheckRequest.model_validate_json(payload_part)
+            file_part = None
+            for key, value in form.multi_items():
+                if key in {"file", "files"} and isinstance(value, UploadFile):
+                    file_part = value
+                    break
+            if file_part is None:
+                raise AppError(422, "invalid_input", "A multipart check needs one file.")
+            filename = getattr(file_part, "filename", None) or "upload"
+            media = getattr(file_part, "content_type", None) or "application/octet-stream"
+            try:
+                data = await file_part.read()
+            finally:
+                await file_part.close()
+            settings = request.app.state.settings
+            if len(data) > settings.upload_max_bytes:
+                raise AppError(413, "payload_too_large", "The uploaded file is too large.")
+            try:
+                file_text, _title = read_file_bytes(
+                    filename=filename, content_type=media, data=data, settings=settings
+                )
+            except UrlFetchError as exc:
+                raise AppError(422, "file_parse_failed", str(exc)) from exc
+            if not file_text.strip():
+                raise AppError(422, "empty_input", "The uploaded file has no readable text.")
+            upload_name = filename
+            upload_media = media
+            upload_size = len(data)
+        else:
+            raw = await request.json()
+            body = CheckRequest.model_validate(raw)
+    except ValidationError as exc:
+        raise AppError(
+            422, "validation_error", str(exc.errors()[0].get("msg", "invalid body"))
+        ) from exc
+    except ValueError as exc:
+        raise AppError(400, "invalid_json", "The request body is not valid JSON.") from exc
     _validate_phase1_request(
         body,
         request.app.state.settings,
         [persona.id for persona in request.app.state.personas.enabled()],
+        allow_file=is_multipart,
     )
     source_url: str | None = None
     if body.input.type == "url":
@@ -59,9 +136,19 @@ async def create_check(
             raise AppError(502, "url_fetch_failed", str(exc)) from exc
         normalized = normalize_text(page.text[: request.app.state.settings.max_text_chars])
         source_url = page.url
+    elif body.input.type == "file":
+        assert file_text is not None
+        normalized = normalize_text(file_text[: request.app.state.settings.max_text_chars])
     else:
         normalized = normalize_text(body.input.text or "")
-    payload_for_hash = body.model_dump(mode="json")
+    payload_for_hash = {
+        **body.model_dump(mode="json"),
+        "upload": {
+            "name": upload_name,
+            "media_type": upload_media,
+            "size": upload_size,
+        },
+    }
     if idempotency_key:
         if len(idempotency_key) > 128:
             raise AppError(422, "invalid_idempotency_key", "Idempotency-Key is too long.")
@@ -98,6 +185,9 @@ async def create_check(
         response_language=body.response_language,
         turn_type=body.turn_type or TurnType.NEW_CLAIM,
         source_url=source_url,
+        source_file_name=upload_name,
+        source_media_type=upload_media,
+        source_size_bytes=upload_size,
         persona_id=body.persona_id,
         render_model_id=body.render_model_id,
         output_format=body.output_format.value,
@@ -270,16 +360,28 @@ async def _load_owned_job(session: AsyncSession, job_id: str, principal: Princip
 
 
 def _validate_phase1_request(
-    body: CheckRequest, settings: Settings, request_personas: list[str]
+    body: CheckRequest,
+    settings: Settings,
+    request_personas: list[str],
+    *,
+    allow_file: bool = False,
 ) -> None:
     text = body.input.text
-    if body.input.type not in {"text", "url"}:
+    allowed_types = {"text", "url"} | ({"file"} if allow_file else set())
+    if body.input.type not in allowed_types:
         raise AppError(
             422,
             "input_type_not_supported",
-            "This Phase 2 surface accepts text and URL input; file and image uploads are next.",
+            "The input type is not supported by this endpoint.",
         )
-    if body.input.type == "text":
+    if body.input.type == "file":
+        if not allow_file:
+            raise AppError(
+                422,
+                "input_type_not_supported",
+                "A file input must use the multipart form.",
+            )
+    elif body.input.type == "text":
         if text is None or not text.strip():
             raise AppError(422, "empty_input", "The input text is empty.")
         if len(text) > settings.max_text_chars:

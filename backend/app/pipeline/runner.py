@@ -129,6 +129,9 @@ class CheckPipeline:
         turn_type: TurnType,
         moderation: ModerationInfo,
         source_url: str | None = None,
+        source_file_name: str | None = None,
+        source_media_type: str | None = None,
+        source_size_bytes: int | None = None,
         on_statement: Callable[[Statement], Awaitable[None]] | None = None,
     ) -> PipelineOutcome:
         started = utcnow()
@@ -353,10 +356,13 @@ class CheckPipeline:
             preliminary=False,
             turn_type=turn_type,
             input=InputInfo(
-                type="url" if source_url else "text",
+                type="url" if source_url else ("file" if source_file_name else "text"),
                 text=normalized,
                 language=decision.detected,
                 url=source_url,
+                file_name=source_file_name,
+                media_type=source_media_type,
+                size_bytes=source_size_bytes,
                 sha256=sha256_text(normalized),
             ),
             detected_language=decision.detected,

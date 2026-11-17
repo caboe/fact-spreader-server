@@ -33,150 +33,6 @@
         "title": "ArgumentIssue",
         "type": "object"
       },
-      "CheckInput": {
-        "additionalProperties": false,
-        "properties": {
-          "language": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Language"
-          },
-          "text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Text"
-          },
-          "type": {
-            "default": "text",
-            "enum": [
-              "text",
-              "url",
-              "file",
-              "image"
-            ],
-            "title": "Type",
-            "type": "string"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Url"
-          }
-        },
-        "title": "CheckInput",
-        "type": "object"
-      },
-      "CheckRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "context": {
-            "items": {
-              "$ref": "#/components/schemas/ContextMessage"
-            },
-            "title": "Context",
-            "type": "array"
-          },
-          "domain_hint": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Domain Hint",
-            "type": "array"
-          },
-          "fast": {
-            "default": false,
-            "title": "Fast",
-            "type": "boolean"
-          },
-          "include_passages": {
-            "default": true,
-            "title": "Include Passages",
-            "type": "boolean"
-          },
-          "input": {
-            "$ref": "#/components/schemas/CheckInput"
-          },
-          "mode": {
-            "default": "async",
-            "enum": [
-              "async",
-              "sync"
-            ],
-            "title": "Mode",
-            "type": "string"
-          },
-          "output_format": {
-            "$ref": "#/components/schemas/OutputFormat",
-            "default": "substance"
-          },
-          "persona_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Persona Id"
-          },
-          "render_model_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Render Model Id"
-          },
-          "response_language": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Response Language"
-          },
-          "turn_type": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TurnType"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "input"
-        ],
-        "title": "CheckRequest",
-        "type": "object"
-      },
       "CheckResponse": {
         "properties": {
           "compact": {
@@ -312,31 +168,6 @@
           "passed"
         ],
         "title": "ConsistencyInfo",
-        "type": "object"
-      },
-      "ContextMessage": {
-        "additionalProperties": false,
-        "properties": {
-          "content": {
-            "maxLength": 20000,
-            "title": "Content",
-            "type": "string"
-          },
-          "role": {
-            "enum": [
-              "user",
-              "assistant",
-              "system"
-            ],
-            "title": "Role",
-            "type": "string"
-          }
-        },
-        "required": [
-          "role",
-          "content"
-        ],
-        "title": "ContextMessage",
         "type": "object"
       },
       "Contradiction": {
@@ -1206,15 +1037,6 @@
         },
         "title": "ModerationInfo",
         "type": "object"
-      },
-      "OutputFormat": {
-        "enum": [
-          "substance",
-          "persona",
-          "compact"
-        ],
-        "title": "OutputFormat",
-        "type": "string"
       },
       "OutputModeration": {
         "properties": {
@@ -2538,7 +2360,218 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CheckRequest"
+                "$defs": {
+                  "CheckInput": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "language": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "title": "Language"
+                      },
+                      "text": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "title": "Text"
+                      },
+                      "type": {
+                        "default": "text",
+                        "enum": [
+                          "text",
+                          "url",
+                          "file",
+                          "image"
+                        ],
+                        "title": "Type",
+                        "type": "string"
+                      },
+                      "url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "title": "Url"
+                      }
+                    },
+                    "title": "CheckInput",
+                    "type": "object"
+                  },
+                  "ContextMessage": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "content": {
+                        "maxLength": 20000,
+                        "title": "Content",
+                        "type": "string"
+                      },
+                      "role": {
+                        "enum": [
+                          "user",
+                          "assistant",
+                          "system"
+                        ],
+                        "title": "Role",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "role",
+                      "content"
+                    ],
+                    "title": "ContextMessage",
+                    "type": "object"
+                  },
+                  "OutputFormat": {
+                    "enum": [
+                      "substance",
+                      "persona",
+                      "compact"
+                    ],
+                    "title": "OutputFormat",
+                    "type": "string"
+                  },
+                  "TurnType": {
+                    "enum": [
+                      "new_claim",
+                      "repeated_claim",
+                      "follow_up_claim",
+                      "evidence_challenge",
+                      "clarification_answer",
+                      "question",
+                      "meta",
+                      "off_topic",
+                      "abusive"
+                    ],
+                    "title": "TurnType",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "properties": {
+                  "context": {
+                    "items": {
+                      "$ref": "#/$defs/ContextMessage"
+                    },
+                    "title": "Context",
+                    "type": "array"
+                  },
+                  "domain_hint": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Domain Hint",
+                    "type": "array"
+                  },
+                  "fast": {
+                    "default": false,
+                    "title": "Fast",
+                    "type": "boolean"
+                  },
+                  "include_passages": {
+                    "default": true,
+                    "title": "Include Passages",
+                    "type": "boolean"
+                  },
+                  "input": {
+                    "$ref": "#/$defs/CheckInput"
+                  },
+                  "mode": {
+                    "default": "async",
+                    "enum": [
+                      "async",
+                      "sync"
+                    ],
+                    "title": "Mode",
+                    "type": "string"
+                  },
+                  "output_format": {
+                    "$ref": "#/$defs/OutputFormat",
+                    "default": "substance"
+                  },
+                  "persona_id": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Persona Id"
+                  },
+                  "render_model_id": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Render Model Id"
+                  },
+                  "response_language": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Response Language"
+                  },
+                  "turn_type": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/TurnType"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "input"
+                ],
+                "title": "CheckRequest",
+                "type": "object"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "payload": {
+                    "description": "JSON CheckRequest with input.type=file",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "payload",
+                  "file"
+                ],
+                "type": "object"
               }
             }
           },

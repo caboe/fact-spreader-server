@@ -111,6 +111,49 @@ async def fetch_readable(url: str, settings: Settings) -> FetchedDocument:
     raise UrlFetchError("The URL redirected too many times.")
 
 
+def read_file_bytes(
+    *, filename: str, content_type: str, data: bytes, settings: Settings
+) -> tuple[str, str | None]:
+    """Parse an uploaded check file. The file is subject matter, never a corpus document."""
+    if len(data) > settings.upload_max_bytes:
+        raise UrlFetchError("The uploaded file is too large.")
+    media = (content_type or "").split(";", 1)[0].strip().lower()
+    suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if media.startswith("image/") or suffix in {"png", "jpg", "jpeg", "webp", "gif"}:
+        raise UrlFetchError("Image uploads need the vision path, which is not wired yet.")
+    if media in {"application/pdf", "application/x-pdf"} or suffix == "pdf":
+        return _extract_pdf(data), None
+    if media in {"text/html", "application/xhtml+xml"} or suffix in {"html", "htm"}:
+        return _extract_html(data)
+    if (
+        media in {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+        or suffix == "docx"
+    ):
+        return _extract_docx(data), None
+    for encoding in ("utf-8", "utf-16", "latin-1"):
+        try:
+            return data.decode(encoding), None
+        except UnicodeDecodeError:
+            continue
+    return data.decode("utf-8", errors="replace"), None
+
+
+def _extract_docx(content: bytes) -> str:
+    try:
+        from docx import Document as DocxDocument
+    except ImportError as exc:  # pragma: no cover - dependency is pinned
+        raise UrlFetchError("DOCX support is not installed.") from exc
+    try:
+        document = DocxDocument(BytesIO(content))
+    except Exception as exc:
+        raise UrlFetchError("The DOCX could not be parsed.") from exc
+    blocks = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
+    for table in document.tables:
+        for row in table.rows:
+            blocks.append(" | ".join(cell.text.strip() for cell in row.cells))
+    return "\n\n".join(blocks)
+
+
 def _extract(content: bytes, content_type: str) -> tuple[str, str | None]:
     if content_type in {"application/pdf", "application/x-pdf"}:
         return _extract_pdf(content), None

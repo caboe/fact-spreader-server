@@ -265,3 +265,20 @@ mid-statement; the API refuses to pretend otherwise.
 **Rejected:** Redis pub/sub (lost on disconnect), holding the request open with no replay
 (no reconnect), writing events inside the pipeline transaction (invisible until commit),
 killing a running job without a checkpoint (partial state and half-written files).
+
+
+## D20 — File checks use the multipart form on the same path, with pinned readers
+
+**What:** `POST /v1/factcheck` accepts `multipart/form-data` with a JSON `payload` part and
+one `file` part. PDF uses `pypdf`, DOCX uses `python-docx`, HTML uses the standard-library
+extractor, and text/Markdown decode directly. The extracted text is the check input; the
+filename, media type and size are provenance. Image files are rejected until the vision
+path is wired.
+
+**Why:** the protocol names this endpoint for files, and the check/corpus separation means
+the bytes are never ingested. The two pinned readers cover the Phase 2 formats without
+pulling Docling into the API process; Docling takes over document ingestion in Phase 4.
+
+**Rejected:** a separate upload path (contract drift), base64 in JSON (memory and size
+handling), accepting images without a capable tested vision model (silent failure), adding
+Docling to the check request path (startup and image cost).

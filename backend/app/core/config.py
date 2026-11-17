@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     max_text_chars: int = 20_000
     url_fetch_timeout_seconds: float = 10.0
     url_fetch_max_bytes: int = 20_000_000
+    upload_max_bytes: int = 20_000_000
     rate_limit_per_minute: int = 60
     cors_extension_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     publisher_list_path: str = "../methodology/publishers.json"

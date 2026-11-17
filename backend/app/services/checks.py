@@ -189,6 +189,9 @@ async def create_check_job(
     render_max_tokens: int = 8000,
     render_temperature: float = 0.4,
     source_url: str | None = None,
+    source_file_name: str | None = None,
+    source_media_type: str | None = None,
+    source_size_bytes: int | None = None,
 ) -> tuple[JobRow, ModerationInfo]:
     moderation = await ModerationService(LLMClient(settings, consumer="moderation")).classify_check(
         text, user_id=user_id
@@ -209,6 +212,9 @@ async def create_check_job(
         "render_max_tokens": render_max_tokens,
         "render_temperature": render_temperature,
         "source_url": source_url,
+        "source_file_name": source_file_name,
+        "source_media_type": source_media_type,
+        "source_size_bytes": source_size_bytes,
     }
     job = JobRow(
         id=job_id,
@@ -296,6 +302,9 @@ async def run_check_job(
         turn_type=TurnType(payload.get("turn_type") or TurnType.NEW_CLAIM.value),
         moderation=moderation,
         source_url=payload.get("source_url"),
+        source_file_name=payload.get("source_file_name"),
+        source_media_type=payload.get("source_media_type"),
+        source_size_bytes=payload.get("source_size_bytes"),
         on_statement=on_statement,
     )
     result = outcome.result

@@ -318,3 +318,33 @@ async def test_a_queued_job_can_be_cancelled(
     detail = await client.get(f"/v1/factcheck/{job_id}")
     assert detail.status_code == 200
     assert detail.json()["job"]["state"] == JobState.CANCELLED.value
+
+
+@pytest.mark.asyncio
+async def test_markdown_file_is_parsed_and_kept_out_of_the_corpus(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        checks_service,
+        "LLMClient",
+        lambda settings, consumer="pipeline", request_id=None: FakeLLM(),
+    )
+    response = await client.post(
+        "/v1/factcheck",
+        data={"payload": '{"input":{"type":"file","language":"en"},"response_language":"en"}'},
+        files={
+            "file": (
+                "claim.md",
+                b"# Fixture\n\nImmigrants commit more crimes.",
+                "text/markdown",
+            )
+        },
+    )
+    assert response.status_code == 202, response.text
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        assert job.payload["text"] == "# Fixture\n\nImmigrants commit more crimes."
+        assert job.payload["source_file_name"] == "claim.md"
+        assert job.payload["source_media_type"] == "text/markdown"

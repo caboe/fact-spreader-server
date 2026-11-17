@@ -287,10 +287,11 @@ do not fork or patch LightRAG.
 **Status: in progress (2026-11-17).** Done: the three runtime personas, deterministic
 checks plus the consistency judge, one re-render and template fallback, output moderation,
 `GET /v1/models`, `POST /v1/chat/completions` with checked streaming, SSRF-guarded URL
-input (HTML/PDF readers), a read-only claim archive and durable statement-level SSE with
-`Last-Event-ID` replay and queued cancellation; 55 unit and 18 integration tests are green.
-Open: file and image uploads, conversation history, translated evidence, archive feedback
-and the remaining multilingual checks.
+input (HTML/PDF readers), multipart file input (PDF/DOCX/HTML/Markdown/text), a read-only
+claim archive and durable statement-level SSE with `Last-Event-ID` replay and queued
+cancellation; 55 unit and 19 integration tests are green. Open: image uploads and vision,
+conversation history, translated evidence, archive feedback and the remaining multilingual
+checks.
 
 **Goal.** The check works for text, files, URLs and images, streams partial results, and is
 usable by the extension through the OpenAI-compatible endpoint with a checked persona
