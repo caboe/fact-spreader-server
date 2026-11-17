@@ -1,6 +1,6 @@
 name: fact-spreader
 
-# Phase 1 stack. Caddy, the static web app and the PWA arrive in Phases 7–9.
+# The edge (Caddy + static SPA), API, worker, LightRAG, Postgres and Redis.
 # Everything bindable is bound to loopback only; the internal network carries the rest.
 
 services:
@@ -141,6 +141,24 @@ services:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  caddy:
+    build:
+      context: .
+      dockerfile: deploy/caddy/Dockerfile
+    image: factspreader/edge:0.1.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --no-check-certificate -O /dev/null https://localhost:443/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
 volumes:
   postgres-data:

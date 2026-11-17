@@ -779,6 +779,16 @@ extension connection are usable in the real UI, and the app is installable as a 
 
 ## 12. Phase 9 — Evaluation, hardening, packaging and acceptance
 
+**Status: in progress (2026-11-17).** Agent work is implemented: the repaired 25-case
+labelled set with coverage enforcement, the offline/live evaluation runner, the new
+security tests (magic bytes, ZIP traversal/bomb, SSRF redirect/DNS), documented
+problem+json and stream response types, a passing Schemathesis run on read-only `/v1`, the
+Caddy edge (SPA, API, SSE, internal/metrics blocked), the backup/restore scripts and the
+operations/security/evaluation docs. The live acceptance is blocked on the provider
+account: DeepSeek returned `402 Insufficient Balance`, so `make eval-live`,
+`make backup-test` and the clean-start acceptance stop at their first model call. See
+[`docs/PHASE_9_REPORT.md`](docs/PHASE_9_REPORT.md).
+
 **Goal.** The tree is reproducible, the evaluation is honest, the security and operational
 requirements are tested, and the delivered stack can be started by someone else.
 

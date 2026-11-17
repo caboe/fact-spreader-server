@@ -5,12 +5,14 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 import redis.asyncio as redis
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 
 from app.api.internal.llm import _InternalAuthError
@@ -173,6 +175,55 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(usage_router)
     app.include_router(auth_router)
     app.include_router(setup_router)
+
+    def custom_openapi() -> dict[str, Any]:
+        """Document the problem+json error envelope and the non-JSON responses.
+
+        The handlers return RFC 7807-style problems with a stable code. FastAPI's default
+        OpenAPI (JSON validation errors on 422 only) would make a contract checker report
+        real error responses as undocumented, so every operation gets the envelope.
+        """
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        components = schema.setdefault("components", {}).setdefault("schemas", {})
+        components["Problem"] = {
+            "type": "object",
+            "required": ["type", "title", "status", "detail", "code"],
+            "properties": {
+                "type": {"type": "string"},
+                "title": {"type": "string"},
+                "status": {"type": "integer"},
+                "detail": {"type": "string"},
+                "code": {"type": "string"},
+                "instance": {"type": "string", "nullable": True},
+                "errors": {"type": "array", "items": {"type": "object"}},
+            },
+        }
+        problem_response = {
+            "description": "Problem details",
+            "content": {
+                "application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}
+            },
+        }
+        for item in schema.get("paths", {}).values():
+            for operation in item.values():
+                if not isinstance(operation, dict) or "responses" not in operation:
+                    continue
+                for code, _response in list(operation["responses"].items()):
+                    if code.startswith(("4", "5")):
+                        operation["responses"][code] = dict(problem_response)
+                for code in ("400", "401", "403", "404", "409", "413", "422", "429", "500", "503"):
+                    operation["responses"].setdefault(code, dict(problem_response))
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = custom_openapi  # type: ignore[method-assign]
     app.include_router(internal_llm_router, include_in_schema=False)
     return app
 

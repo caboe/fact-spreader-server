@@ -13,14 +13,17 @@ export TESTCONTAINERS_RYUK_DISABLED := true
 COMPOSE := docker compose
 WEB := web
 API_KEY_FILE := .local/api-key
+EVAL_API_KEY_FILE ?= .local/eval-api-key
 
 .PHONY: install fmt fmt-check lint typecheck test test-integration migrate migrate-check \
 	openapi openapi-check compose-check web-install web-check web-e2e verify stack-up \
-	stack-down stack-logs bootstrap seed-fixtures stack-smoke spend clean
+	stack-down stack-logs bootstrap seed-fixtures stack-smoke spend clean \
+	eval-check eval-recorded eval-live backup backup-test schemathesis
 
 install:
 	mkdir -p $(UV_CACHE_DIR) $(BUILDX_CONFIG)
 	cd $(BACKEND) && uv sync --frozen
+	cd $(WEB) && pnpm install --frozen-lockfile
 
 fmt:
 	cd $(BACKEND) && uv run ruff format .
@@ -93,6 +96,32 @@ spend:
 
 retention:
 	$(COMPOSE) exec -T backend python -m app.cli retention
+
+backup:
+	./scripts/backup.sh
+
+backup-test:
+	./scripts/backup-test.sh
+
+schemathesis:
+	@test -f "$(EVAL_API_KEY_FILE)" || (echo "missing $(EVAL_API_KEY_FILE); see docs/EVALUATION.md" && exit 2)
+	cd $(BACKEND) && uv run schemathesis run http://127.0.0.1:8000/openapi.json \
+		--base-url http://127.0.0.1:8000 \
+		-H "Authorization: Bearer $$(cat ../$(EVAL_API_KEY_FILE))" \
+		--exclude-method POST --exclude-method PUT --exclude-method PATCH --exclude-method DELETE \
+		--checks all --hypothesis-max-examples 20 --workers 4
+
+eval-check:
+	cd $(BACKEND) && uv run python -m app.tools.eval --set ../tests/eval/claims.jsonl --check-only
+
+eval-recorded:
+	cd $(BACKEND) && uv run python -m app.tools.eval --set ../tests/eval/claims.jsonl \
+		--predictions ../tests/eval/predictions.baseline.jsonl
+
+eval-live:
+	@test -f "$(EVAL_API_KEY_FILE)" || (echo "missing $(EVAL_API_KEY_FILE); create a key with: docker compose exec -T backend python -m app.cli create-api-key --email <admin> --name eval-live > $(EVAL_API_KEY_FILE)" && exit 2)
+	cd $(BACKEND) && uv run python -m app.tools.eval --live --set ../tests/eval/claims.jsonl \
+		--api-key-file ../$(EVAL_API_KEY_FILE) --out ../tests/eval/predictions.baseline.jsonl
 
 clean:
 	rm -rf $(BACKEND)/.pytest_cache $(BACKEND)/.mypy_cache $(BACKEND)/.ruff_cache

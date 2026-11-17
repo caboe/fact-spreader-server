@@ -1,0 +1,46 @@
+{
+	admin off
+}
+
+localhost:443 {
+	tls internal
+	encode zstd gzip
+
+	# The internal LLM gateway must never be reachable through the edge.
+	@internal path /internal/* /internal
+	handle @internal {
+		respond 404
+	}
+	handle /metrics {
+		respond 404
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+	handle /v1/* {
+		reverse_proxy backend:8000 {
+			# Server-sent events must not be buffered by the proxy.
+			flush_interval -1
+		}
+	}
+	handle /healthz {
+		reverse_proxy backend:8000
+	}
+	handle /readyz {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'"
+	}
+}

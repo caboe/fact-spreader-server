@@ -111,6 +111,12 @@ async def fetch_readable(url: str, settings: Settings) -> FetchedDocument:
     raise UrlFetchError("The URL redirected too many times.")
 
 
+def _looks_like_image(data: bytes) -> bool:
+    return data.startswith(
+        (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"GIF87a", b"GIF89a", b"RIFF")
+    ) and not data.startswith(b"RIFF....WEBP")
+
+
 def read_file_bytes(
     *, filename: str, content_type: str, data: bytes, settings: Settings
 ) -> tuple[str, str | None]:
@@ -119,8 +125,13 @@ def read_file_bytes(
         raise UrlFetchError("The uploaded file is too large.")
     media = (content_type or "").split(";", 1)[0].strip().lower()
     suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    # Magic bytes win over a user-supplied name or content type.
+    if _looks_like_image(data):
+        raise UrlFetchError("Image uploads need the vision path, which is not wired yet.")
     if media.startswith("image/") or suffix in {"png", "jpg", "jpeg", "webp", "gif"}:
         raise UrlFetchError("Image uploads need the vision path, which is not wired yet.")
+    if data.startswith(b"%PDF-"):
+        return _extract_pdf(data), None
     if media in {"application/pdf", "application/x-pdf"} or suffix == "pdf":
         return _extract_pdf(data), None
     if media in {"text/html", "application/xhtml+xml"} or suffix in {"html", "htm"}:

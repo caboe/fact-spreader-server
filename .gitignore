@@ -29,3 +29,6 @@ tests/eval/reference_corpus/
 
 # Local agent scratch (API keys captured from the CLI)
 .local/
+
+# Local backups
+backups/

@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.26"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.18.3"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Install
+        run: make install
+      - name: Verify
+        run: make verify
+      - name: Web build
+        run: cd web && pnpm build
+      - name: Recorded evaluation
+        run: make eval-recorded
+      - name: Upload screenshots and evaluation
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-screenshots
+          path: |
+            docs/screenshots
+            tests/eval/predictions.baseline.jsonl
+            docs/openapi.json
+          if-no-files-found: error
+
+  live-smoke:
+    if: ${{ secrets.DEEPSEEK_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.26"
+      - name: Install
+        run: make install
+      - name: Write .env
+        run: |
+          cp .env.example .env
+          python - <<'PY'
+          import os, pathlib, secrets
+          examples = pathlib.Path(".env.example").read_text()
+          values = {
+              "POSTGRES_PASSWORD": secrets.token_urlsafe(24),
+              "LIGHTRAG_DB_PASSWORD": secrets.token_urlsafe(24),
+              "LIGHTRAG_API_KEY": secrets.token_urlsafe(24),
+              "APP_SECRET_KEY": secrets.token_urlsafe(32),
+              "INTERNAL_LLM_KEY": secrets.token_urlsafe(24),
+              "LIGHTRAG_INTERNAL_KEY": secrets.token_urlsafe(24),
+              "SETUP_TOKEN": secrets.token_urlsafe(24),
+              "DEEPSEEK_API_KEY": os.environ["DEEPSEEK_API_KEY"],
+              "BOOTSTRAP_ADMIN_PASSWORD": os.environ["CI_ADMIN_PASSWORD"],
+          }
+          lines = []
+          for line in examples.splitlines():
+              key = line.split("=", 1)[0]
+              lines.append(f"{key}={values.get(key, line.split('=', 1)[1])}" if "=" in line else line)
+          pathlib.Path(".env").write_text("\n".join(lines) + "\n")
+          PY
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          CI_ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD }}
+      - name: Start the stack and smoke it
+        run: |
+          make stack-up
+          make bootstrap
+          make stack-smoke
+      - name: Stop
+        if: always()
+        run: make stack-down

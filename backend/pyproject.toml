@@ -37,6 +37,7 @@ dev = [
     "pytest-asyncio>=0.25,<2",
     "pytest-cov>=6,<8",
     "ruff>=0.8,<1",
+    "schemathesis>=3.38,<4",
     "testcontainers[postgres,redis]>=4.9,<5",
     "types-pyyaml>=6.0,<7",
 ]
@@ -46,6 +47,8 @@ package = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Schemathesis is a CLI tool here; its pytest plugin would import jsonschema at startup.
+addopts = "-p no:schemathesis"
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
@@ -56,6 +59,8 @@ filterwarnings = [
     "error",
     "ignore::DeprecationWarning:testcontainers",
     "ignore::DeprecationWarning:testcontainers.*",
+    "ignore::DeprecationWarning:jsonschema",
+    "ignore::DeprecationWarning:jsonschema.*",
 ]
 
 [tool.ruff]

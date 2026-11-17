@@ -8,49 +8,51 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phases 1–6 complete; Phase 7 in progress (2026-11-17).** The specs were revised
-for the v1 scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md)
-as the decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
-[`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. Live
-evidence, including spend, is in [`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md) and
-[`docs/PHASE_2_REPORT.md`](docs/PHASE_2_REPORT.md). Phase 3 delivered research with the judged
-citation-checked summary, targeted re-retrieval, contradiction and staleness handling, fast
-mode with a pgvector semantic cache, versioned preliminary/full results, archive version
-chains, manual re-checks and QS soft deletion. Its live evidence and latency table are in
-[`docs/PHASE_3_REPORT.md`](docs/PHASE_3_REPORT.md). Automatic re-checks on corpus changes
-wait for the Phase 4 document event.
+**Phases 1–8 complete; Phase 9 in progress (2026-11-17).** The stack runs end to end:
+check, report, archive, chat, editorial review, batch submission, operator settings, PWA
+and the device-token connect flow. `make verify` is green and the Playwright suite passed
+27 tests against the live stack (2 optional skips). Live evidence and spend are in the
+phase reports:
 
-Phase 4 has started with the document lifecycle: submission of text, URL and common file
-types, warnings and hash duplicates, a review queue, approve/reject/withdraw, approval
-audit and worker-driven LightRAG indexing with a corpus-version bump. A live Destatis
-housing report was approved and indexed in 10.1 s, cited by a rent check, and a
-resubmission was marked `duplicate`. Approval and withdrawal trigger bounded
-re-checks for matching claims, with budget exhaustion surfaced as a warning; editor lists
-for contradictions and gaps are available. Batch submission with multiple files, URLs and a sanitised ZIP
-reports per-file states, applies CSV/JSON metadata sidecars and supports batch
-approve/reject. HTML and digital-PDF tables become Markdown; PDF figures get vision
-descriptions. Failed batch entries can be retried from stored bytes; batch estimates are checked
-against the remaining budget before parsing and actual usage is reported. Phase 4 is
-complete; Docling layout/OCR is recorded as a follow-up. The live evidence is in
-[`docs/PHASE_4_REPORT.md`](docs/PHASE_4_REPORT.md). Phase 5 is complete: a token-gated
-first-run wizard (admin with TOTP, organisation, tested provider and models, moderation
-test) took a fresh volume to its first successful check in 28.1 s; TOTP is mandatory for
-privileged permissions; the permission matrix covers every protected route; API keys and
-device tokens cannot exceed their owner; per-user and per-key limits are enforced before
-work starts; and retention redacts old context, purges job data and rolls usage events
-into monthly aggregates. Its evidence is in
-[`docs/PHASE_5_REPORT.md`](docs/PHASE_5_REPORT.md). Phase 6 is complete: providers and
-models are managed with encrypted keys and probed capabilities, a single role rule validates
-assignments, the data-flow policy blocks before transport, role budgets and usage summaries
-are in place, publisher/persona/methodology overrides are local and reversible, and a
-confirmed re-index rebuilds from approved documents. Its evidence is in
-[`docs/PHASE_6_REPORT.md`](docs/PHASE_6_REPORT.md). Phase 7 adds the SvelteKit SPA with
-Check, Report, Archive, Claim, Chat and Login, runtime en/de/fr/es copy and Playwright
-screenshots; `make verify` includes `web-check`. Live image/URL E2E is blocked by the
-DeepSeek account balance, so the phase is not complete. See
-[`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md). Phase 8 has started with the operator
-admin console: providers/models, role assignment, users, usage, data-flow/budget settings
-and re-index. See [`docs/PHASE_8_REPORT.md`](docs/PHASE_8_REPORT.md).
+- [`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md) — vertical slice, gateway, gate
+- [`docs/PHASE_2_REPORT.md`](docs/PHASE_2_REPORT.md) — personas, checked streaming
+- [`docs/PHASE_3_REPORT.md`](docs/PHASE_3_REPORT.md) — research, fast mode, latency
+- [`docs/PHASE_4_REPORT.md`](docs/PHASE_4_REPORT.md) — documents, review, batch
+- [`docs/PHASE_5_REPORT.md`](docs/PHASE_5_REPORT.md) — setup, TOTP, permissions, retention
+- [`docs/PHASE_6_REPORT.md`](docs/PHASE_6_REPORT.md) — registry, roles, budgets, overrides
+- [`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md) — SPA, i18n, screenshots
+- [`docs/PHASE_8_REPORT.md`](docs/PHASE_8_REPORT.md) — editorial, batch UI, settings, PWA
+
+The specification is frozen in [`PURPOSE.md`](PURPOSE.md), [`PROTOCOL.md`](PROTOCOL.md) and
+[`PERSONAS.md`](PERSONAS.md); [`IMPLEMENT.md`](IMPLEMENT.md) is the approved phase plan and
+[`DECISIONS.md`](DECISIONS.md) records non-obvious choices. Phase 9 covers the evaluation,
+security hardening, Caddy edge, backups and the final acceptance.
+
+## Quick start
+
+```bash
+cp .env.example .env            # fill secrets; never commit
+make install                    # uv + pnpm, locked
+make stack-up                   # Postgres, Redis, backend, worker, LightRAG, Caddy
+```
+
+Open <https://localhost:8443> and complete the wizard with `SETUP_TOKEN` from `.env`
+(admin, TOTP, organisation, provider, models, moderation). `make bootstrap` is the
+automation path. Then submit a document in `/submit`, approve it in `/editorial` and run
+a check on `/`.
+
+```bash
+make verify            # lint, types, unit + integration, migrations, OpenAPI, compose, web
+make stack-smoke       # one real canonical check, no-evidence case and moderation block
+make eval-recorded     # offline labelled evaluation
+make backup            # database dump
+make backup-test       # restore into a throwaway stack and check
+```
+
+Operating details are in [`docs/OPERATING.md`](docs/OPERATING.md), security in
+[`docs/SECURITY.md`](docs/SECURITY.md), the extension connection in
+[`docs/EXTENSION.md`](docs/EXTENSION.md) and the evaluation in
+[`docs/EVALUATION.md`](docs/EVALUATION.md).
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes

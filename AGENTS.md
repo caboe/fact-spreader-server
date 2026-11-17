@@ -65,6 +65,12 @@ Three kinds of request share one API:
    zero-volume setup-wizard browser run moves into the Phase 9 clean-start acceptance.
    API-key management and the retention/four-eyes/backup settings are deferred because
    their backend surface does not exist yet. See `docs/PHASE_8_REPORT.md`.
+   Phase 9 is in progress: the repaired 25-case labelled set, the offline/live evaluation
+   runner, the new security tests, the Caddy edge, backups and the
+   operations/security/evaluation docs are implemented. Live acceptance is blocked on the
+   DeepSeek account balance (`402 Insufficient Balance`): the seeded evaluation,
+   `backup-test` and the clean-start acceptance stop at their first model call. See
+   `docs/PHASE_9_REPORT.md`.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

@@ -45,3 +45,48 @@ def test_html_extraction_skips_scripts_and_keeps_title() -> None:
     assert "Second & last." in text
     assert "steal" not in text
     assert "body{}" not in text
+
+
+def test_a_redirect_to_a_private_address_is_rejected() -> None:
+    import asyncio
+
+    import httpx
+    from app.core.config import Settings
+    from app.services import input_reader
+
+    class RedirectingHTTP:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def request(self, method: str, url: str, **_kwargs: object) -> httpx.Response:
+            return httpx.Response(
+                302,
+                headers={"Location": "http://127.0.0.1/internal/llm/v1/chat"},
+                request=httpx.Request(method, url),
+            )
+
+    original = input_reader.OutboundHTTP
+    input_reader.OutboundHTTP = RedirectingHTTP  # type: ignore[assignment]
+    try:
+        with pytest.raises(input_reader.UrlSafetyError):
+            asyncio.run(input_reader.fetch_readable("http://93.184.216.34/", Settings()))
+    finally:
+        input_reader.OutboundHTTP = original  # type: ignore[assignment]
+
+
+def test_a_hostname_resolving_to_a_private_address_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import socket
+
+    from app.services.input_reader import UrlSafetyError, validate_public_url
+
+    def fake_getaddrinfo(host: str, *args: object, **kwargs: object) -> list[tuple]:
+        return [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0)),
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.7", 0)),
+        ]
+
+    monkeypatch.setattr(socket, "getaddrinfo", fake_getaddrinfo)
+    with pytest.raises(UrlSafetyError):
+        validate_public_url("https://rebind.test/report")

@@ -320,7 +320,19 @@ async def create_check(
     )
 
 
-@router.get("/factcheck/{job_id}", response_model=JobEnvelope)
+@router.get(
+    "/factcheck/{job_id}",
+    response_model=JobEnvelope,
+    responses={
+        202: {
+            "description": "The job is still running",
+            "content": {
+                "application/json": {"schema": {"$ref": "#/components/schemas/JobEnvelope"}}
+            },
+        },
+        304: {"description": "The result has not changed"},
+    },
+)
 async def get_check(
     job_id: str,
     request: Request,
@@ -352,7 +364,10 @@ async def get_check(
     return JSONResponse(status_code=202, content=envelope.model_dump(mode="json"))
 
 
-@router.get("/factcheck/{job_id}/events")
+@router.get(
+    "/factcheck/{job_id}/events",
+    responses={200: {"content": {"text/event-stream": {}}}},
+)
 async def check_events(
     job_id: str,
     request: Request,

@@ -192,7 +192,11 @@ async def usage_summary(
     )
 
 
-@router.get("/summary.csv", response_class=Response)
+@router.get(
+    "/summary.csv",
+    response_class=Response,
+    responses={200: {"content": {"text/csv": {}}}},
+)
 async def usage_summary_csv(
     principal: UsageRead,
     session: SessionDep,

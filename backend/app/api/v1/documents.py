@@ -285,7 +285,10 @@ async def get_document(
     return await _api(session, document, principal)
 
 
-@router.get("/documents/{document_id}/content")
+@router.get(
+    "/documents/{document_id}/content",
+    responses={200: {"content": {"text/markdown": {}}}},
+)
 async def get_content(
     document_id: str,
     principal: Annotated[Principal, Depends(require_permission("documents:submit"))],
