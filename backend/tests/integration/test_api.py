@@ -1070,3 +1070,68 @@ async def test_a_batch_metadata_sidecar_overrides_per_file_fields(
     document = (await client.get(f"/v1/documents/{document_id}")).json()
     assert document["title"] == "Sidecar title"
     assert document["license"] == "CC0-1.0"
+
+
+@pytest.mark.asyncio
+async def test_a_failed_batch_entry_can_be_retried_from_stored_bytes(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    from app.core.ids import sha256_text
+    from app.db.models import DocumentBatch
+
+    now = utcnow()
+    async with app.state.db.session_factory() as session:
+        batch = DocumentBatch(
+            id=new_id("bch"),
+            state="partial",
+            counts={},
+            estimated_usd="0",
+            created_at=now,
+            updated_at=now,
+        )
+        document = Document(
+            id=new_id("doc"),
+            title="retry.md",
+            publisher="Federal Statistical Office of Germany (Destatis)",
+            authors=[],
+            source_quality="A",
+            source_quality_basis={"source": "shipped_list", "entry": "destatis"},
+            domain_tags=[],
+            language="en",
+            license="CC0-1.0",
+            redistribution="full_text",
+            origin_instance_id="inst_test",
+            origin_document_id="doc_test",
+            content_hash=sha256_text("failed"),
+            state="failed",
+            version=1,
+            batch_id=batch.id,
+            deleted=False,
+            created_at=now,
+            updated_at=now,
+        )
+        version = DocumentVersion(
+            id=new_id("ver"),
+            document_id=document.id,
+            version=1,
+            content_hash=sha256_text("failed"),
+            content_md="",
+            file_path="retry.md",
+            raw_bytes=b"# Retry\n\nRecovered content.",
+            raw_media_type="text/markdown",
+            size_bytes=0,
+            created_at=now,
+        )
+        session.add_all([batch, document, version])
+        await session.commit()
+        batch_id = batch.id
+        document_id = document.id
+    response = await client.post(
+        f"/v1/documents/batches/{batch_id}/retry", json={"document_ids": [document_id]}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["results"][0]["state"] == "ready"
+    detail = await client.get(f"/v1/documents/{document_id}")
+    assert detail.json()["state"] == "ready"
+    content = await client.get(f"/v1/documents/{document_id}/content")
+    assert "Recovered content." in content.text

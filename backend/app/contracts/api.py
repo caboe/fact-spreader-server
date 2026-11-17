@@ -723,3 +723,7 @@ class BatchRejectRequest(RequestModel):
 
 class GapRecheckRequest(RequestModel):
     limit: int = Field(default=10, ge=1, le=50)
+
+
+class BatchRetryRequest(RequestModel):
+    document_ids: list[str] = Field(default_factory=list)

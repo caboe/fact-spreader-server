@@ -231,6 +231,8 @@ class DocumentVersion(Base):
     content_hash: Mapped[str] = mapped_column(String(80))
     content_md: Mapped[str] = mapped_column(Text)
     file_path: Mapped[str | None] = mapped_column(String(1000))
+    raw_bytes: Mapped[bytes | None] = mapped_column()
+    raw_media_type: Mapped[str | None] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

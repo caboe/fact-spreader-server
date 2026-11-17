@@ -96,6 +96,8 @@ async def record_failure(
     filename: str,
     reason: str,
     user_id: str | None,
+    raw_bytes: bytes | None = None,
+    raw_media_type: str | None = None,
 ) -> Document:
     now = utcnow()
     document = Document(
@@ -135,7 +137,9 @@ async def record_failure(
         version=1,
         content_hash=document.content_hash,
         content_md="",
-        file_path=None,
+        file_path=filename,
+        raw_bytes=raw_bytes,
+        raw_media_type=raw_media_type,
         size_bytes=0,
         created_at=now,
     )

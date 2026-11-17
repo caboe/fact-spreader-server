@@ -607,3 +607,17 @@ document evidence. The parser is deliberately small because the v1 columns are f
 
 **Rejected:** putting sidecar values into the Markdown, failing the whole batch on a bad
 row, requiring a strict CSV schema.
+
+## D40 — Failed batch entries keep raw bytes only for an explicit retry
+
+**What:** a failed batch parse stores the original bytes and media type on the document
+version. `POST /v1/documents/batches/{id}/retry` reparses only those failed entries from
+the stored bytes, recomputes metadata warnings and moves the document to `ready` or
+`warning`; a second parse failure leaves it failed with the parser message.
+
+**Why:** PROTOCOL §8.7 requires retrying failed files individually. Without the raw bytes
+the parser cannot be run again, and re-uploading the whole batch would duplicate the
+successful entries. Raw bytes are retained only for failures, not for accepted documents.
+
+**Rejected:** keeping raw bytes for every document (unnecessary storage and retention),
+retrying from the parsed Markdown (loses the original), re-running the whole batch.

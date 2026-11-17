@@ -32,6 +32,7 @@ from app.db.models import Document, DocumentVersion, Instance, Result
 from app.db.models import Job as JobRow
 from app.retrieval.lightrag import LightRAGClient, LightRAGError
 from app.services.checks import create_check_job
+from app.services.input_reader import read_file_bytes
 from app.services.methodology import Methodology
 from app.services.publishers import PublisherRegistry
 
@@ -541,3 +542,45 @@ async def enqueue_rechecks_for_document(
         }
         enqueued += 1
     return {"enqueued": enqueued, "skipped_budget": skipped}
+
+
+async def retry_failed_document(
+    session: AsyncSession,
+    *,
+    document: Document,
+    version: DocumentVersion,
+    settings: Settings,
+) -> DocumentWarning | None:
+    """Reparse the stored raw bytes of a failed document; return an error warning or None."""
+    if not version.raw_bytes:
+        return DocumentWarning(code="retry_unavailable", message="No raw content was stored.")
+    try:
+        text, title = read_file_bytes(
+            filename=version.file_path or document.title,
+            content_type=version.raw_media_type or "application/octet-stream",
+            data=version.raw_bytes,
+            settings=settings,
+        )
+    except (ValueError, OSError) as exc:
+        return DocumentWarning(code="parse_warning", message=str(exc)[:500])
+    if not text.strip():
+        return DocumentWarning(code="parse_warning", message="The retry produced no readable text.")
+    document.content_hash = sha256_text(text)
+    if title and document.title in {"", "Untitled document"}:
+        document.title = title[:500]
+    warnings = _warnings(
+        content=text,
+        language=document.language,
+        supported=settings.supported_languages,
+        license_=document.license,
+        quality=document.source_quality,
+        duplicate_of=None,
+    )
+    document.warnings = [item.model_dump(mode="json") for item in warnings]
+    document.state = "warning" if warnings else "ready"
+    document.updated_at = utcnow()
+    version.content_md = text
+    version.content_hash = document.content_hash
+    version.size_bytes = len(version.raw_bytes)
+    await session.flush()
+    return None

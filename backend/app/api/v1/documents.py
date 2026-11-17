@@ -15,6 +15,7 @@ from app.contracts.api import (
     BatchActionRequest,
     BatchRejectRequest,
     BatchResponse,
+    BatchRetryRequest,
     BatchSubmitRequest,
     DocumentInfo,
     DocumentMetadata,
@@ -50,7 +51,11 @@ from app.services.documents import (
     extract_pdf_tables,
     latest_version,
     queue_review_counts,
+    retry_failed_document,
     update_corpus_version,
+)
+from app.services.documents import (
+    latest_version as _latest_version,
 )
 from app.services.image_input import extract_image_text, prepare_image
 from app.services.input_reader import (
@@ -551,6 +556,8 @@ async def submit_batch(
                 filename=filename,
                 reason="payload_too_large",
                 user_id=principal.user_id,
+                raw_bytes=data,
+                raw_media_type=media,
             )
             continue
         if media.startswith("image/"):
@@ -560,6 +567,8 @@ async def submit_batch(
                 filename=filename,
                 reason="image documents are not supported in a batch yet",
                 user_id=principal.user_id,
+                raw_bytes=data,
+                raw_media_type=media,
             )
             continue
         try:
@@ -573,6 +582,8 @@ async def submit_batch(
                 filename=filename,
                 reason=str(exc),
                 user_id=principal.user_id,
+                raw_bytes=data,
+                raw_media_type=media,
             )
             continue
         if not text.strip():
@@ -582,6 +593,8 @@ async def submit_batch(
                 filename=filename,
                 reason="empty_input",
                 user_id=principal.user_id,
+                raw_bytes=data,
+                raw_media_type=media,
             )
             continue
         if metadata.title is None and title:
@@ -614,6 +627,8 @@ async def submit_batch(
                 filename=filename,
                 reason=str(exc) or "parse_failed",
                 user_id=principal.user_id,
+                raw_bytes=data,
+                raw_media_type=media,
             )
     for url in body.urls:
         try:
@@ -752,5 +767,48 @@ async def reject_batch(
         document.notes = body.reason
         document.updated_at = utcnow()
         results.append({"document_id": document_id, "state": "rejected"})
+    await session.commit()
+    return {"results": results}
+
+
+@router.post("/documents/batches/{batch_id}/retry")
+async def retry_batch(
+    batch_id: str,
+    body: BatchRetryRequest,
+    request: Request,
+    principal: Review,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    batch = await session.get(DocumentBatch, batch_id)
+    if batch is None:
+        raise AppError(404, "not_found", "The batch does not exist.")
+    if not body.document_ids:
+        raise AppError(422, "invalid_input", "At least one document id is required.")
+    results: list[dict[str, Any]] = []
+    for document_id in body.document_ids:
+        document = await session.get(Document, document_id)
+        if document is None or document.batch_id != batch.id:
+            results.append({"document_id": document_id, "error": "not_found"})
+            continue
+        if document.state != "failed":
+            results.append({"document_id": document_id, "error": "invalid_state"})
+            continue
+        version = await _latest_version(session, document)
+        if version is None:
+            results.append({"document_id": document_id, "error": "not_found"})
+            continue
+        error = await retry_failed_document(
+            session,
+            document=document,
+            version=version,
+            settings=request.app.state.settings,
+        )
+        if error is not None:
+            results.append(
+                {"document_id": document_id, "error": error.code, "message": error.message}
+            )
+        else:
+            results.append({"document_id": document_id, "state": document.state})
+    await finalise_batch(session, batch)
     await session.commit()
     return {"results": results}

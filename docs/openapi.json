@@ -268,6 +268,20 @@
         "title": "BatchResponse",
         "type": "object"
       },
+      "BatchRetryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "document_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Document Ids",
+            "type": "array"
+          }
+        },
+        "title": "BatchRetryRequest",
+        "type": "object"
+      },
       "CheckResponse": {
         "properties": {
           "compact": {
@@ -4110,6 +4124,60 @@
           }
         },
         "summary": "Reject Batch",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/v1/documents/batches/{batch_id}/retry": {
+      "post": {
+        "operationId": "retry_batch_v1_documents_batches__batch_id__retry_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRetryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Retry Batch V1 Documents Batches  Batch Id  Retry Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Batch",
         "tags": [
           "documents"
         ]
