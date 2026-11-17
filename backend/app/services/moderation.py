@@ -91,8 +91,17 @@ class ModerationService:
                 categories=["sexual_minors"],
                 action=ModerationAction.BLOCK,
             )
+        hint = ""
+        if purpose == "output_moderation":
+            hint = (
+                "\n\nThis text is a fact-check narrative. It may quote or describe a "
+                "discriminatory claim in order to explain why it is misleading. Flag "
+                "discriminatory_generalization only when the narrative itself endorses or "
+                "asserts the generalization; attributing, quoting or refuting it is not a "
+                "violation."
+            )
         messages = [
-            {"role": "system", "content": _SYSTEM},
+            {"role": "system", "content": _SYSTEM + hint},
             {"role": "user", "content": f"<input>\n{text}\n</input>"},
         ]
         try:

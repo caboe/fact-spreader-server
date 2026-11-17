@@ -370,6 +370,23 @@ unchecked synthesis out of the research surface.
 **Rejected:** releasing a syntactically valid summary without the judge, deleting citations
 until the judge passes, returning a partial summary, treating a judge outage as a pass.
 
+## D26 — Output moderation distinguishes quoting a claim from asserting it
+
+**What:** the output-moderation call adds a purpose-specific instruction: a fact-check
+narrative may quote or describe a discriminatory claim in order to explain why it is
+misleading; `discriminatory_generalization` is flagged only when the narrative itself
+endorses or asserts the generalization. On any hit the narrative is still replaced by the
+deterministic template; the `sexual_minors` hard floor is unchanged.
+
+**Why:** the live German Analyst rendering passed the deterministic checks and the
+consistency judge, but output moderation replaced it as `discriminatory_generalization`.
+The English rendering passed, so the classifier was reacting to the topic rather than to
+an assertion. A fact checker must be able to attribute the claim it refutes. The safety
+consequence stays: a flagged narrative is still removed, never released.
+
+**Rejected:** disabling output moderation, exempting a category from replacement, letting
+the model keep a narrative that asserts the generalization, changing the hard floor.
+
 ## D27 — The LightRAG keyword role is bound to the gateway explicitly
 
 **What:** `deploy/lightrag/lightrag.env` now sets `KEYWORD_LLM_BINDING=openai` with the
