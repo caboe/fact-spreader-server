@@ -352,6 +352,13 @@ roles/TOTP.
 
 ## 6. Phase 3 — Audit depth, contradictions, research and fast mode
 
+**Status: in progress (2026-11-17).** Done: retrieval research with archive hits and a
+citation-checked summary (deterministic citation checks, independent `fs-verify` judge,
+metadata-only quotation limit, timeout warning), contradiction records, the staleness
+downgrade, the `audit_incomplete` downgrade for `true`, and corpus-gap aggregation. Open:
+targeted re-retrieval for open confounders, fast mode with the semantic cache, the full
+re-check archive flow, and the Phase 3 live acceptance run.
+
 **Goal.** The pipeline handles the hard cases (missing context, corpus conflicts, recency,
 no evidence), research works, and the extension gets a preliminary result in under 15 s with
 a full result following.

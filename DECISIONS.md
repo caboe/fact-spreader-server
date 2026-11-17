@@ -351,3 +351,22 @@ fields remain authoritative; this does not relax the substance rules.
 
 **Rejected:** accepting every citation the model emits (violates invariant 3), removing the
 judge, truncating the evidence further to save tokens (caused the false negative).
+
+
+## D25 — A research summary is withheld unless an independent judge supports it
+
+**What:** the summary model writes cited sentences; code then checks that every sentence
+has at least one citation from the response, enforces a short quotation limit on
+`metadata_only` sources, and sends the sentences with their cited passages to `fs-verify`
+as a consistency judge. The judge checks meaning-level support, verdict/crime/motive
+invention, loaded-term adoption and quotation marking. Any failure, judge outage or timeout
+returns the lists with `summary=null` and a warning (`summary_consistency_failed` or
+`summary_timeout`); there is no retry that strips citations.
+
+**Why:** citation syntax alone does not prove support. Invariant 4 requires attribution and
+no assertion, and PROTOCOL §5.2 names the judge explicitly. Failing closed keeps an
+unchecked synthesis out of the research surface.
+
+**Rejected:** releasing a syntactically valid summary without the judge, deleting citations
+until the judge passes, returning a partial summary, treating a judge outage as a pass.
+

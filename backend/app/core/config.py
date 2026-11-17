@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     monthly_budget_usd: float = 15.0
     user_budget_usd: float = 15.0
     provider_timeout_seconds: float = 120.0
+    research_summary_timeout_seconds: float = 60.0
 
     # --- bootstrap providers (Phase 1 only) ------------------------------------
     deepseek_api_key: SecretStr = SecretStr("")

@@ -38,4 +38,5 @@ async def search(
         filters=body.filters,
         summary=body.summary,
         limit=body.limit,
+        summary_timeout_seconds=request.app.state.settings.research_summary_timeout_seconds,
     )

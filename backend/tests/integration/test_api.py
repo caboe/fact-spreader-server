@@ -459,3 +459,28 @@ async def test_research_returns_documents_and_archive_hits(
     assert body["documents"][0]["passages"][0]["passage_language"] == "en"
     assert body["summary"]["text"].startswith("Registered suspects")
     assert body["summary"]["citations"][0]["evidence_ids"]
+
+
+@pytest.mark.asyncio
+async def test_research_withholds_a_summary_that_fails_the_consistency_check(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document_id = await _seed_approved_document(app, None)
+    app.state.lightrag = FakeLightRAG(
+        document_id=document_id,
+        passage="Registered suspects are higher in the raw comparison.",
+    )
+
+    async def failing_summary(self: Any, query: str, language: str, documents: Any) -> None:
+        raise ValueError("the summary judge rejected the candidate")
+
+    monkeypatch.setattr(ResearchService, "_summary", failing_summary)
+    response = await client.post(
+        "/v1/search",
+        json={"query": "immigrants crime statistics", "summary": True},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["summary"] is None
+    assert [warning["code"] for warning in body["warnings"]] == ["summary_consistency_failed"]
+    assert body["documents"]
