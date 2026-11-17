@@ -11,6 +11,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
 from sqlalchemy import (
     Boolean,
     Date,
@@ -257,6 +258,25 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ClaimCache(Base):
+    """Semantic fast-mode cache over normalized claims.
+
+    The embedding is the corpus embedding model's vector; a hit is only valid for the
+    same corpus version. The row points at the full result it may serve.
+    """
+
+    __tablename__ = "claim_cache"
+    __table_args__ = (Index("ix_claim_cache_corpus", "corpus_version"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    normalized_text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list[float]] = mapped_column(Vector(1024))
+    result_id: Mapped[str] = mapped_column(ForeignKey("results.id", ondelete="CASCADE"), index=True)
+    corpus_version: Mapped[str] = mapped_column(String(80))
+    language: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Result(Base):

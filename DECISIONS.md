@@ -419,3 +419,59 @@ prevents a clean `true`.
 **Rejected:** re-verifying unconditionally after every audit gap, looping until the model
 claims completeness (unbounded cost), letting the model itself decide whether to retrieve,
 dropping the audit gate for speed.
+
+## D29 — pgvector stores the semantic-cache embeddings; tests use the pinned pgvector image
+
+**What:** `claim_cache.embedding` is a `vector(1024)` column, queried with `<=>` through raw
+SQL and cast from a text literal; the `pgvector` Python package supplies the SQLAlchemy
+type and the migration. Integration and migration checks now use
+`pgvector/pgvector@sha256:484e…` instead of `postgres:16-alpine`, and the app fixture
+creates the extension before `create_all`.
+
+**Why:** IMPLEMENT Phase 3 names pgvector in the app DB, and cosine distance belongs in
+the database that already holds the corpus. The plain test image has no extension files,
+so the schema could not be created there. Raw SQL avoids an asyncpg vector codec for a
+column the application only writes and ranks, never reads back.
+
+**Rejected:** storing JSONB embeddings and scanning in Python, a Redis vector store
+(second source of truth), registering a custom asyncpg codec just to read the column,
+weakening the integration fixture to skip the cache table.
+
+## D30 — Fast mode is an honest preliminary, never a cached verdict presented as final
+
+**What:** a fast request creates the full job and its preliminary result in one
+transaction. On a same-corpus/same-response-language cache hit, the preliminary is a copy
+of a gated full result marked `preliminary=true` with `preliminary_result` and
+`full_result_follows`, and `X-Full-Result-Job` points at the running check. On a miss the
+preliminary runs extraction (bounded at 10 s) and returns the statements with a null
+verdict; a failed extraction falls back to the raw text as one statement. The worker links
+the full result as version 2 with `previous_version_id` set to the preliminary. Fast OpenAI
+calls return the preliminary plus `full_result_pending=true`; streaming sends the
+preliminary in the first chunk and never a persona narrative.
+
+**Why:** the 15 s target cannot include the remote verification/audit calls. A null-verdict
+preliminary cannot contradict the gate, and a cached gated result is labelled as reused
+rather than presented as the current check. Creating and storing the preliminary in the
+same transaction keeps the job invisible until it can be versioned, so the full result is
+always version 2.
+
+**Rejected:** waiting for the full pipeline and calling it fast, fabricating a verdict from
+retrieval similarity, releasing a cache hit as final, letting the worker race the
+preliminary and produce two version-1 results.
+
+## D31 — The archive lists the newest version and the detail lists the whole chain
+
+**What:** `GET /v1/claims` hides a result that another result supersedes
+(`previous_result_id` points at it); `GET /v1/claims/{id}` follows previous-result links
+in both directions, returns the newest row as `result`, and lists every version with
+`current` set on exactly one row. Feedback remains attached to the version that received
+it.
+
+**Why:** a fast preliminary and its full result are two versions of one claim, not two
+claims. PROTOCOL §4.4 requires the archive to point at the newest version and to list all
+versions. Returning the preliminary as current after the full result exists would show a
+stale verdict.
+
+**Rejected:** deleting the preliminary when the full result arrives (it is the durability
+record the client already saw), one row overwritten in place (loses the version history),
+matching versions by claim text (collides on different claims).

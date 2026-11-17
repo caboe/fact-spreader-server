@@ -42,5 +42,9 @@ async def instance_info(request: Request) -> InstanceInfo:
         supported_response_languages=list(settings.supported_languages),
         supported_corpus_languages=list(settings.supported_languages),
         languages=list(settings.supported_languages),
-        features={"fast_mode": False, "research_summary": False, "vision": False},
+        features={
+            "fast_mode": True,
+            "research_summary": True,
+            "vision": settings.vision_enabled,
+        },
     )

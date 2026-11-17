@@ -19,7 +19,7 @@ from app.db.session import Database
 from app.main import create_app
 from app.services.auth import create_api_key
 from pydantic import SecretStr
-from sqlalchemy import select
+from sqlalchemy import select, text
 from testcontainers.postgres import PostgresContainer
 
 pytestmark = pytest.mark.integration
@@ -28,7 +28,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture(scope="session")
 def postgres() -> Iterator[str]:
     container = PostgresContainer(
-        "postgres:16-alpine",
+        "pgvector/pgvector@sha256:484e838076e04939d27d3e176e91c86eea96236126023be8d3059761122e579f",
         username="factspreader",
         password="test-password",
         dbname="app",
@@ -64,6 +64,7 @@ async def settings(postgres: str) -> Settings:
 async def app(settings: Settings) -> AsyncIterator[object]:
     database = Database(settings)
     async with database.engine.begin() as connection:
+        await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await connection.run_sync(Base.metadata.drop_all)
         await connection.run_sync(Base.metadata.create_all)
     await database.dispose()

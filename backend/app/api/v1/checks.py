@@ -32,6 +32,7 @@ from app.services.checks import (
     load_response,
     request_hash,
 )
+from app.services.fast import run_fast
 from app.services.image_input import extract_image_text, prepare_image
 from app.services.input_reader import (
     UrlFetchError,
@@ -227,6 +228,40 @@ async def create_check(
         render_model_id=body.render_model_id,
         output_format=body.output_format.value,
     )
+    if body.fast:
+        if job_row.state == JobState.DONE.value and job_row.result_id:
+            response = await load_response(session, job_row.result_id, persona_id=body.persona_id)
+            if response is None:
+                raise AppError(404, "not_found", "The result does not exist.")
+            await session.commit()
+            return JSONResponse(
+                status_code=200,
+                content=response.model_dump(mode="json", by_alias=True),
+                headers={
+                    "ETag": f'"{response.result.id}:{response.result.version}"',
+                    "X-Result-Preliminary": "false",
+                },
+            )
+        fast_response = await run_fast(
+            session,
+            settings=request.app.state.settings,
+            publishers=request.app.state.publishers,
+            methodology=request.app.state.methodology,
+            language=request.app.state.language,
+            job=job_row,
+            text=normalized,
+            response_language=body.response_language,
+        )
+        await session.commit()
+        return JSONResponse(
+            status_code=200,
+            content=fast_response.model_dump(mode="json", by_alias=True),
+            headers={
+                "ETag": f'"{fast_response.result.id}:1"',
+                "X-Result-Preliminary": "true",
+                "X-Full-Result-Job": job_row.id,
+            },
+        )
     await session.commit()
     job = job_to_api(job_row)
     accepted = JobAccepted(job=job, poll_after_ms=job.poll_after_ms)
@@ -423,12 +458,17 @@ def _validate_phase1_request(
             raise AppError(413, "payload_too_large", "The input text is too long.")
     elif body.input.type == "url" and not body.input.url:
         raise AppError(422, "invalid_input", "A URL input requires a url.")
-    if body.mode == "sync" or body.fast:
-        raise AppError(
-            422,
-            "fast_mode_not_available",
-            "The synchronous/fast mode arrives in Phase 3.",
-        )
+    if body.mode == "sync" and not body.fast:
+        raise AppError(422, "sync_requires_fast", "Sync mode requires fast=true.")
+    if body.fast:
+        if body.input.type in {"file", "image"}:
+            pass
+        elif body.input.type != "text" or len(body.input.text or "") > 5000:
+            raise AppError(
+                422,
+                "invalid_input",
+                "Fast mode accepts text up to 5,000 characters or one image.",
+            )
     if body.output_format == "persona" and body.persona_id is None:
         raise AppError(
             422,

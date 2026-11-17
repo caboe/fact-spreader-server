@@ -16,6 +16,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.config import Settings
 from app.core.http import OutboundHTTP
+from app.llm.aliases import FS_EMBEDDING
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -214,6 +215,42 @@ class LLMClient:
             tokens_in=int(usage.get("prompt_tokens") or 0),
             tokens_out=int(usage.get("completion_tokens") or 0),
         )
+
+    async def embed(
+        self,
+        text: str,
+        *,
+        user_id: str | None = None,
+        purpose: str = "semantic_cache",
+    ) -> list[float]:
+        """Embed normalized claim text through the gateway for the semantic cache."""
+        headers = {
+            "Authorization": f"Bearer {self._key}",
+            "X-FS-Consumer": self._consumer,
+            "X-FS-Data-Classes": "user_input",
+            "X-FS-Purpose": purpose,
+            "Content-Type": "application/json",
+        }
+        if user_id:
+            headers["X-FS-User-Id"] = user_id
+        if self._request_id:
+            headers["X-Request-Id"] = self._request_id
+        response = await self._http.request(
+            "POST",
+            f"{self._base}/embeddings",
+            json={"model": FS_EMBEDDING, "input": text},
+            headers=headers,
+        )
+        if response.status_code >= 400:
+            raise _gateway_error(response)
+        try:
+            payload = response.json()
+            embedding = payload["data"][0]["embedding"]
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise LLMOutputError("gateway returned a malformed embedding") from exc
+        if not isinstance(embedding, list) or len(embedding) != 1024:
+            raise LLMOutputError("gateway returned an embedding with the wrong dimension")
+        return [float(value) for value in embedding]
 
     async def _call(
         self,

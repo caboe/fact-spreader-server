@@ -9,8 +9,9 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.contracts.api import ArchiveEntry, CheckResponse, FeedbackRequest
 from app.core.errors import AppError
@@ -80,7 +81,12 @@ async def list_claims(
     cursor: str | None = None,
     limit: int = Query(default=20, ge=1, le=100),
 ) -> dict[str, Any]:
-    statement = select(Result).where(Result.deleted.is_(False))
+    newer = aliased(Result)
+    statement = (
+        select(Result)
+        .where(Result.deleted.is_(False))
+        .where(~exists().where(newer.previous_result_id == Result.id))
+    )
     if verdict:
         statement = statement.where(Result.overall_verdict == verdict)
     if mine:
@@ -102,6 +108,38 @@ async def list_claims(
     }
 
 
+async def _version_chain(session: AsyncSession, row: Result) -> list[Result]:
+    """Follow the previous-result links in both directions and return version order."""
+    chain: dict[str, Result] = {row.id: row}
+    current = row
+    while current.previous_result_id:
+        previous = await session.get(Result, current.previous_result_id)
+        if previous is None or previous.id in chain:
+            break
+        chain[previous.id] = previous
+        current = previous
+    changed = True
+    while changed:
+        changed = False
+        children = (
+            (
+                await session.execute(
+                    select(Result).where(
+                        Result.previous_result_id.in_(list(chain)),
+                        Result.deleted.is_(False),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for child in children:
+            if child.id not in chain:
+                chain[child.id] = child
+                changed = True
+    return sorted(chain.values(), key=lambda item: (item.version, item.created_at))
+
+
 @router.get("/{result_id}")
 async def get_claim(
     result_id: str,
@@ -111,11 +149,13 @@ async def get_claim(
     row = await session.get(Result, result_id)
     if row is None or row.deleted:
         raise AppError(404, "not_found", "The claim does not exist.")
-    response: CheckResponse | None = await load_response(session, result_id)
+    versions = await _version_chain(session, row)
+    current = versions[-1]
+    response: CheckResponse | None = await load_response(session, current.id)
     if response is None:
         raise AppError(404, "not_found", "The claim does not exist.")
     feedback_rows = (
-        (await session.execute(select(Feedback).where(Feedback.result_id == result_id)))
+        (await session.execute(select(Feedback).where(Feedback.result_id == current.id)))
         .scalars()
         .all()
     )
@@ -127,18 +167,19 @@ async def get_claim(
         if feedback.user_id == principal.user_id:
             my_feedback = feedback.kind
     submitted_by = None
-    if row.user_id and (row.user_id == principal.user_id or principal.has("quality:read")):
-        submitted_by = row.user_id
+    if current.user_id and (current.user_id == principal.user_id or principal.has("quality:read")):
+        submitted_by = current.user_id
     return {
         "result": response.model_dump(mode="json", by_alias=True),
         "versions": [
             {
-                "result_id": row.id,
-                "version": row.version,
-                "created_at": row.created_at.isoformat(),
-                "preliminary": row.preliminary,
-                "current": True,
+                "result_id": item.id,
+                "version": item.version,
+                "created_at": item.created_at.isoformat(),
+                "preliminary": item.preliminary,
+                "current": item.id == current.id,
             }
+            for item in versions
         ],
         "feedback": {**counts, "my_feedback": my_feedback},
         "submitted_by": submitted_by,

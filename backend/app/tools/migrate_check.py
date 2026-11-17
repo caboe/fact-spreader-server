@@ -13,7 +13,7 @@ from pathlib import Path
 
 from testcontainers.postgres import PostgresContainer
 
-IMAGE = "postgres:16-alpine"
+IMAGE = "pgvector/pgvector@sha256:484e838076e04939d27d3e176e91c86eea96236126023be8d3059761122e579f"
 
 
 def _run(url: str, *args: str) -> None:
@@ -55,7 +55,7 @@ def main() -> None:
     except Exception as exc:
         print(
             f"migration check could not run: {type(exc).__name__}: {exc}\n"
-            "Is Docker running? The check uses postgres:16-alpine.",
+            "Is Docker running? The check uses the pinned pgvector image.",
             file=sys.stderr,
         )
         raise SystemExit(2) from exc

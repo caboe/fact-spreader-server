@@ -33,6 +33,7 @@ from app.llm.client import LLMError
 from app.rendering import render_substance_text
 from app.services.auth import Principal, authenticate
 from app.services.checks import create_check_job, load_response
+from app.services.fast import run_fast
 from app.services.personas import PersonaRegistry
 
 router = APIRouter(prefix="/v1", tags=["openai"])
@@ -113,8 +114,6 @@ def _parse_factcheck(extension: dict[str, Any] | None) -> dict[str, Any]:
     unknown = sorted(set(extension) - allowed)
     if unknown:
         raise ValueError(f"unsupported factcheck fields: {', '.join(unknown)}")
-    if extension.get("fast"):
-        raise ValueError("fast mode arrives in Phase 3")
     if extension.get("summary"):
         raise ValueError("research mode is not part of this surface yet")
     return extension
@@ -203,7 +202,9 @@ def _content_for(response: CheckResponse, persona_id: str | None) -> tuple[str, 
     return render_substance_text(result, result.response_language), None
 
 
-def _factcheck_object(response: CheckResponse, *, job_id: str) -> dict[str, Any]:
+def _factcheck_object(
+    response: CheckResponse, *, job_id: str, full_pending: bool = False
+) -> dict[str, Any]:
     return {
         "result": response.result.model_dump(mode="json", by_alias=True),
         "rendering": (
@@ -215,7 +216,7 @@ def _factcheck_object(response: CheckResponse, *, job_id: str) -> dict[str, Any]
         if response.compact
         else None,
         "job_id": job_id,
-        "full_result_pending": False,
+        "full_result_pending": full_pending,
     }
 
 
@@ -375,6 +376,59 @@ async def _create_job(
         return job, job.id
 
 
+async def _fast_check(
+    request: Request,
+    principal: Principal,
+    *,
+    body: OpenAIChatRequest,
+    text: str,
+    persona_id: str | None,
+    output_format: str,
+    context: list[dict[str, str]],
+    turn_type: TurnType,
+) -> tuple[CheckResponse, str]:
+    """Create the full job and its preliminary result in one transaction.
+
+    The job stays invisible to the worker until the preliminary result is stored, so the
+    full result can always be version 2.
+    """
+    async with request.app.state.db.session_factory() as session:
+        job, _moderation = await create_check_job(
+            session,
+            settings=request.app.state.settings,
+            publishers=request.app.state.publishers,
+            methodology=request.app.state.methodology,
+            text=text,
+            user_id=principal.user_id,
+            response_language=body.factcheck.get("response_language") if body.factcheck else None,
+            turn_type=turn_type,
+            context=context,
+            persona_id=persona_id,
+            render_model_id=body.factcheck.get("render_model_id") if body.factcheck else None,
+            output_format=output_format,
+            render_max_tokens=body.max_completion_tokens or body.max_tokens or 8000,
+            render_temperature=body.temperature if body.temperature is not None else 0.4,
+        )
+        if job.state == JobState.DONE.value and job.result_id:
+            blocked = await load_response(session, job.result_id, persona_id=persona_id)
+            if blocked is None:
+                raise _JobFailure("the moderation result disappeared")
+            await session.commit()
+            return blocked, job.id
+        response = await run_fast(
+            session,
+            settings=request.app.state.settings,
+            publishers=request.app.state.publishers,
+            methodology=request.app.state.methodology,
+            language=request.app.state.language,
+            job=job,
+            text=text,
+            response_language=body.factcheck.get("response_language") if body.factcheck else None,
+        )
+        await session.commit()
+        return response, job.id
+
+
 async def _non_streaming_response(
     *,
     request: Request,
@@ -386,27 +440,41 @@ async def _non_streaming_response(
     context: list[dict[str, str]],
     turn_type: TurnType,
 ) -> JSONResponse:
+    fast = bool(body.factcheck and body.factcheck.get("fast"))
     try:
-        _job, job_id = await _create_job(
-            request,
-            principal,
-            body=body,
-            text=text,
-            persona_id=persona_id,
-            output_format=output_format,
-            context=context,
-            turn_type=turn_type,
-        )
+        if fast:
+            response, job_id = await _fast_check(
+                request,
+                principal,
+                body=body,
+                text=text,
+                persona_id=persona_id,
+                output_format=output_format,
+                context=context,
+                turn_type=turn_type,
+            )
+            async with request.app.state.db.session_factory() as session:
+                usage = await _aggregate_usage(session, job_id)
+        else:
+            _job, job_id = await _create_job(
+                request,
+                principal,
+                body=body,
+                text=text,
+                persona_id=persona_id,
+                output_format=output_format,
+                context=context,
+                turn_type=turn_type,
+            )
+            async with request.app.state.db.session_factory() as session:
+                _job, response = await _wait_for_job(
+                    request.app.state.db.session_factory, job_id, wait_seconds=240
+                )
+                usage = await _aggregate_usage(session, job_id)
     except AppError as exc:
         return _error(exc.status, exc.code, exc.detail, _kind_for_status(exc.status))
     except LLMError as exc:
         return _error(exc.status, exc.code, exc.detail, _kind_for_status(exc.status))
-    try:
-        async with request.app.state.db.session_factory() as session:
-            _job, response = await _wait_for_job(
-                request.app.state.db.session_factory, job_id, wait_seconds=240
-            )
-            usage = await _aggregate_usage(session, job_id)
     except _JobFailure as exc:
         return _error(502, "pipeline_error", f"The check failed: {exc}")
     except TimeoutError:
@@ -430,7 +498,11 @@ async def _non_streaming_response(
         "model": model_name,
         "choices": choices,
         "usage": usage,
-        "factcheck": _factcheck_object(response, job_id=job_id),
+        "factcheck": _factcheck_object(
+            response,
+            job_id=job_id,
+            full_pending=fast and response.result.status != "refused",
+        ),
     }
     return JSONResponse(content=payload)
 
@@ -446,6 +518,47 @@ async def _stream_response(
     context: list[dict[str, str]],
     turn_type: TurnType,
 ) -> JSONResponse | StreamingResponse:
+    fast = bool(body.factcheck and body.factcheck.get("fast"))
+    if fast:
+        try:
+            response, fast_job_id = await _fast_check(
+                request,
+                principal,
+                body=body,
+                text=text,
+                persona_id=persona_id,
+                output_format=output_format,
+                context=context,
+                turn_type=turn_type,
+            )
+        except AppError as exc:
+            return _error(exc.status, exc.code, exc.detail, _kind_for_status(exc.status))
+        except LLMError as exc:
+            return _error(exc.status, exc.code, exc.detail, _kind_for_status(exc.status))
+
+        async def fast_events() -> AsyncIterator[bytes]:
+            content, finish_reason = _content_for(response, persona_id)
+            if output_format == "compact" and response.compact is not None:
+                content = response.compact.bottom_line
+            factcheck = _factcheck_object(response, job_id=fast_job_id, full_pending=True)
+            yield _sse(_chunk(fast_job_id, body.model, delta={}, factcheck=factcheck))
+            yield _sse(_chunk(fast_job_id, body.model, delta={"content": content}))
+            yield _sse(
+                _chunk(
+                    fast_job_id,
+                    body.model,
+                    delta={},
+                    finish_reason=finish_reason or "stop",
+                    factcheck={"rendering": factcheck["rendering"]},
+                )
+            )
+            yield b"data: [DONE]\n\n"
+
+        return StreamingResponse(
+            fast_events(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+        )
     try:
         _job, job_id = await _create_job(
             request,

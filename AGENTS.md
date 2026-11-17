@@ -35,8 +35,9 @@ Three kinds of request share one API:
    in progress: research retrieval and the citation-checked summary with its independent
    judge, one targeted re-retrieval round for an open confounder, contradiction records,
    the staleness downgrade, the `audit_incomplete` gate and corpus-gap aggregation are in
-   place. Fast mode with the semantic cache, the full re-check archive flow and the Phase 3
-   live acceptance run remain.
+   place, as are fast mode with the pgvector semantic cache, versioned preliminary/full
+   results and the archive's newest-version view. The full re-check archive flow and the
+   Phase 3 live acceptance run remain.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

@@ -105,16 +105,6 @@ async def test_invalid_input_is_rejected_before_a_job(client: httpx.AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_fast_mode_is_honestly_unavailable_in_phase_1(client: httpx.AsyncClient) -> None:
-    response = await client.post(
-        "/v1/factcheck",
-        json={"input": {"type": "text", "text": "A claim."}, "fast": True},
-    )
-    assert response.status_code == 422
-    assert response.json()["code"] == "fast_mode_not_available"
-
-
-@pytest.mark.asyncio
 async def test_moderation_unavailable_fails_closed(
     client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -565,3 +555,86 @@ async def test_an_open_audit_never_returns_true(
     assert result["overall_verdict"] == "insufficient_evidence"
     assert result["statements"][0]["gate"]["reason"] == "audit_incomplete"
     assert "audit_incomplete" in [w["code"] for w in result["warnings"]]
+
+
+@pytest.mark.asyncio
+async def test_fast_mode_returns_a_preliminary_result_and_versions_the_full_result(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.services.fast as fast_service
+
+    document_id = await _seed_approved_document(app, settings)
+    fake_llm = FakeLLM()
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    monkeypatch.setattr(
+        fast_service, "LLMClient", lambda settings, consumer="fast", request_id=None: fake_llm
+    )
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "Immigrants commit more crimes."}, "fast": True},
+    )
+    assert response.status_code == 200, response.text
+    preliminary = response.json()
+    assert preliminary["result"]["preliminary"] is True
+    assert preliminary["result"]["overall_verdict"] is None
+    assert preliminary["result"]["statements"][0]["text"] == "Immigrants commit more crimes."
+    assert response.headers["X-Result-Preliminary"] == "true"
+    job_id = response.headers["X-Full-Result-Job"]
+    preliminary_id = preliminary["result"]["id"]
+
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=FakeLightRAG(  # type: ignore[arg-type]
+                document_id=document_id,
+                passage="Immigrants commit more crimes, according to the fixture.",
+            ),
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+    detail = (await client.get(f"/v1/factcheck/{job_id}")).json()
+    full = detail["result"]["result"]
+    assert full["version"] == 2
+    assert full["previous_version_id"] == preliminary_id
+    assert full["preliminary"] is False
+    assert full["overall_verdict"] == "true_but_misleading"
+    claim = await client.get(f"/v1/claims/{full['id']}")
+    versions = claim.json()["versions"]
+    assert [item["version"] for item in versions] == [1, 2]
+    assert versions[-1]["current"] is True
+    assert versions[0]["result_id"] == preliminary_id
+    listed = await client.get("/v1/claims?mine=true")
+    listed_ids = {entry["result_id"] for entry in listed.json()["data"]}
+    assert listed_ids == {full["id"]}
+
+    cached = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "Immigrants commit more crimes."}, "fast": True},
+    )
+    assert cached.status_code == 200, cached.text
+    assert cached.json()["result"]["preliminary"] is True
+    assert cached.json()["result"]["overall_verdict"] == "true_but_misleading"
+    assert response.headers["ETag"]
+
+
+@pytest.mark.asyncio
+async def test_fast_mode_validates_sync_and_length(client: httpx.AsyncClient) -> None:
+    sync_only = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "A claim."}, "mode": "sync"},
+    )
+    assert sync_only.status_code == 422
+    assert sync_only.json()["code"] == "sync_requires_fast"
+    too_long = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "x" * 5001}, "fast": True},
+    )
+    assert too_long.status_code == 422
+    assert too_long.json()["code"] == "invalid_input"

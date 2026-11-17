@@ -36,6 +36,7 @@ from app.pipeline.compact import build_compact
 from app.pipeline.runner import CheckPipeline, PipelineError, config_hash, refused_result
 from app.rendering import RenderingService
 from app.retrieval.lightrag import LightRAGClient
+from app.services.claim_cache import remember as remember_claim
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
 from app.services.moderation import ModerationService
@@ -194,6 +195,7 @@ async def create_check_job(
     source_size_bytes: int | None = None,
     source_image: bool = False,
     context: list[dict[str, str]] | None = None,
+    previous_result_id: str | None = None,
 ) -> tuple[JobRow, ModerationInfo]:
     moderation = await ModerationService(LLMClient(settings, consumer="moderation")).classify_check(
         text, user_id=user_id
@@ -219,6 +221,7 @@ async def create_check_job(
         "source_size_bytes": source_size_bytes,
         "source_image": source_image,
         "context": context or [],
+        "previous_result_id": previous_result_id,
     }
     job = JobRow(
         id=job_id,
@@ -314,6 +317,12 @@ async def run_check_job(
         on_statement=on_statement,
     )
     result = outcome.result
+    previous_id = payload.get("previous_result_id")
+    if previous_id:
+        previous = await session.get(Result, str(previous_id))
+        if previous is not None:
+            result.version = previous.version + 1
+            result.previous_version_id = previous.id
     renderings: dict[str, Any] = {}
     persona_id = payload.get("persona_id")
     if persona_id and result.status == "complete" and payload.get("output_format") != "compact":
@@ -364,6 +373,16 @@ async def run_check_job(
     job_row.progress = 1.0
     job_row.finished_at = utcnow()
     await session.flush()
+    if result.status == "complete" and not result.preliminary:
+        await remember_claim(
+            session,
+            LLMClient(settings, consumer="cache"),
+            claim=text,
+            language=result.response_language,
+            corpus_version=instance.corpus_version,
+            result_id=result_id,
+            user_id=job_row.user_id,
+        )
     return result_id
 
 

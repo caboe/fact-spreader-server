@@ -355,9 +355,11 @@ roles/TOTP.
 citation-checked summary (deterministic citation checks, independent `fs-verify` judge,
 metadata-only quotation limit, timeout warning), contradiction records, the staleness
 downgrade, the `audit_incomplete` downgrade for `true`, corpus-gap aggregation and one
-targeted re-retrieval round for an open confounder. Open:
-fast mode with the semantic cache, the full re-check archive flow, and the Phase 3 live
-acceptance run.
+targeted re-retrieval round for an open confounder, fast mode with the pgvector semantic
+cache, and versioned preliminary/full results. Live fast-mode measurements: cold
+preliminary 9.6 s, cache hit 1.3–1.7 s. Open: the full re-check archive flow (automatic
+re-check, QS deletion), the contradiction/staleness live run and the Phase 3 latency
+report.
 
 **Goal.** The pipeline handles the hard cases (missing context, corpus conflicts, recency,
 no evidence), research works, and the extension gets a preliminary result in under 15 s with

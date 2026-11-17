@@ -18,7 +18,9 @@ WORKDIR /app
 COPY --from=uv /uv /uvx /bin/
 
 COPY backend/pyproject.toml backend/uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+# Large wheels (lingua) can outlast uv's default HTTP timeout on a slow link.
+ARG UV_HTTP_TIMEOUT=600
+RUN UV_HTTP_TIMEOUT=$UV_HTTP_TIMEOUT uv sync --frozen --no-dev --no-install-project
 
 COPY backend/alembic.ini ./
 COPY backend/alembic ./alembic

@@ -261,3 +261,71 @@ async def test_conversation_history_is_preserved_as_context(
     result = response.json()["factcheck"]["result"]
     assert result["input"]["context"]["messages"][0]["content"] == "Earlier question."
     assert result["turn_type"] == "follow_up_claim"
+
+
+@pytest.mark.asyncio
+async def test_fast_openai_returns_the_preliminary_and_a_full_job(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.services.fast as fast_service
+
+    fake = FakeLLM()
+    _patch_llm(monkeypatch, fake)
+    monkeypatch.setattr(
+        fast_service,
+        "LLMClient",
+        lambda settings, consumer="fast", request_id=None: fake,
+    )
+    response = await client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "factcheck:analyst",
+            "messages": [{"role": "user", "content": "Immigrants commit more crimes."}],
+            "factcheck": {"fast": True},
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["factcheck"]["full_result_pending"] is True
+    assert payload["factcheck"]["job_id"]
+    assert payload["factcheck"]["result"]["preliminary"] is True
+    assert payload["factcheck"]["result"]["overall_verdict"] is None
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, payload["factcheck"]["job_id"])
+        assert job is not None
+        assert job.state == "queued"
+        assert job.payload["previous_result_id"] == payload["factcheck"]["result"]["id"]
+
+
+@pytest.mark.asyncio
+async def test_fast_streaming_sends_the_preliminary_without_waiting_for_the_worker(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.services.fast as fast_service
+
+    fake = FakeLLM()
+    _patch_llm(monkeypatch, fake)
+    monkeypatch.setattr(
+        fast_service,
+        "LLMClient",
+        lambda settings, consumer="fast", request_id=None: fake,
+    )
+    async with client.stream(
+        "POST",
+        "/v1/chat/completions",
+        json={
+            "model": "factcheck:analyst",
+            "messages": [{"role": "user", "content": "Immigrants commit more crimes."}],
+            "factcheck": {"fast": True},
+            "stream": True,
+        },
+    ) as stream:
+        assert stream.status_code == 200
+        text = (await stream.aread()).decode()
+    events = [
+        line.removeprefix("data: ") for line in text.splitlines() if line.startswith("data: ")
+    ]
+    assert events[-1] == "[DONE]"
+    first = json.loads(events[0])
+    assert first["factcheck"]["result"]["preliminary"] is True
+    assert first["factcheck"]["full_result_pending"] is True

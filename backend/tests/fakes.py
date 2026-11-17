@@ -64,6 +64,16 @@ class FakeLLM:
         text = self.narratives.pop(0) if self.narratives else "The evidence is insufficient."
         return text, LLMUsage(tokens_in=10, tokens_out=5)
 
+    async def embed(
+        self,
+        text: str,
+        *,
+        user_id: str | None = None,
+        purpose: str = "semantic_cache",
+    ) -> list[float]:
+        self.calls.append("embed")
+        return [1.0] + [0.0] * 1023
+
     async def chat_structured(
         self,
         *,
