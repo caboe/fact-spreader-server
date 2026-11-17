@@ -335,3 +335,19 @@ from originals.
 **Rejected:** asking the model to decide which prior message to check (turn routing as an
 LLM verdict source), treating a translation as a citable passage, failing the whole check
 when translation is unavailable.
+
+## D24 — The judge sees a longer excerpt and judges support by meaning
+
+**What:** the consistency judge receives up to 1,800 characters per evidence item (not 500)
+and is instructed that a faithful paraphrase with a valid citation is supported. The
+rendering is still rejected if the judge reports a concrete unsupported citation, an
+uncited factual sentence, a verdict contradiction, an unbacked pattern or an unlabeled
+translation.
+
+**Why:** the live persona matrix exposed false `unsupported_citations` on a correct
+Analyst narrative; the judge was answering from a truncated excerpt. The first live
+canonical run after the change passed on attempt 1 with no fallback. The explicit violation
+fields remain authoritative; this does not relax the substance rules.
+
+**Rejected:** accepting every citation the model emits (violates invariant 3), removing the
+judge, truncating the evidence further to save tokens (caused the false negative).

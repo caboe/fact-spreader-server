@@ -225,7 +225,7 @@ class RenderingService:
     ) -> list[str]:
         patterns = sorted({issue.pattern for issue in result.argument_issues})
         evidence = "\n".join(
-            f"[{item.id}] {item.provenance.publisher} | {item.passage[:500]}"
+            f"[{item.id}] {item.provenance.publisher} | {item.passage[:1800]}"
             for item in result.evidence
         )
         prompt = (
@@ -245,7 +245,9 @@ class RenderingService:
             "A statement that the empirical core is supported is consistent with "
             "true_but_misleading; only a different final verdict is a contradiction. "
             "Do not flag headings, structure or style; flag only concrete violations. "
-            "Set passed=true when no concrete violation remains; issues may be empty."
+            "Judge citation support by meaning, not exact wording: a faithful paraphrase "
+            "with a valid citation is supported. Set passed=true when no concrete "
+            "violation remains; issues may be empty."
         )
         try:
             judged, _usage = await self._llm.chat_structured(
