@@ -920,3 +920,50 @@ async def test_batch_upload_sanitises_zip_and_reports_per_file_states(
     detail = await client.get(f"/v1/documents/batches/{batch['id']}")
     assert detail.status_code == 200
     assert detail.json()["batch"]["counts"]["total"] == 3
+
+
+@pytest.mark.asyncio
+async def test_a_pdf_figure_gets_a_vision_description_with_page_and_model(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import io
+
+    import app.api.v1.documents as documents_route
+    from app.services.image_input import ImageExtraction
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGB", (320, 180), "white")
+    drawing = ImageDraw.Draw(image)
+    drawing.text((10, 10), "Registered suspects by age", fill="black")
+    pdf = io.BytesIO()
+    image.save(pdf, format="PDF")
+
+    async def fake_vision(llm: Any, prepared: Any, *, user_id: str | None) -> ImageExtraction:
+        return ImageExtraction(
+            text="Registered suspects by age", description="A bar chart of suspect rates."
+        )
+
+    monkeypatch.setattr(documents_route, "extract_image_text", fake_vision)
+    payload = {
+        "input": {"type": "file"},
+        "metadata": {
+            "title": "Chart report",
+            "publisher": "Federal Statistical Office of Germany (Destatis)",
+            "license": "dl-de/by-2-0",
+            "redistribution": "full_text",
+            "domain_tags": ["housing"],
+            "language": "en",
+        },
+    }
+    response = await client.post(
+        "/v1/documents",
+        data={"payload": __import__("json").dumps(payload)},
+        files={"file": ("chart.pdf", pdf.getvalue(), "application/pdf")},
+    )
+    assert response.status_code == 202, response.text
+    document = response.json()["document"]
+    assert document["figures"]
+    figure = document["figures"][0]
+    assert figure["page"] == 1
+    assert figure["description_model_id"] == "fs-vision"
+    assert figure["description"] == "A bar chart of suspect rates."

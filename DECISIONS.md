@@ -546,3 +546,21 @@ than rejecting the whole archive and is visible in the response.
 
 **Rejected:** a separate batch-document model (two sources of truth), aborting the batch on
 the first failure, trusting ZIP member names, approving a batch as one document.
+
+## D36 — PDF figures go through pypdf and the vision alias; tables wait for Docling
+
+**What:** when a submitted PDF contains embedded images, the route extracts up to five with
+pypdf, sanitises each with Pillow, asks `fs-vision` for text and a description, stores a
+figure with page, number, description, `description_source = vision` and
+`description_model_id`, and appends the description to the Markdown content. A scanned PDF
+whose text layer is empty therefore becomes a vision-derived document. Markdown tables are
+kept as Markdown; PDF-table reconstruction and OCR layout are not attempted yet.
+
+**Why:** this closes the figure and scanned-page part of Phase 4 without adding Docling's
+multi-gigabyte runtime to the build in the same slice. Vision output is data, marked and
+editable through the existing figure endpoint. The estimate now includes one vision call
+per figure.
+
+**Rejected:** rendering PDF pages (no Poppler in the runtime image), adding an OCR library
+whose model lifecycle is another unpinned download, silently accepting an empty PDF,
+treating a figure description as evidence without an editor check.

@@ -37,6 +37,29 @@ from app.services.publishers import PublisherRegistry
 
 logger = logging.getLogger(__name__)
 
+
+def extract_pdf_images(data: bytes, limit: int = 5) -> list[tuple[int, bytes]]:
+    """Return up to ``limit`` embedded PDF images with their 1-based page number."""
+    try:
+        from io import BytesIO
+
+        from pypdf import PdfReader
+
+        reader = PdfReader(BytesIO(data))
+        images: list[tuple[int, bytes]] = []
+        for page_number, page in enumerate(reader.pages, start=1):
+            for image in page.images:
+                payload = getattr(image, "data", None)
+                if isinstance(payload, bytes) and payload:
+                    images.append((page_number, payload))
+                if len(images) >= limit:
+                    return images
+        return images
+    except Exception:
+        logger.warning("pdf_image_extraction_failed")
+        return []
+
+
 _INJECTION = re.compile(
     r"(ignore (all )?(previous|prior|above) instructions|system prompt|"
     r"you are now|developer message|jailbreak|do not follow the rules)",
@@ -168,11 +191,16 @@ async def latest_version(session: AsyncSession, document: Document) -> DocumentV
     ).scalar_one_or_none()
 
 
-def _estimate(content: str) -> DocumentEstimate:
+def _estimate(content: str, figures: list[dict[str, Any]]) -> DocumentEstimate:
     pages = max(1, len(content) // 3000 + 1)
-    figures = content.count("![") + content.count("<img")
+    figure_count = len(figures)
+    estimated = round(figure_count * 0.003 + pages * 0.0001, 6)
     return DocumentEstimate(
-        pages=pages, figures=figures, vision_calls=0, estimated_usd=0.0, exceeds_budget=False
+        pages=pages,
+        figures=figure_count,
+        vision_calls=figure_count,
+        estimated_usd=estimated,
+        exceeds_budget=False,
     )
 
 
@@ -276,7 +304,7 @@ async def create_document(
     )
     session.add_all([document, version])
     await session.flush()
-    return document, version, warnings, duplicate_of, _estimate(content)
+    return document, version, warnings, duplicate_of, _estimate(content, figures or [])
 
 
 async def update_corpus_version(session: AsyncSession, instance: Instance) -> None:

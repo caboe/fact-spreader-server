@@ -45,6 +45,7 @@ from app.services.documents import (
     create_document,
     document_to_api,
     enqueue_rechecks_for_document,
+    extract_pdf_images,
     latest_version,
     queue_review_counts,
     update_corpus_version,
@@ -152,6 +153,40 @@ async def submit_document(
                 )
                 if body.metadata.title is None and title:
                     body.metadata.title = title
+                if media in {"application/pdf", "application/x-pdf"} or filename.lower().endswith(
+                    ".pdf"
+                ):
+                    sections = [file_text]
+                    for index, (page_number, image_bytes) in enumerate(
+                        extract_pdf_images(data), start=1
+                    ):
+                        try:
+                            prepared = prepare_image(image_bytes, "image/png", settings)
+                            vision = await extract_image_text(
+                                LLMClient(settings, consumer="vision"),
+                                prepared,
+                                user_id=principal.user_id,
+                            )
+                        except (UrlFetchError, LLMError):
+                            continue
+                        label = f"Page {page_number} image {index}"
+                        figures.append(
+                            {
+                                "id": new_id("fig"),
+                                "page": page_number,
+                                "number": str(index),
+                                "caption": label,
+                                "description": vision.description,
+                                "description_source": "vision",
+                                "description_model_id": "fs-vision",
+                                "editor_checked": False,
+                                "created_at": utcnow().isoformat(),
+                            }
+                        )
+                        sections.append(
+                            f"## Figure: {label}\n\n{vision.description}\n\n{vision.text}"
+                        )
+                    file_text = "\n\n".join(section for section in sections if section.strip())
             upload_name = filename
             upload_size = len(data)
         else:
