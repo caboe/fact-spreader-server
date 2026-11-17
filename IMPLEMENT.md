@@ -422,6 +422,16 @@ human decides.
 
 ## 7. Phase 4 — Document pipeline and editorial workflow
 
+**Status: in progress (2026-11-17).** Done: document submission for pasted text, URL and
+files (PDF/DOCX/HTML/Markdown) via the existing readers; metadata, warnings, hash
+duplicates with `duplicate_of`, review queue, detail/content endpoints, approve/reject/
+withdraw, figure-description correction, approval audit and worker-driven LightRAG
+indexing with a corpus-version bump. Live: a Destatis housing report was submitted, approved
+and indexed in 10.1 s; a rent claim cited it; a resubmission returned state `duplicate`.
+Open: Docling tables/scans, figure extraction and vision descriptions, batch upload/ZIP,
+cost estimates, four-eyes automation, re-check trigger on approval/withdrawal, editor
+contradiction/gap endpoints.
+
 **Goal.** Documents can be submitted singly or in batches, parsed, warned about, reviewed,
 approved, indexed, withdrawn and versioned; approval and withdrawal trigger re-checks.
 

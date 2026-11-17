@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     research_summary_timeout_seconds: float = 60.0
     cache_similarity_threshold: float = 0.93
     recheck_daily_budget: int = 200
+    four_eyes_enabled: bool = False
 
     # --- bootstrap providers (Phase 1 only) ------------------------------------
     deepseek_api_key: SecretStr = SecretStr("")

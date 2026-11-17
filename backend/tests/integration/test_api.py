@@ -701,3 +701,85 @@ async def test_recheck_versions_the_claim_and_quality_read_soft_deletes_all_vers
     assert (await client.get(f"/v1/claims/{original_id}")).status_code == 404
     missing = await client.post(f"/v1/claims/{original_id}/recheck", json={"reason": "manual"})
     assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_documents_are_submitted_reviewed_indexed_withdrawn_and_deduplicated(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    from app.services.documents import run_document_index_job
+
+    body = {
+        "input": {"type": "text", "text": "# Housing\n\nRents rose by 4 percent in 2025."},
+        "metadata": {
+            "title": "Housing report",
+            "publisher": "Federal Criminal Police Office (BKA)",
+            "authors": ["Fixture"],
+            "publication_date": "2025-06-01",
+            "license": "dl-de/by-2-0",
+            "redistribution": "full_text",
+            "domain_tags": ["housing"],
+            "language": "en",
+        },
+    }
+    submitted = await client.post("/v1/documents", json=body)
+    assert submitted.status_code == 202, submitted.text
+    payload = submitted.json()
+    document_id = payload["document"]["id"]
+    assert payload["document"]["state"] == "ready"
+    assert payload["document"]["approval_preselected"] is True
+
+    content = await client.get(f"/v1/documents/{document_id}/content")
+    assert content.status_code == 200
+    assert "Rents rose" in content.text
+    assert content.headers["content-type"].startswith("text/markdown")
+
+    approved = await client.post(
+        f"/v1/documents/{document_id}/approve",
+        json={
+            "license_confirmed": True,
+            "redistribution": "full_text",
+            "note": "Checked",
+        },
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["state"] == "approved"
+    assert approved.json()["approval"]["approved_by"]
+
+    fake_lightrag = FakeLightRAG(document_id=document_id, passage="unused")
+    app.state.lightrag = fake_lightrag
+    async with app.state.db.session_factory() as session:
+        job = (
+            (
+                await session.execute(
+                    select(JobRow)
+                    .where(JobRow.kind == "document_index")
+                    .order_by(JobRow.created_at.desc())
+                )
+            )
+            .scalars()
+            .first()
+        )
+        assert job is not None
+        await run_document_index_job(
+            session,
+            settings=app.state.settings,
+            lightrag=fake_lightrag,  # type: ignore[arg-type]
+            job=job,
+        )
+        await session.commit()
+    assert fake_lightrag.inserted[0]["file_source"] == f"{document_id}@v1"
+    indexed = await client.get(f"/v1/documents/{document_id}")
+    assert indexed.json()["state"] == "indexed"
+
+    duplicate = await client.post("/v1/documents", json=body)
+    assert duplicate.status_code == 202
+    assert duplicate.json()["document"]["state"] == "duplicate"
+    assert duplicate.json()["duplicate_of"] == document_id
+
+    withdrawn = await client.post(
+        f"/v1/documents/{document_id}/withdraw", json={"reason": "superseded"}
+    )
+    assert withdrawn.status_code == 200, withdrawn.text
+    assert withdrawn.json()["state"] == "withdrawn"
+    assert fake_lightrag.deleted == [f"{document_id}@v1"]

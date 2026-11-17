@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–3 complete; Phase 4 not started (2026-11-17).** The order of work is:
+**Phases 1–3 complete; Phase 4 in progress (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -36,8 +36,9 @@ Three kinds of request share one API:
    `docs/PHASE_3_REPORT.md`. Research with the judged summary, targeted re-retrieval,
    contradiction and staleness handling, corpus gaps, fast mode with the pgvector semantic
    cache, versioned preliminary/full results, newest-version archive views, manual
-   re-checks and QS soft deletion are in place. Automatic re-checks wait for the Phase 4
-   document event.
+   re-checks and QS soft deletion are in place. Phase 4 has started: document
+   submission, review, approval, worker indexing, withdrawal and duplicate handling are
+   in place; Docling parsing, figures, batches and the re-check trigger remain.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

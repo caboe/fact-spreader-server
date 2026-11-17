@@ -28,6 +28,7 @@ from app.llm.client import LLMError
 from app.pipeline.runner import PipelineError
 from app.retrieval.lightrag import LightRAGClient
 from app.services.checks import run_check_job
+from app.services.documents import run_document_index_job
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
 from app.services.personas import PersonaRegistry
@@ -109,6 +110,16 @@ async def run_once(database: Database, settings: Settings, worker_id: str) -> bo
 
     async with database.session_factory() as session:
         try:
+            if job.kind == "document_index":
+                await run_document_index_job(
+                    session,
+                    settings=settings,
+                    lightrag=LightRAGClient(settings),
+                    job=job,
+                )
+                await session.commit()
+                logger.info("job_done", extra={"event": "job", "job_id": job.id})
+                return True
             result_id = await run_check_job(
                 session,
                 settings=settings,

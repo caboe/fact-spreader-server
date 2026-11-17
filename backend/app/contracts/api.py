@@ -520,3 +520,124 @@ class ResearchResponse(ApiModel):
     warnings: list[WarningInfo] = Field(default_factory=list)
     took_ms: int = 0
     gaps_recorded: bool = False
+
+
+class DocumentWarning(ApiModel):
+    code: str
+    message: str
+
+
+class DocumentFigure(ApiModel):
+    id: str
+    page: int | None = None
+    number: str | None = None
+    caption: str | None = None
+    description: str | None = None
+    description_source: str = "vision"
+    description_model_id: str | None = None
+    editor_checked: bool = False
+    editor_checked_by: str | None = None
+    created_at: datetime | None = None
+    image_url: str | None = None
+
+
+class DocumentApproval(ApiModel):
+    approved_at: datetime
+    approved_by: str
+    note: str | None = None
+
+
+class DocumentInfo(ApiModel):
+    id: str
+    version: int = 1
+    content_hash: str
+    title: str
+    publisher: str
+    authors: list[str] = Field(default_factory=list)
+    publication_date: date | None = None
+    url: str | None = None
+    doi: str | None = None
+    dataset_id: str | None = None
+    source_quality: str
+    source_quality_basis: dict[str, Any] = Field(default_factory=dict)
+    domain_tags: list[str] = Field(default_factory=list)
+    language: str
+    license: str | None = None
+    redistribution: str = "metadata_only"
+    curator_organization: str | None = None
+    origin_instance_id: str
+    origin_document_id: str
+    provenance_chain: list[dict[str, Any]] = Field(default_factory=list)
+    content_type: str = "text/markdown"
+    size_bytes: int = 0
+    state: str
+    warnings: list[DocumentWarning] = Field(default_factory=list)
+    duplicate_of: str | None = None
+    submitted_by: str | None = None
+    approval: DocumentApproval | None = None
+    figures: list[DocumentFigure] = Field(default_factory=list)
+    approval_preselected: bool = False
+    created_at: datetime
+    updated_at: datetime
+    deleted: bool = False
+
+
+class DocumentMetadata(RequestModel):
+    title: str | None = None
+    publisher: str | None = None
+    authors: list[str] = Field(default_factory=list)
+    publication_date: date | None = None
+    url: str | None = None
+    doi: str | None = None
+    dataset_id: str | None = None
+    license: str | None = None
+    redistribution: str | None = None
+    domain_tags: list[str] = Field(default_factory=list)
+    language: str | None = None
+    source_quality_override: str | None = None
+
+
+class DocumentSubmitRequest(RequestModel):
+    input: CheckInput
+    metadata: DocumentMetadata = Field(default_factory=DocumentMetadata)
+    batch_id: str | None = None
+    force: bool = False
+
+
+class DocumentEstimate(ApiModel):
+    pages: int = 0
+    figures: int = 0
+    vision_calls: int = 0
+    estimated_usd: float = 0.0
+    exceeds_budget: bool = False
+
+
+class DocumentSubmitResponse(ApiModel):
+    document: DocumentInfo
+    job: Job
+    estimate: DocumentEstimate
+    duplicate_of: str | None = None
+
+
+class ApprovalRequest(RequestModel):
+    license_confirmed: bool = False
+    redistribution: Literal["full_text", "excerpts_only", "metadata_only"]
+    note: str | None = None
+
+
+class RejectRequest(RequestModel):
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class WithdrawRequest(RequestModel):
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class FigureUpdateRequest(RequestModel):
+    description: str = Field(min_length=1, max_length=5000)
+
+
+class ReviewQueueResponse(ApiModel):
+    data: list[DocumentInfo] = Field(default_factory=list)
+    counts: dict[str, int] = Field(default_factory=dict)
+    summary: dict[str, Any] = Field(default_factory=dict)

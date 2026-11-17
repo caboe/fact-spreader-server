@@ -494,3 +494,19 @@ the claim.
 **Rejected:** re-checking from a request body, hard-deleting rows (breaks gap references),
 counting re-checks without a daily cap, a separate deletion permission that the spec does
 not define.
+
+## D33 — Document parsing is synchronous; only indexing is asynchronous
+
+**What:** `POST /v1/documents` parses text, URL, PDF, DOCX, HTML and Markdown with the
+existing readers and stores the Markdown version plus warnings before returning. It records
+a completed `document_parse` job for the audit trail; the 202 response carries that job.
+Approval queues `document_index`, which is the only path that writes to LightRAG. Duplicate
+content gets state `duplicate` and a `duplicate_of` link unless `force` is set.
+
+**Why:** parsing needs the uploaded bytes or fetched page, and the storage model has no
+raw-byte staging yet. Doing it in the request keeps the slice vertical and avoids putting
+document bytes in a job payload. Indexing is the slow, externally visible step and stays in
+the worker. This is the Phase 4 slice; Docling, figures, scans and batches still follow.
+
+**Rejected:** parsing in the worker without a content store, automatic approval on upload,
+serving uploaded HTML, treating a hash duplicate as a new version.

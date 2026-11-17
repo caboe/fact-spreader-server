@@ -8,7 +8,7 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phases 1–3 complete (2026-11-17).** The specs were revised
+**Phases 1–3 complete; Phase 4 in progress (2026-11-17).** The specs were revised
 for the v1 scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md)
 as the decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
 [`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. Live
@@ -19,6 +19,13 @@ mode with a pgvector semantic cache, versioned preliminary/full results, archive
 chains, manual re-checks and QS soft deletion. Its live evidence and latency table are in
 [`docs/PHASE_3_REPORT.md`](docs/PHASE_3_REPORT.md). Automatic re-checks on corpus changes
 wait for the Phase 4 document event.
+
+Phase 4 has started with the document lifecycle: submission of text, URL and common file
+types, warnings and hash duplicates, a review queue, approve/reject/withdraw, approval
+audit and worker-driven LightRAG indexing with a corpus-version bump. A live Destatis
+housing report was approved and indexed in 10.1 s, cited by a rent check, and a
+resubmission was marked `duplicate`. Docling tables/scans, figures, batches and the
+automatic re-check trigger are still open.
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes

@@ -169,6 +169,19 @@ class FakeLightRAG:
         self.passage = passage
         self.second_passage = second_passage
         self.queries: list[str] = []
+        self.inserted: list[dict[str, str]] = []
+        self.deleted: list[str] = []
+
+    async def insert_text(self, *, content: str, file_source: str, title: str) -> dict[str, Any]:
+        self.inserted.append({"content": content, "file_source": file_source, "title": title})
+        return {"status": "ok"}
+
+    async def wait_until_idle(self, timeout_seconds: int = 900) -> bool:
+        return True
+
+    async def delete_documents(self, doc_ids: list[str]) -> dict[str, Any]:
+        self.deleted.extend(doc_ids)
+        return {"status": "ok"}
 
     async def query_data(self, query: str, **kwargs: Any) -> RetrievalResult:
         self.queries.append(query)
