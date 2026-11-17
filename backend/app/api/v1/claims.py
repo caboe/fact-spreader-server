@@ -6,23 +6,34 @@ everyone else sees the claim, the verdict and the evidence, not who asked.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import exists, select
+from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy import exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.contracts.api import ArchiveEntry, CheckResponse, FeedbackRequest
+from app.contracts.api import (
+    ArchiveEntry,
+    CheckResponse,
+    FeedbackRequest,
+    JobAccepted,
+    RecheckRequest,
+)
+from app.contracts.enums import TurnType
 from app.core.errors import AppError
 from app.core.ids import new_id, utcnow
-from app.db.models import Feedback, Result
+from app.db.models import AuditLog, Feedback, Result
+from app.db.models import Job as JobRow
 from app.db.session import get_session
-from app.services.auth import Principal, current_principal
-from app.services.checks import load_response
+from app.services.auth import Principal, current_principal, require_permission
+from app.services.checks import create_check_job, job_to_api, load_response
 
 router = APIRouter(prefix="/v1/claims", tags=["claims"])
 CurrentPrincipal = Annotated[Principal, Depends(current_principal)]
+ClaimsRecheck = Annotated[Principal, Depends(require_permission("claims:recheck"))]
+QualityRead = Annotated[Principal, Depends(require_permission("quality:read"))]
 
 
 def _claim_text(row: Result) -> str:
@@ -218,4 +229,86 @@ async def submit_feedback(
         existing.kind = body.kind
         existing.comment = body.comment
         existing.created_at = utcnow()
+    await session.commit()
+
+
+@router.post("/{result_id}/recheck", status_code=202)
+async def recheck_claim(
+    result_id: str,
+    body: RecheckRequest,
+    request: Request,
+    principal: ClaimsRecheck,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    row = await session.get(Result, result_id)
+    if row is None or row.deleted:
+        raise AppError(404, "not_found", "The claim does not exist.")
+    versions = await _version_chain(session, row)
+    current = versions[-1]
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    used = (
+        await session.execute(
+            select(func.count(JobRow.id)).where(
+                JobRow.created_at >= today,
+                JobRow.payload["recheck"].astext == "true",
+            )
+        )
+    ).scalar_one()
+    if int(used) >= request.app.state.settings.recheck_daily_budget:
+        raise AppError(429, "budget_exceeded", "The daily re-check budget is exhausted.")
+    input_info = current.input or {}
+    text = str(input_info.get("text") or "")
+    if not text:
+        raise AppError(422, "invalid_input", "The stored claim has no text to re-check.")
+    job, _moderation = await create_check_job(
+        session,
+        settings=request.app.state.settings,
+        publishers=request.app.state.publishers,
+        methodology=request.app.state.methodology,
+        text=text,
+        user_id=principal.user_id,
+        response_language=current.response_language,
+        turn_type=TurnType(current.turn_type),
+        source_url=input_info.get("url"),
+        source_file_name=input_info.get("file_name"),
+        source_media_type=input_info.get("media_type"),
+        source_size_bytes=input_info.get("size_bytes"),
+        context=(input_info.get("context") or {}).get("messages"),
+        previous_result_id=current.id,
+    )
+    job.payload = {
+        **(job.payload or {}),
+        "recheck": True,
+        "recheck_reason": body.reason,
+        "fast": body.fast,
+    }
+    await session.commit()
+    api_job = job_to_api(job)
+    return JobAccepted(job=api_job, poll_after_ms=api_job.poll_after_ms).model_dump(mode="json")
+
+
+@router.delete("/{result_id}", status_code=204)
+async def delete_claim(
+    result_id: str,
+    principal: QualityRead,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    row = await session.get(Result, result_id)
+    if row is None or row.deleted:
+        raise AppError(404, "not_found", "The claim does not exist.")
+    versions = await _version_chain(session, row)
+    for item in versions:
+        item.deleted = True
+    session.add(
+        AuditLog(
+            id=new_id("aud"),
+            actor_id=principal.user_id,
+            actor_type="user",
+            action="claim_deleted",
+            object_type="result",
+            object_id=versions[-1].id,
+            detail={"versions": [item.id for item in versions]},
+            created_at=utcnow(),
+        )
+    )
     await session.commit()

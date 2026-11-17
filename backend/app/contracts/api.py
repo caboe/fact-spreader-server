@@ -435,6 +435,11 @@ class DeviceCreate(RequestModel):
     permissions: list[str] = Field(default_factory=lambda: ["claims:submit"])
 
 
+class RecheckRequest(RequestModel):
+    reason: Literal["corpus_changed", "manual"] = "manual"
+    fast: bool = False
+
+
 class FeedbackRequest(RequestModel):
     kind: Literal["helpful", "unhelpful", "incorrect"]
     comment: str | None = Field(default=None, max_length=500)

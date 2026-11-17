@@ -475,3 +475,22 @@ stale verdict.
 **Rejected:** deleting the preliminary when the full result arrives (it is the durability
 record the client already saw), one row overwritten in place (loses the version history),
 matching versions by claim text (collides on different claims).
+
+## D32 — Re-checks reuse the stored input; deletion hides the whole chain
+
+**What:** `POST /v1/claims/{id}/recheck` reads the newest version's stored `input.text` and
+source metadata, creates a new job with `previous_result_id = current.id`, and records
+`recheck=true` plus the reason in the payload. A daily budget
+(`recheck_daily_budget`, default 200) counts those jobs and returns `429` over it.
+`DELETE /v1/claims/{id}` requires `quality:read`, soft-deletes every version in the chain
+and writes an `audit_log` entry; the rows remain for the opaque references held by gaps and
+contradictions.
+
+**Why:** PROTOCOL §7.3/§7.4 require re-checks from stored input, not client text, and a
+new version link. A client-supplied text would let a caller rewrite an archived claim. Soft
+deletion keeps corpus-gap and contradiction references resolvable while the archive hides
+the claim.
+
+**Rejected:** re-checking from a request body, hard-deleting rows (breaks gap references),
+counting re-checks without a daily cap, a separate deletion permission that the spec does
+not define.

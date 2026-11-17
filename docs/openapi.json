@@ -1503,6 +1503,27 @@
         "title": "Provenance",
         "type": "object"
       },
+      "RecheckRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "fast": {
+            "default": false,
+            "title": "Fast",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "manual",
+            "enum": [
+              "corpus_changed",
+              "manual"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "title": "RecheckRequest",
+        "type": "object"
+      },
       "Rendering": {
         "properties": {
           "citations_used": {
@@ -2835,6 +2856,39 @@
       }
     },
     "/v1/claims/{result_id}": {
+      "delete": {
+        "operationId": "delete_claim_v1_claims__result_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "title": "Result Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Claim",
+        "tags": [
+          "claims"
+        ]
+      },
       "get": {
         "operationId": "get_claim_v1_claims__result_id__get",
         "parameters": [
@@ -2918,6 +2972,60 @@
           }
         },
         "summary": "Submit Feedback",
+        "tags": [
+          "claims"
+        ]
+      }
+    },
+    "/v1/claims/{result_id}/recheck": {
+      "post": {
+        "operationId": "recheck_claim_v1_claims__result_id__recheck_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "result_id",
+            "required": true,
+            "schema": {
+              "title": "Result Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Recheck Claim V1 Claims  Result Id  Recheck Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recheck Claim",
         "tags": [
           "claims"
         ]

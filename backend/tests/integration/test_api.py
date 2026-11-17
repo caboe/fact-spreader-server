@@ -638,3 +638,66 @@ async def test_fast_mode_validates_sync_and_length(client: httpx.AsyncClient) ->
     )
     assert too_long.status_code == 422
     assert too_long.json()["code"] == "invalid_input"
+
+
+@pytest.mark.asyncio
+async def test_recheck_versions_the_claim_and_quality_read_soft_deletes_all_versions(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document_id = await _seed_approved_document(app, settings)
+    fake_llm = FakeLLM()
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "Immigrants commit more crimes."}},
+    )
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=FakeLightRAG(  # type: ignore[arg-type]
+                document_id=document_id,
+                passage="Immigrants commit more crimes, according to the fixture.",
+            ),
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+    original_id = (await client.get(f"/v1/factcheck/{job_id}")).json()["result"]["result"]["id"]
+
+    recheck = await client.post(f"/v1/claims/{original_id}/recheck", json={"reason": "manual"})
+    assert recheck.status_code == 202, recheck.text
+    recheck_id = recheck.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, recheck_id)
+        assert job is not None
+        assert job.payload["previous_result_id"] == original_id
+        assert job.payload["recheck"] is True
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=FakeLightRAG(  # type: ignore[arg-type]
+                document_id=document_id,
+                passage="Immigrants commit more crimes, according to the fixture.",
+            ),
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+    chain = (await client.get(f"/v1/claims/{original_id}")).json()
+    assert [item["version"] for item in chain["versions"]] == [1, 2]
+
+    deleted = await client.delete(f"/v1/claims/{original_id}")
+    assert deleted.status_code == 204
+    assert (await client.get(f"/v1/claims/{original_id}")).status_code == 404
+    missing = await client.post(f"/v1/claims/{original_id}/recheck", json={"reason": "manual"})
+    assert missing.status_code == 404

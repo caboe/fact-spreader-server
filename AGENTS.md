@@ -36,8 +36,9 @@ Three kinds of request share one API:
    judge, one targeted re-retrieval round for an open confounder, contradiction records,
    the staleness downgrade, the `audit_incomplete` gate and corpus-gap aggregation are in
    place, as are fast mode with the pgvector semantic cache, versioned preliminary/full
-   results and the archive's newest-version view. The full re-check archive flow and the
-   Phase 3 live acceptance run remain.
+   results and the archive's newest-version view; manual re-checks and QS soft deletion
+   are in place. Automatic re-checks on corpus changes and the Phase 3 live acceptance run
+   remain.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.
