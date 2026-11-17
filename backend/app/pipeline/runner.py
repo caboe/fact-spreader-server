@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlparse
@@ -128,6 +129,7 @@ class CheckPipeline:
         turn_type: TurnType,
         moderation: ModerationInfo,
         source_url: str | None = None,
+        on_statement: Callable[[Statement], Awaitable[None]] | None = None,
     ) -> PipelineOutcome:
         started = utcnow()
         normalized = normalize_text(text)
@@ -195,6 +197,8 @@ class CheckPipeline:
                         domain_tags=located.domain_tags,
                     )
                 )
+                if on_statement is not None:
+                    await on_statement(statements[-1])
                 continue
             any_checkworthy = True
             topics = located.topics or self._infer_topics(located.domain_tags)
@@ -282,6 +286,8 @@ class CheckPipeline:
                 evidence_by_id={item.id: item for item in pool.by_id.values()},
             )
             statements.append(statement)
+            if on_statement is not None:
+                await on_statement(statement)
             warnings.extend(
                 warning.model_copy(update={"statement_id": statement_id})
                 for warning in decision_gate.warnings

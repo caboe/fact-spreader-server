@@ -248,3 +248,20 @@ ingestion in Phase 4.
 **Rejected:** fetching without resolution checks (SSRF), trusting redirects (redirect
 SSRF), a headless browser (execution risk and weight), implementing PDF extraction by hand
 (error-prone), adding Docling to the check path before Phase 4 (startup and image cost).
+
+
+## D19 — Statement events are durable rows, written outside the pipeline transaction
+
+**What:** the pipeline calls an optional `on_statement` callback after each statement; the
+worker writes a `job_events` row in a short separate transaction. SSE polls those rows,
+replays from `Last-Event-ID`, then emits the result and done events. Cancelling is allowed
+only while a job is queued.
+
+**Why:** partial results must survive a reconnect and must not disappear if the final
+transaction rolls back. A separate short transaction keeps the pipeline's own transaction
+intact and makes the event log the durable source for replay. A running job is not killed
+mid-statement; the API refuses to pretend otherwise.
+
+**Rejected:** Redis pub/sub (lost on disconnect), holding the request open with no replay
+(no reconnect), writing events inside the pipeline transaction (invisible until commit),
+killing a running job without a checkpoint (partial state and half-written files).

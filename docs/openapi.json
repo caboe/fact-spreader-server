@@ -2571,6 +2571,39 @@
       }
     },
     "/v1/factcheck/{job_id}": {
+      "delete": {
+        "operationId": "cancel_check_v1_factcheck__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Check",
+        "tags": [
+          "checks"
+        ]
+      },
       "get": {
         "operationId": "get_check_v1_factcheck__job_id__get",
         "parameters": [

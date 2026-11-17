@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -262,6 +263,7 @@ async def run_check_job(
     lightrag: LightRAGClient,
     personas: PersonaRegistry,
     job: JobRow,
+    on_statement: Callable[[Any], Awaitable[None]] | None = None,
 ) -> str:
     # The worker claimed the job in another session; the instance passed here is
     # detached. Re-fetch it in this session so result_id/state updates are persisted.
@@ -294,6 +296,7 @@ async def run_check_job(
         turn_type=TurnType(payload.get("turn_type") or TurnType.NEW_CLAIM.value),
         moderation=moderation,
         source_url=payload.get("source_url"),
+        on_statement=on_statement,
     )
     result = outcome.result
     renderings: dict[str, Any] = {}

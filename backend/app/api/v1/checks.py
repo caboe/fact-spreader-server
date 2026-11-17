@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from collections.abc import AsyncIterator
 from datetime import timedelta
 from typing import Annotated
@@ -18,7 +19,7 @@ from app.contracts.enums import JobState, TurnType
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.core.ids import new_id, normalize_text, utcnow
-from app.db.models import IdempotencyKey
+from app.db.models import IdempotencyKey, JobEvent
 from app.db.models import Job as JobRow
 from app.db.session import get_session
 from app.services.auth import Principal, require_permission
@@ -169,38 +170,72 @@ async def check_events(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StreamingResponse:
     await _load_owned_job(session, job_id, principal)
+    last_event_id = request.headers.get("Last-Event-ID", "0")
+    try:
+        last_sequence = max(0, int(last_event_id))
+    except ValueError:
+        last_sequence = 0
 
     async def stream() -> AsyncIterator[bytes]:
+        nonlocal last_sequence
         session_factory = request.app.state.db.session_factory
         last_state: str | None = None
-        sequence = 0
-        for _ in range(600):
+        keepalive_at = time.monotonic()
+        deadline = keepalive_at + 600
+        while time.monotonic() < deadline:
+            emitted = False
             async with session_factory() as poll_session:
+                events = (
+                    (
+                        await poll_session.execute(
+                            select(JobEvent)
+                            .where(JobEvent.job_id == job_id, JobEvent.seq > last_sequence)
+                            .order_by(JobEvent.seq)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                for event in events:
+                    last_sequence = event.seq
+                    emitted = True
+                    yield _sse_event(event.event_type, event.data, event.seq)
                 row = await poll_session.get(JobRow, job_id)
                 if row is None:
-                    yield _sse("error", {"code": "job_not_found"}, sequence)
+                    yield _sse_event("error", {"code": "job_not_found"})
                     return
                 api_job = job_to_api(row)
                 if api_job.state != last_state:
-                    sequence += 1
                     last_state = api_job.state
-                    yield _sse("state", api_job.model_dump(mode="json"), sequence)
+                    emitted = True
+                    yield _sse_event("state", api_job.model_dump(mode="json"))
                 if api_job.state in {
                     JobState.DONE.value,
                     JobState.FAILED.value,
                     JobState.CANCELLED.value,
                 }:
-                    sequence += 1
-                    yield _sse(
+                    if api_job.result_id:
+                        response = await load_response(
+                            poll_session,
+                            api_job.result_id,
+                            persona_id=(row.payload or {}).get("persona_id"),
+                        )
+                        if response is not None:
+                            yield _sse_event(
+                                "result", response.model_dump(mode="json", by_alias=True)
+                            )
+                    yield _sse_event(
                         "done",
                         {
                             "job": api_job.model_dump(mode="json"),
                             "result_id": api_job.result_id,
                         },
-                        sequence,
                     )
                     return
-            await asyncio.sleep(1.0)
+            if not emitted and time.monotonic() - keepalive_at >= 15:
+                keepalive_at = time.monotonic()
+                yield b": keepalive\n\n"
+            await asyncio.sleep(0.8)
         yield b": stream_timeout\n\n"
 
     return StreamingResponse(
@@ -208,6 +243,21 @@ async def check_events(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )
+
+
+@router.delete("/factcheck/{job_id}", status_code=204)
+async def cancel_check(
+    job_id: str,
+    principal: ClaimsSubmit,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Response:
+    job = await _load_owned_job(session, job_id, principal)
+    if job.state == JobState.QUEUED.value:
+        job.state = JobState.CANCELLED.value
+        job.finished_at = utcnow()
+        await session.commit()
+        return Response(status_code=204)
+    raise AppError(409, "job_not_cancellable", "Only a queued job can be cancelled.")
 
 
 async def _load_owned_job(session: AsyncSession, job_id: str, principal: Principal) -> JobRow:
@@ -248,15 +298,19 @@ def _validate_phase1_request(
             "fast_mode_not_available",
             "The synchronous/fast mode arrives in Phase 3.",
         )
-    if (
-        body.persona_id is not None
-        or body.render_model_id is not None
-        or body.output_format == "persona"
-    ):
+    if body.output_format == "persona" and body.persona_id is None:
         raise AppError(
             422,
-            "rendering_not_available",
-            "Persona rendering arrives in Phase 2.",
+            "persona_required",
+            "output_format=persona requires a persona_id.",
+        )
+    if body.persona_id is not None and body.persona_id not in request_personas:
+        raise AppError(422, "unknown_persona", f"Unknown persona {body.persona_id!r}.")
+    if body.render_model_id is not None and body.persona_id is None:
+        raise AppError(
+            422,
+            "persona_required",
+            "render_model_id only applies to a persona rendering.",
         )
     request_language = body.response_language
     if request_language is not None and request_language not in settings.supported_languages:
@@ -267,7 +321,8 @@ def _validate_phase1_request(
         )
 
 
-def _sse(event: str, data: dict[str, object], sequence: int) -> bytes:
+def _sse_event(event: str, data: dict[str, object], sequence: int | None = None) -> bytes:
+    identifier = f"id: {sequence}\n" if sequence is not None else ""
     return (
-        f"id: {sequence}\nevent: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+        f"{identifier}event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
     ).encode()

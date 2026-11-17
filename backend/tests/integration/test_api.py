@@ -10,7 +10,7 @@ import httpx
 import pytest
 from app.contracts.enums import JobState
 from app.core.ids import new_id, utcnow
-from app.db.models import Document, DocumentVersion
+from app.db.models import Document, DocumentVersion, JobEvent
 from app.db.models import Job as JobRow
 from app.services.input_reader import FetchedDocument
 from sqlalchemy import func, select
@@ -220,6 +220,40 @@ async def test_worker_persists_the_job_state_and_the_result(
     assert detail.json()["result"]["result"]["overall_verdict"] == "true_but_misleading"
     assert detail.json()["submitted_by"] is not None
 
+    async with app.state.db.session_factory() as event_session:
+        statement = result["statements"][0]
+        for sequence in (1, 2):
+            event_session.add(
+                JobEvent(
+                    id=new_id("evt"),
+                    job_id=job_id,
+                    seq=sequence,
+                    event_type="statement",
+                    data=statement,
+                    created_at=utcnow(),
+                )
+            )
+        await event_session.commit()
+    events: list[str] = []
+    async with client.stream("GET", f"/v1/factcheck/{job_id}/events") as streamed:
+        assert streamed.status_code == 200
+        async for line in streamed.aiter_lines():
+            if line.startswith("event: "):
+                events.append(line[7:])
+    assert events.count("statement") == 2
+    assert "result" in events
+    assert events[-1] == "done"
+    replayed: list[str] = []
+    async with client.stream(
+        "GET",
+        f"/v1/factcheck/{job_id}/events",
+        headers={"Last-Event-ID": "1"},
+    ) as streamed:
+        async for line in streamed.aiter_lines():
+            if line.startswith("event: "):
+                replayed.append(line[7:])
+    assert replayed.count("statement") == 1
+
 
 @pytest.mark.asyncio
 async def test_url_input_is_fetched_and_kept_out_of_the_corpus(
@@ -264,3 +298,23 @@ async def test_private_url_is_rejected_before_fetch(
     )
     assert response.status_code == 422
     assert response.json()["code"] == "unsafe_url"
+
+
+@pytest.mark.asyncio
+async def test_a_queued_job_can_be_cancelled(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        checks_service, "LLMClient", lambda settings, consumer="pipeline": FakeLLM()
+    )
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "A checkable claim."}},
+    )
+    assert response.status_code == 202
+    job_id = response.json()["job"]["id"]
+    cancelled = await client.delete(f"/v1/factcheck/{job_id}")
+    assert cancelled.status_code == 204
+    detail = await client.get(f"/v1/factcheck/{job_id}")
+    assert detail.status_code == 200
+    assert detail.json()["job"]["state"] == JobState.CANCELLED.value

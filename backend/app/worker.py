@@ -13,14 +13,16 @@ import contextlib
 import logging
 import os
 import signal
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.ids import new_id, utcnow
 from app.core.logging import configure_logging
 from app.db.models import Job as JobRow
+from app.db.models import JobEvent
 from app.db.session import Database
 from app.llm.client import LLMError
 from app.pipeline.runner import PipelineError
@@ -78,6 +80,33 @@ async def run_once(database: Database, settings: Settings, worker_id: str) -> bo
     if job is None:
         return False
     logger.info("job_claimed", extra={"event": "job", "job_id": job.id})
+    async with database.session_factory() as sequence_session:
+        last_seq = int(
+            (
+                await sequence_session.execute(
+                    select(func.coalesce(func.max(JobEvent.seq), 0)).where(
+                        JobEvent.job_id == job.id
+                    )
+                )
+            ).scalar_one()
+        )
+    sequence = [last_seq]
+
+    async def emit_statement(statement: Any) -> None:
+        sequence[0] += 1
+        async with database.session_factory() as event_session:
+            event_session.add(
+                JobEvent(
+                    id=new_id("evt"),
+                    job_id=job.id,
+                    seq=sequence[0],
+                    event_type="statement",
+                    data=statement.model_dump(mode="json", by_alias=True),
+                    created_at=utcnow(),
+                )
+            )
+            await event_session.commit()
+
     async with database.session_factory() as session:
         try:
             result_id = await run_check_job(
@@ -91,6 +120,7 @@ async def run_once(database: Database, settings: Settings, worker_id: str) -> bo
                 lightrag=LightRAGClient(settings),
                 personas=PersonaRegistry.from_path(settings.personas_path),
                 job=job,
+                on_statement=emit_statement,
             )
             await session.commit()
             logger.info(

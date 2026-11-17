@@ -31,9 +31,9 @@ Three kinds of request share one API:
    `[human]`. Phase 1 is a vertical slice.~~ Approved 2026-11-16.
 3. Implement phase by phase. Phase 1 is complete; its live evidence is in
    `docs/PHASE_1_REPORT.md`. Phase 2 is in progress: persona rendering, the consistency
-   checker, the OpenAI-compatible checked-streaming surface, SSRF-guarded URL input and the
-   read-only claim archive are done; file/image uploads, statement-level SSE, history and
-   the remaining multilingual work are still open.
+   checker, the OpenAI-compatible checked-streaming surface, SSRF-guarded URL input, the
+   read-only claim archive and statement-level SSE/replay/cancellation are done; file/image
+   uploads, history and the remaining multilingual work are still open.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.
