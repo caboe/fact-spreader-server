@@ -127,6 +127,7 @@ class CheckPipeline:
         response_language: str | None,
         turn_type: TurnType,
         moderation: ModerationInfo,
+        source_url: str | None = None,
     ) -> PipelineOutcome:
         started = utcnow()
         normalized = normalize_text(text)
@@ -346,9 +347,10 @@ class CheckPipeline:
             preliminary=False,
             turn_type=turn_type,
             input=InputInfo(
-                type="text",
+                type="url" if source_url else "text",
                 text=normalized,
                 language=decision.detected,
+                url=source_url,
                 sha256=sha256_text(normalized),
             ),
             detected_language=decision.detected,

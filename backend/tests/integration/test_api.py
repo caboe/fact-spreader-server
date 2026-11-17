@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import app.api.v1.checks as checks_route
 import app.services.checks as checks_service
 import httpx
 import pytest
@@ -11,6 +12,7 @@ from app.contracts.enums import JobState
 from app.core.ids import new_id, utcnow
 from app.db.models import Document, DocumentVersion
 from app.db.models import Job as JobRow
+from app.services.input_reader import FetchedDocument
 from sqlalchemy import func, select
 
 from tests.fakes import FakeLightRAG, FakeLLM
@@ -95,9 +97,7 @@ async def test_usage_is_scoped_to_the_caller(client: httpx.AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_invalid_input_is_rejected_before_a_job(client: httpx.AsyncClient) -> None:
-    response = await client.post(
-        "/v1/factcheck", json={"input": {"type": "url", "url": "https://example.org"}}
-    )
+    response = await client.post("/v1/factcheck", json={"input": {"type": "file"}})
     assert response.status_code == 422
     assert response.json()["code"] == "input_type_not_supported"
 
@@ -207,3 +207,60 @@ async def test_worker_persists_the_job_state_and_the_result(
     assert result["evidence"][0]["provenance"]["source_quality"] == "A"
     assert result["evidence"][0]["evidence_tier"] == 1
     assert envelope["result"]["compact"]["verdict"] == "true_but_misleading"
+
+    archive = await client.get("/v1/claims?mine=true")
+    assert archive.status_code == 200
+    entries = archive.json()["data"]
+    assert len(entries) == 1
+    assert entries[0]["result_id"] == result["id"]
+    assert entries[0]["overall_verdict"] == "true_but_misleading"
+    assert entries[0]["claim_text"] == "Immigrants commit more crimes."
+    detail = await client.get(f"/v1/claims/{result['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["result"]["result"]["overall_verdict"] == "true_but_misleading"
+    assert detail.json()["submitted_by"] is not None
+
+
+@pytest.mark.asyncio
+async def test_url_input_is_fetched_and_kept_out_of_the_corpus(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        checks_service,
+        "LLMClient",
+        lambda settings, consumer="pipeline", request_id=None: FakeLLM(),
+    )
+
+    async def fake_fetch(url: str, settings: Any) -> FetchedDocument:
+        return FetchedDocument(
+            url="https://example.org/article",
+            text="Immigrants commit more crimes.",
+            title="Example",
+            content_type="text/html",
+            size_bytes=100,
+        )
+
+    monkeypatch.setattr(checks_route, "fetch_readable", fake_fetch)
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "url", "url": "https://example.org/article"}},
+    )
+    assert response.status_code == 202
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        assert job.payload["text"] == "Immigrants commit more crimes."
+        assert job.payload["source_url"] == "https://example.org/article"
+
+
+@pytest.mark.asyncio
+async def test_private_url_is_rejected_before_fetch(
+    client: httpx.AsyncClient,
+) -> None:
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "url", "url": "http://127.0.0.1/"}},
+    )
+    assert response.status_code == 422
+    assert response.json()["code"] == "unsafe_url"

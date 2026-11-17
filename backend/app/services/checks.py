@@ -187,6 +187,7 @@ async def create_check_job(
     output_format: str = "substance",
     render_max_tokens: int = 8000,
     render_temperature: float = 0.4,
+    source_url: str | None = None,
 ) -> tuple[JobRow, ModerationInfo]:
     moderation = await ModerationService(LLMClient(settings, consumer="moderation")).classify_check(
         text, user_id=user_id
@@ -206,6 +207,7 @@ async def create_check_job(
         "output_format": output_format,
         "render_max_tokens": render_max_tokens,
         "render_temperature": render_temperature,
+        "source_url": source_url,
     }
     job = JobRow(
         id=job_id,
@@ -291,6 +293,7 @@ async def run_check_job(
         response_language=payload.get("response_language"),
         turn_type=TurnType(payload.get("turn_type") or TurnType.NEW_CLAIM.value),
         moderation=moderation,
+        source_url=payload.get("source_url"),
     )
     result = outcome.result
     renderings: dict[str, Any] = {}

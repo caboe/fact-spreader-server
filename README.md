@@ -35,15 +35,16 @@ the sexual-minors block.
 
 Phase 2 so far adds three runtime personas (analyst, mediator, straight-talker), the
 deterministic checks plus a consistency judge with one re-render and a template fallback,
-output moderation, `GET /v1/models` with the persona list, and
-`POST /v1/chat/completions` with checked streaming. A live OpenAI-compatible canonical run
-passed the consistency check on the first attempt; a live streaming run delivered the
-result in the first chunk and narrative deltas only afterwards.
+output moderation, `GET /v1/models` with the persona list, `POST /v1/chat/completions` with
+checked streaming, SSRF-guarded URL input (HTML/PDF readers), and a read-only claim archive
+with cursor pagination. A live OpenAI-compatible canonical run passed the consistency check
+on the first attempt; a live streaming run delivered the result in the first chunk and
+narrative deltas only afterwards.
 
-Still open in Phase 2: file/URL/image input with SSRF and the shared parser; statement-level
-SSE events, reconnect replay and cancellation; conversation history/turn classification;
-translated evidence and quote labels; the basic claim archive; the remaining multilingual
-persona checks. Later phases add research, fast mode, the editorial pipeline and the UI.
+Still open in Phase 2: file and image uploads, statement-level SSE events/replay/
+cancellation, conversation history/turn classification, translated evidence and quote
+labels, feedback on archive entries, and the remaining multilingual persona checks. Later
+phases add research, fast mode, the editorial pipeline and the UI.
 
 ## Quick start (development)
 

@@ -28,6 +28,7 @@ from app.services.checks import (
     load_response,
     request_hash,
 )
+from app.services.input_reader import UrlFetchError, UrlSafetyError, fetch_readable
 
 router = APIRouter(prefix="/v1", tags=["checks"])
 ClaimsSubmit = Annotated[Principal, Depends(require_permission("claims:submit"))]
@@ -46,7 +47,19 @@ async def create_check(
         request.app.state.settings,
         [persona.id for persona in request.app.state.personas.enabled()],
     )
-    normalized = normalize_text(body.input.text or "")
+    source_url: str | None = None
+    if body.input.type == "url":
+        assert body.input.url is not None  # validated in _validate_phase1_request
+        try:
+            page = await fetch_readable(body.input.url, request.app.state.settings)
+        except UrlSafetyError as exc:
+            raise AppError(422, "unsafe_url", str(exc)) from exc
+        except UrlFetchError as exc:
+            raise AppError(502, "url_fetch_failed", str(exc)) from exc
+        normalized = normalize_text(page.text[: request.app.state.settings.max_text_chars])
+        source_url = page.url
+    else:
+        normalized = normalize_text(body.input.text or "")
     payload_for_hash = body.model_dump(mode="json")
     if idempotency_key:
         if len(idempotency_key) > 128:
@@ -83,6 +96,7 @@ async def create_check(
         user_id=principal.user_id,
         response_language=body.response_language,
         turn_type=body.turn_type or TurnType.NEW_CLAIM,
+        source_url=source_url,
         persona_id=body.persona_id,
         render_model_id=body.render_model_id,
         output_format=body.output_format.value,
@@ -209,16 +223,19 @@ def _validate_phase1_request(
     body: CheckRequest, settings: Settings, request_personas: list[str]
 ) -> None:
     text = body.input.text
-    if body.input.type != "text":
+    if body.input.type not in {"text", "url"}:
         raise AppError(
             422,
             "input_type_not_supported",
-            "Phase 1 accepts text input only; file, URL and image arrive in Phase 2.",
+            "This Phase 2 surface accepts text and URL input; file and image uploads are next.",
         )
-    if text is None or not text.strip():
-        raise AppError(422, "empty_input", "The input text is empty.")
-    if len(text) > settings.max_text_chars:
-        raise AppError(413, "payload_too_large", "The input text is too long.")
+    if body.input.type == "text":
+        if text is None or not text.strip():
+            raise AppError(422, "empty_input", "The input text is empty.")
+        if len(text) > settings.max_text_chars:
+            raise AppError(413, "payload_too_large", "The input text is too long.")
+    elif not body.input.url:
+        raise AppError(422, "invalid_input", "A URL input requires a url.")
     if body.context:
         raise AppError(
             422,

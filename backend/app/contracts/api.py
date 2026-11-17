@@ -401,3 +401,16 @@ class OpenAIModelCard(ApiModel):
 class OpenAIModelList(ApiModel):
     object: str = "list"
     data: list[OpenAIModelCard]
+
+
+class ArchiveEntry(ApiModel):
+    result_id: str
+    claim_text: str
+    language: str
+    overall_verdict: Verdict | None = None
+    topics: list[str] = Field(default_factory=list)
+    domain_tags: list[str] = Field(default_factory=list)
+    created_at: datetime
+    preliminary: bool = False
+    has_contradiction: bool = False
+    submitted_by: str | None = None

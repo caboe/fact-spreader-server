@@ -231,3 +231,20 @@ the check. Accepting history and silently ignoring it would change the meaning o
 **Rejected:** a synchronous in-request pipeline (duplicates the worker path and loses
 durable partial results), token streaming straight from the provider (unchecked text), a
 separate OpenAI pipeline (contract drift).
+
+
+## D18 — URL checks use a guarded reader and pypdf for PDFs
+
+**What:** a URL submitted for checking is resolved, every resolved address must be public,
+redirects are re-validated, the body is capped, HTML is converted to text with the standard
+library and PDF text is extracted with `pypdf`. The extracted text becomes the check input;
+the URL is provenance in the result and is never ingested.
+
+**Why:** hard invariant 14 (SSRF), the check/corpus separation, and a dependency-free HTML
+path. `pypdf` is a small, pure-Python reader that covers the Phase 2 URL case without
+pulling Docling's full parsing pipeline into the API process; Docling takes over document
+ingestion in Phase 4.
+
+**Rejected:** fetching without resolution checks (SSRF), trusting redirects (redirect
+SSRF), a headless browser (execution risk and weight), implementing PDF extraction by hand
+(error-prone), adding Docling to the check path before Phase 4 (startup and image cost).
