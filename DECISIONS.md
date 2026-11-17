@@ -370,3 +370,18 @@ unchecked synthesis out of the research surface.
 **Rejected:** releasing a syntactically valid summary without the judge, deleting citations
 until the judge passes, returning a partial summary, treating a judge outage as a pass.
 
+## D27 — The LightRAG keyword role is bound to the gateway explicitly
+
+**What:** `deploy/lightrag/lightrag.env` now sets `KEYWORD_LLM_BINDING=openai` with the
+gateway host and `fs-extract`, and compose injects `KEYWORD_LLM_BINDING_API_KEY`. The
+startup log lists extract, keyword and query roles as `openai/fs-extract`; the VLM role
+remains unused.
+
+**Why:** stock LightRAG v1.5.0 has a separate `keyword` role. Without an explicit binding
+it inherited the global default, Ollama, and `/query/data` failed with
+`Failed to connect to Ollama` even though the extract and query roles were configured.
+Invariant 8 requires every model call to go through the gateway.
+
+**Rejected:** setting a global `LLM_BINDING` only (it also affects roles we do not want),
+pointing the keyword role at a host Ollama (bypasses the gateway and the data-flow policy),
+patching LightRAG.
