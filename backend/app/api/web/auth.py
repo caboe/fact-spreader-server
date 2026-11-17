@@ -105,6 +105,45 @@ async def login(
     return json_response
 
 
+@router.get("/auth/session")
+async def session_info(
+    request: Request,
+    principal: CurrentPrincipal,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, object]:
+    """Return the signed-in user and the CSRF token for a reloaded browser page.
+
+    The session cookie is HttpOnly, so the SPA cannot read the CSRF token from it after a
+    reload. A GET is exempt from CSRF and returns the token the next mutation needs.
+    """
+    csrf = ""
+    cookie = request.cookies.get(SESSION_COOKIE)
+    if cookie:
+        row = (
+            await session.execute(
+                select(SessionToken).where(SessionToken.token_hash == hash_token(cookie))
+            )
+        ).scalar_one_or_none()
+        if row is not None and row.revoked_at is None:
+            csrf = row.csrf_token
+    effective = effective_permissions(
+        await session.get(User, principal.user_id)  # type: ignore[arg-type]
+    )
+    pending = totp_required(effective) and principal.totp_pending
+    if pending:
+        effective = effective - TOTP_REQUIRED_PERMISSIONS
+    return {
+        "user": {
+            "id": principal.user_id,
+            "email": principal.email,
+            "display_name": principal.display_name,
+            "permissions": sorted(effective),
+        },
+        "csrf_token": csrf,
+        "totp_setup_required": pending,
+    }
+
+
 @router.post("/auth/logout", status_code=204)
 async def logout(
     request: Request,

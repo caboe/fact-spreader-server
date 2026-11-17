@@ -5782,6 +5782,30 @@
         ]
       }
     },
+    "/api/auth/session": {
+      "get": {
+        "description": "Return the signed-in user and the CSRF token for a reloaded browser page.\n\nThe session cookie is HttpOnly, so the SPA cannot read the CSRF token from it after a\nreload. A GET is exempt from CSRF and returns the token the next mutation needs.",
+        "operationId": "session_info_api_auth_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Session Info Api Auth Session Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Session Info",
+        "tags": [
+          "web-auth"
+        ]
+      }
+    },
     "/api/auth/totp/confirm": {
       "post": {
         "operationId": "totp_confirm_api_auth_totp_confirm_post",
@@ -8507,8 +8531,55 @@
           "content": {
             "application/json": {
               "schema": {
-                "$defs": {
-                  "CheckInput": {
+                "additionalProperties": false,
+                "properties": {
+                  "context": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "content": {
+                          "maxLength": 20000,
+                          "title": "Content",
+                          "type": "string"
+                        },
+                        "role": {
+                          "enum": [
+                            "user",
+                            "assistant",
+                            "system"
+                          ],
+                          "title": "Role",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "content"
+                      ],
+                      "title": "ContextMessage",
+                      "type": "object"
+                    },
+                    "title": "Context",
+                    "type": "array"
+                  },
+                  "domain_hint": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "title": "Domain Hint",
+                    "type": "array"
+                  },
+                  "fast": {
+                    "default": false,
+                    "title": "Fast",
+                    "type": "boolean"
+                  },
+                  "include_passages": {
+                    "default": true,
+                    "title": "Include Passages",
+                    "type": "boolean"
+                  },
+                  "input": {
                     "additionalProperties": false,
                     "properties": {
                       "language": {
@@ -8559,85 +8630,6 @@
                     "title": "CheckInput",
                     "type": "object"
                   },
-                  "ContextMessage": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "content": {
-                        "maxLength": 20000,
-                        "title": "Content",
-                        "type": "string"
-                      },
-                      "role": {
-                        "enum": [
-                          "user",
-                          "assistant",
-                          "system"
-                        ],
-                        "title": "Role",
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "role",
-                      "content"
-                    ],
-                    "title": "ContextMessage",
-                    "type": "object"
-                  },
-                  "OutputFormat": {
-                    "enum": [
-                      "substance",
-                      "persona",
-                      "compact"
-                    ],
-                    "title": "OutputFormat",
-                    "type": "string"
-                  },
-                  "TurnType": {
-                    "enum": [
-                      "new_claim",
-                      "repeated_claim",
-                      "follow_up_claim",
-                      "evidence_challenge",
-                      "clarification_answer",
-                      "question",
-                      "meta",
-                      "off_topic",
-                      "abusive"
-                    ],
-                    "title": "TurnType",
-                    "type": "string"
-                  }
-                },
-                "additionalProperties": false,
-                "properties": {
-                  "context": {
-                    "items": {
-                      "$ref": "#/$defs/ContextMessage"
-                    },
-                    "title": "Context",
-                    "type": "array"
-                  },
-                  "domain_hint": {
-                    "items": {
-                      "type": "string"
-                    },
-                    "title": "Domain Hint",
-                    "type": "array"
-                  },
-                  "fast": {
-                    "default": false,
-                    "title": "Fast",
-                    "type": "boolean"
-                  },
-                  "include_passages": {
-                    "default": true,
-                    "title": "Include Passages",
-                    "type": "boolean"
-                  },
-                  "input": {
-                    "$ref": "#/$defs/CheckInput"
-                  },
                   "mode": {
                     "default": "async",
                     "enum": [
@@ -8648,8 +8640,13 @@
                     "type": "string"
                   },
                   "output_format": {
-                    "$ref": "#/$defs/OutputFormat",
-                    "default": "substance"
+                    "enum": [
+                      "substance",
+                      "persona",
+                      "compact"
+                    ],
+                    "title": "OutputFormat",
+                    "type": "string"
                   },
                   "persona_id": {
                     "anyOf": [
@@ -8687,7 +8684,19 @@
                   "turn_type": {
                     "anyOf": [
                       {
-                        "$ref": "#/$defs/TurnType"
+                        "enum": [
+                          "new_claim",
+                          "repeated_claim",
+                          "follow_up_claim",
+                          "evidence_challenge",
+                          "clarification_answer",
+                          "question",
+                          "meta",
+                          "off_topic",
+                          "abusive"
+                        ],
+                        "title": "TurnType",
+                        "type": "string"
                       },
                       {
                         "type": "null"

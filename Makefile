@@ -11,11 +11,12 @@ export UV_CACHE_DIR := $(CURDIR)/.local/uv-cache
 export BUILDX_CONFIG := $(CURDIR)/.local/buildx
 export TESTCONTAINERS_RYUK_DISABLED := true
 COMPOSE := docker compose
+WEB := web
 API_KEY_FILE := .local/api-key
 
 .PHONY: install fmt fmt-check lint typecheck test test-integration migrate migrate-check \
-	openapi openapi-check compose-check verify stack-up stack-down stack-logs bootstrap \
-	seed-fixtures stack-smoke spend clean
+	openapi openapi-check compose-check web-install web-check web-e2e verify stack-up \
+	stack-down stack-logs bootstrap seed-fixtures stack-smoke spend clean
 
 install:
 	mkdir -p $(UV_CACHE_DIR) $(BUILDX_CONFIG)
@@ -55,7 +56,18 @@ compose-check:
 	$(COMPOSE) config -q
 	cd $(BACKEND) && uv run python -m app.tools.check_compose
 
-verify: fmt-check lint typecheck test test-integration migrate-check openapi-check compose-check
+web-install:
+	cd $(WEB) && pnpm install --frozen-lockfile --store-dir $(CURDIR)/.local/pnpm-store
+
+web-check:
+	cd $(WEB) && pnpm check && pnpm build
+	cd $(WEB) && pnpm gen:api
+	git diff --exit-code -- $(WEB)/src/lib/openapi.d.ts
+
+web-e2e:
+	cd $(WEB) && pnpm test:e2e
+
+verify: fmt-check lint typecheck test test-integration migrate-check openapi-check compose-check web-check
 
 stack-up:
 	$(COMPOSE) up -d --build

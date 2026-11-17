@@ -17,6 +17,8 @@ node_modules/
 .svelte-kit/
 build/
 dist/
+test-results/
+playwright-report/
 
 # Downloaded reference corpus (copyrighted, never committed)
 tests/eval/reference_corpus/

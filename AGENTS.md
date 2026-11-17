@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–6 complete (2026-11-17).** The order of work is:
+**Phases 1–6 complete; Phase 7 in progress (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -50,8 +50,11 @@ Three kinds of request share one API:
    is `docs/PHASE_5_REPORT.md`. Phase 6 is complete: provider and model registry with
    encrypted keys and tested capabilities, one role rule, a data-flow policy with fallback,
    role budgets, usage summaries/CSV, publisher, persona and methodology overrides, and an
-   explicit re-index job. Its report is `docs/PHASE_6_REPORT.md`. Next is Phase 7, the web
-   UI.
+   explicit re-index job. Its report is `docs/PHASE_6_REPORT.md`. Phase 7 has the SvelteKit
+   SPA, i18n, login, Check/Report/Archive/Claim/Chat, generated client and Playwright
+   screenshots in place; `make verify` includes `web-check`. Live image/URL E2E runs are
+   blocked by the DeepSeek account balance (`Insufficient Balance`), so the visual
+   acceptance check is not reached yet. See `docs/PHASE_7_REPORT.md`.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

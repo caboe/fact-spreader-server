@@ -627,6 +627,19 @@ on what is suitable, no call can bypass the data-flow policy, and usage is audit
 
 ## 10. Phase 7 — Web design system and the core checking experience
 
+**Status: in progress (2026-11-17).** Done: the SvelteKit SPA with generated OpenAPI types,
+Tailwind light/dark tokens, runtime i18n (en/de/fr/es), login, Check (text/URL/file/image,
+SSE progress and partial statements), Report (deterministic sections, statement verdicts,
+evidence, warnings, checked narrative), Archive, Claim with versions/feedback, and Chat
+through the OpenAI streaming surface. `make web-check` and `make verify` are green; the
+Playwright suite proves archive, chat render, localization, accessibility, a real text
+check through SSE to the report and a Markdown file check, and stores light/dark/360/1440
+screenshots. The image E2E test stopped on `provider_rejected: Insufficient Balance` from
+DeepSeek; the URL test did not run, and no chat send was executed before the balance ran
+out. A human decision on topping up or changing the chat/moderation provider is needed
+before the remaining live E2E and the visual acceptance. The report is
+[`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md).
+
 **Goal.** A person can sign in, check text/file/image/URL, read the report, browse the
 archive and chat with the service, in a calm, accessible, bilingual-ready interface.
 

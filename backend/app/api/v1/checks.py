@@ -7,7 +7,7 @@ import json
 import time
 from collections.abc import AsyncIterator
 from datetime import timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -45,7 +45,27 @@ from app.services.setup import setup_gate_dependency
 
 router = APIRouter(prefix="/v1", tags=["checks"])
 
-_CHECK_REQUEST_SCHEMA = CheckRequest.model_json_schema()
+
+def _inline_schema(node: Any, defs: dict[str, Any] | None = None) -> Any:
+    """Expand ``$defs`` refs for the hand-written request body.
+
+    ``openapi_extra`` embeds a JSON Schema as-is, and a ``#/$defs/...`` reference is not
+    resolvable from the OpenAPI document root. Inlining keeps the exported contract
+    self-contained so the generated TypeScript client can build types from it.
+    """
+    if defs is None:
+        defs = node.get("$defs") or {}
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            return _inline_schema(defs[ref[len("#/$defs/") :]], defs)
+        return {key: _inline_schema(value, defs) for key, value in node.items() if key != "$defs"}
+    if isinstance(node, list):
+        return [_inline_schema(item, defs) for item in node]
+    return node
+
+
+_CHECK_REQUEST_SCHEMA = _inline_schema(CheckRequest.model_json_schema())
 _CHECK_BODY_OPENAPI = {
     "required": True,
     "content": {

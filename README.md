@@ -8,7 +8,7 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phases 1–6 complete (2026-11-17).** The specs were revised
+**Phases 1–6 complete; Phase 7 in progress (2026-11-17).** The specs were revised
 for the v1 scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md)
 as the decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
 [`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. Live
@@ -44,7 +44,11 @@ models are managed with encrypted keys and probed capabilities, a single role ru
 assignments, the data-flow policy blocks before transport, role budgets and usage summaries
 are in place, publisher/persona/methodology overrides are local and reversible, and a
 confirmed re-index rebuilds from approved documents. Its evidence is in
-[`docs/PHASE_6_REPORT.md`](docs/PHASE_6_REPORT.md). Next is Phase 7, the web UI.
+[`docs/PHASE_6_REPORT.md`](docs/PHASE_6_REPORT.md). Phase 7 adds the SvelteKit SPA with
+Check, Report, Archive, Claim, Chat and Login, runtime en/de/fr/es copy and Playwright
+screenshots; `make verify` includes `web-check`. Live image/URL E2E is blocked by the
+DeepSeek account balance, so the phase is not complete. See
+[`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md).
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes

@@ -885,3 +885,22 @@ every call already passes, not in each pipeline step.
 
 **Rejected:** pre-blocking the fast path, a per-role table instead of a setting, silently
 dropping the role check when no limit is configured.
+
+## D56 — The SPA is a static SvelteKit app with generated types and runtime i18n
+
+**What:** `web/` is a SvelteKit SPA (`ssr = false`, adapter-static with an `index.html`
+fallback, served later by Caddy). Types come from `docs/openapi.json` through
+`openapi-typescript`; `make web-check` regenerates and drift-checks the client. The
+dev/E2E server proxies `/v1` and `/api` to the backend. UI copy lives in a TypeScript
+catalog for en/de/fr/es and the chosen language is a client preference; verdict labels,
+job states and errors are translated, backend prose is not. Mutations send the CSRF token
+from `GET /api/auth/session`, which also restores the signed-in user after a reload.
+
+**Why:** the contract is generated, so a backend shape change fails the client build rather
+than the browser. A runtime catalog keeps the static build small and lets the language
+switch without a reload. The session endpoint exists because an HttpOnly cookie cannot be
+read by the SPA to recover the CSRF token.
+
+**Rejected:** server-side rendering (the API is the source of truth and the UI is a
+separate static artifact), a hand-written client, per-language builds, storing the CSRF
+token in localStorage.

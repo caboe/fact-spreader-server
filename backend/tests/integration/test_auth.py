@@ -166,3 +166,23 @@ async def test_privileged_permissions_require_totp_and_password_reset_ends_sessi
             json={"email": "member@test.invalid", "password": "fresh-editor-secret-9"},
         )
         assert new_password.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_the_session_endpoint_returns_the_csrf_token_after_a_reload(app: Any) -> None:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as browser:
+        anonymous = await browser.get("/api/auth/session")
+        assert anonymous.status_code == 401
+        login = await browser.post(
+            "/api/auth/login",
+            json={"email": "admin@test.invalid", "password": "test-admin-password"},
+        )
+        assert login.status_code == 200
+        session = await browser.get("/api/auth/session")
+        assert session.status_code == 200, session.text
+        body = session.json()
+        assert body["user"]["email"] == "admin@test.invalid"
+        assert body["csrf_token"] == login.json()["csrf_token"]
+        assert body["totp_setup_required"] is True
+        assert "users:manage" not in body["user"]["permissions"]
