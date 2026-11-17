@@ -48,7 +48,9 @@ confirmed re-index rebuilds from approved documents. Its evidence is in
 Check, Report, Archive, Claim, Chat and Login, runtime en/de/fr/es copy and Playwright
 screenshots; `make verify` includes `web-check`. Live image/URL E2E is blocked by the
 DeepSeek account balance, so the phase is not complete. See
-[`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md).
+[`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md). Phase 8 has started with the operator
+admin console: providers/models, role assignment, users, usage, data-flow/budget settings
+and re-index. See [`docs/PHASE_8_REPORT.md`](docs/PHASE_8_REPORT.md).
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes

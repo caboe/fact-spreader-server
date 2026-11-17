@@ -262,3 +262,112 @@ export async function confirmTotp(
     body: JSON.stringify({ code }),
   });
 }
+
+export type ProviderInfo = components['schemas']['ProviderInfo'];
+export type ModelInfo = components['schemas']['ModelInfo'];
+export type RoleInfo = components['schemas']['RoleInfo'];
+export type UserInfo = components['schemas']['UserInfo'];
+export type UsageSummary = components['schemas']['UsageSummary'];
+export type DataFlowPolicy = components['schemas']['DataFlowPolicy'];
+export type RoleBudgets = components['schemas']['RoleBudgets'];
+export type ReindexAccepted = components['schemas']['ReindexAccepted'];
+
+export async function listProviders(): Promise<ProviderInfo[]> {
+  return request('/v1/config/providers');
+}
+
+export async function testProvider(id: string): Promise<{ models: string[]; latency_ms: number }> {
+  return request(`/v1/config/providers/${encodeURIComponent(id)}/test`, { method: 'POST' });
+}
+
+export async function listModels(): Promise<ModelInfo[]> {
+  return request('/v1/config/models');
+}
+
+export async function listRoles(): Promise<RoleInfo[]> {
+  return request('/v1/config/roles');
+}
+
+export async function assignRole(alias: string, modelId: string): Promise<RoleInfo> {
+  return request(`/v1/config/roles/${encodeURIComponent(alias)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ model_id: modelId }),
+  });
+}
+
+export async function listUsers(): Promise<{ data: UserInfo[] }> {
+  return request('/v1/users');
+}
+
+export interface UserCreateInput {
+  email: string;
+  display_name: string;
+  password: string;
+  roles: string[];
+}
+
+export async function createUser(body: UserCreateInput): Promise<UserInfo> {
+  return request('/v1/users', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateUser(id: string, body: Record<string, unknown>): Promise<UserInfo> {
+  return request(`/v1/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function usageSummary(from?: string, to?: string): Promise<UsageSummary> {
+  const search = new URLSearchParams();
+  if (from) search.set('from', from);
+  if (to) search.set('to', to);
+  return request(`/v1/usage/summary?${search.toString()}`);
+}
+
+export async function getDataFlow(): Promise<DataFlowPolicy> {
+  return request('/v1/config/data-flow');
+}
+
+export async function setDataFlow(policy: DataFlowPolicy): Promise<DataFlowPolicy> {
+  return request('/v1/config/data-flow', {
+    method: 'PUT',
+    body: JSON.stringify(policy),
+  });
+}
+
+export async function getBudgets(): Promise<RoleBudgets> {
+  return request('/v1/config/budgets');
+}
+
+export async function setBudgets(roles: Record<string, number>): Promise<RoleBudgets> {
+  return request('/v1/config/budgets', {
+    method: 'PUT',
+    body: JSON.stringify({ roles }),
+  });
+}
+
+export async function startReindex(): Promise<ReindexAccepted> {
+  return request('/v1/config/reindex', {
+    method: 'POST',
+    body: JSON.stringify({ confirm: true, reason: 'operator UI' }),
+  });
+}
+
+export async function getReindex(jobId: string): Promise<{
+  job_id: string;
+  state: string;
+  progress: number;
+  documents: number;
+}> {
+  return request(`/v1/config/reindex/${encodeURIComponent(jobId)}`);
+}
+
+export async function updateProvider(
+  id: string,
+  body: { api_key?: string; enabled?: boolean; base_url?: string; is_local?: boolean; name?: string },
+): Promise<ProviderInfo> {
+  return request(`/v1/config/providers/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}

@@ -44,6 +44,9 @@
     <a href="/" aria-current={$page?.url?.pathname === '/' ? 'page' : undefined}>{tr('nav.check')}</a>
     <a href="/archive">{tr('nav.archive')}</a>
     <a href="/chat">{tr('nav.chat')}</a>
+    {#if $session?.user.permissions.some((permission) => ['config:manage', 'users:manage'].includes(permission))}
+      <a href="/admin">{tr('nav.admin')}</a>
+    {/if}
   </nav>
   <div class="account">
     <label class="language">

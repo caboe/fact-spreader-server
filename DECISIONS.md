@@ -904,3 +904,20 @@ read by the SPA to recover the CSRF token.
 **Rejected:** server-side rendering (the API is the source of truth and the UI is a
 separate static artifact), a hand-written client, per-language builds, storing the CSRF
 token in localStorage.
+
+## D57 — The admin console is a guarded UI over the existing config API
+
+**What:** `/admin` pages call the Phase 6 `/v1/config`, `/v1/users` and `/v1/usage`
+endpoints directly. The navigation link is shown only for sessions with `config:manage` or
+`users:manage`, and the page shows a notice otherwise; the server remains the authority.
+Provider keys are write-only in the UI as they are in the API. The Playwright suite uses
+route-fulfilled contract fixtures, so it exercises layout, navigation, role assignment and
+the re-index confirmation without a TOTP credential or model spend.
+
+**Why:** the console is an operator convenience over tested endpoints; duplicating policy
+in the UI would create a second rule. Mocked fixtures are the only way to test the console
+without solving the TOTP factor in automation, and the endpoints already have integration
+coverage.
+
+**Rejected:** an admin API of its own, exposing provider keys for editing, a live TOTP
+secret in test configuration, embedding policy decisions in the pages.

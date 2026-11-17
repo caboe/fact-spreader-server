@@ -54,7 +54,10 @@ Three kinds of request share one API:
    SPA, i18n, login, Check/Report/Archive/Claim/Chat, generated client and Playwright
    screenshots in place; `make verify` includes `web-check`. Live image/URL E2E runs are
    blocked by the DeepSeek account balance (`Insufficient Balance`), so the visual
-   acceptance check is not reached yet. See `docs/PHASE_7_REPORT.md`.
+   acceptance check is not reached yet. See `docs/PHASE_7_REPORT.md`. Phase 8 has started
+   with the operator admin console (registry, role assignment, users, usage, data-flow and
+   budget settings, re-index); the editorial, batch, remaining settings, plugin and PWA
+   slices are open. See `docs/PHASE_8_REPORT.md`.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.
