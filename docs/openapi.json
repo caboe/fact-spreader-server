@@ -1885,8 +1885,14 @@
             "type": "string"
           },
           "summary": {
-            "title": "Summary",
-            "type": "null"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "took_ms": {
             "default": 0,
@@ -1907,6 +1913,52 @@
           "response_language"
         ],
         "title": "ResearchResponse",
+        "type": "object"
+      },
+      "ResearchSummary": {
+        "properties": {
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/SummaryCitation"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "consistency": {
+            "$ref": "#/components/schemas/ConsistencyInfo"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "language",
+          "consistency",
+          "created_at"
+        ],
+        "title": "ResearchSummary",
         "type": "object"
       },
       "ResultStatus": {
@@ -2242,6 +2294,26 @@
         ],
         "title": "StatementKind",
         "type": "string"
+      },
+      "SummaryCitation": {
+        "properties": {
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "sentence": {
+            "title": "Sentence",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sentence"
+        ],
+        "title": "SummaryCitation",
+        "type": "object"
       },
       "TimeScope": {
         "properties": {

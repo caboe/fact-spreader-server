@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts.api import ResearchRequest, ResearchResponse
 from app.db.session import get_session
+from app.llm.client import LLMClient
 from app.services.auth import Principal, require_permission
 from app.services.language import LanguageService
 from app.services.research import ResearchService
@@ -26,7 +27,11 @@ async def search(
 ) -> ResearchResponse:
     languages: LanguageService = request.app.state.language
     decision = languages.resolve(body.query, body.response_language)
-    service = ResearchService(session=session, lightrag=request.app.state.lightrag)
+    service = ResearchService(
+        session=session,
+        lightrag=request.app.state.lightrag,
+        llm=LLMClient(request.app.state.settings, consumer="research"),
+    )
     return await service.search(
         query=body.query,
         response_language=decision.response,

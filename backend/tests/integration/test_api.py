@@ -14,6 +14,7 @@ from app.db.models import Document, DocumentVersion, JobEvent
 from app.db.models import Job as JobRow
 from app.services.image_input import ImageExtraction
 from app.services.input_reader import FetchedDocument
+from app.services.research import ResearchService
 from sqlalchemy import func, select
 
 from tests.fakes import FakeLightRAG, FakeLLM
@@ -435,6 +436,19 @@ async def test_research_returns_documents_and_archive_hits(
         document_id=document_id,
         passage="Immigrants commit more crimes, according to the fixture.",
     )
+    from app.contracts.api import ConsistencyInfo, ResearchSummary, SummaryCitation
+
+    async def fake_summary(self: Any, query: str, language: str, documents: Any) -> ResearchSummary:
+        passage = documents[0].passages[0]
+        return ResearchSummary(
+            text="Registered suspects are higher in the raw comparison.",
+            language=language,
+            citations=[SummaryCitation(sentence=0, evidence_ids=[passage.evidence_id])],
+            consistency=ConsistencyInfo(passed=True, checks=["citation_ids"]),
+            created_at=utcnow(),
+        )
+
+    monkeypatch.setattr(ResearchService, "_summary", fake_summary)
     response = await client.post(
         "/v1/search",
         json={"query": "immigrants crime statistics", "summary": True},
@@ -443,4 +457,5 @@ async def test_research_returns_documents_and_archive_hits(
     body = response.json()
     assert body["documents"][0]["document"]["id"] == document_id
     assert body["documents"][0]["passages"][0]["passage_language"] == "en"
-    assert any(w["code"] == "summary_not_available" for w in body["warnings"])
+    assert body["summary"]["text"].startswith("Registered suspects")
+    assert body["summary"]["citations"][0]["evidence_ids"]

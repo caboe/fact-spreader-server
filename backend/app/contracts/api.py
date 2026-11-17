@@ -491,13 +491,27 @@ class ResearchClaim(ApiModel):
     excerpt: str = ""
 
 
+class SummaryCitation(ApiModel):
+    sentence: int
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ResearchSummary(ApiModel):
+    text: str
+    language: str
+    citations: list[SummaryCitation] = Field(default_factory=list)
+    consistency: ConsistencyInfo
+    model_id: str | None = None
+    created_at: datetime
+
+
 class ResearchResponse(ApiModel):
     query: str
     detected_language: str
     response_language: str
     documents: list[ResearchDocument] = Field(default_factory=list)
     claims: list[ResearchClaim] = Field(default_factory=list)
-    summary: None = None
+    summary: ResearchSummary | None = None
     warnings: list[WarningInfo] = Field(default_factory=list)
     took_ms: int = 0
     gaps_recorded: bool = False

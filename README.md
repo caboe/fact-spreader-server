@@ -50,9 +50,9 @@ conversation context with a code-side turn heuristic, and labelled translations 
 non-response-language evidence. The remaining Phase 2 item is the full live persona ×
 language matrix; the mechanical checks are covered for en/de/fr/es. Later phases add
 research, fast mode, the editorial pipeline and the UI. A first Phase 3 slice adds
-retrieval-only research: `POST /v1/search` returns approved documents, passages and archive
-hits; the cited summary is explicitly unavailable (`summary_not_available`) rather than
-fabricated.
+research: `POST /v1/search` returns approved documents, passages and archive hits, plus an
+optional attributed summary whose sentences are citation-checked deterministically. The
+summary judge and the fast mode are still open.
 
 ## Quick start (development)
 
