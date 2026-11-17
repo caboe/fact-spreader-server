@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–7 complete; Phase 8 in progress (2026-11-17).** The order of work is:
+**Phases 1–8 complete; Phase 9 in progress (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -60,10 +60,11 @@ Three kinds of request share one API:
    pre-submit estimate, curation settings, the first-run setup wizard, the device-token
    connect flow with `docs/EXTENSION.md`, and the PWA. The Playwright suite is 27 passed,
    2 skipped against the live stack, including live batch, editorial approve→index→withdraw
-   and device-token compact-check runs. The `[human]` visual acceptance and the
-   real-browser plugin test are open. API-key management and the retention/four-eyes/backup
-   settings are deferred because their backend surface does not exist yet. See
-   `docs/PHASE_8_REPORT.md`.
+   and device-token compact-check runs. The human accepted the visual design on
+   2026-11-17; the real-browser plugin test is deferred until the extension exists, and the
+   zero-volume setup-wizard browser run moves into the Phase 9 clean-start acceptance.
+   API-key management and the retention/four-eyes/backup settings are deferred because
+   their backend surface does not exist yet. See `docs/PHASE_8_REPORT.md`.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

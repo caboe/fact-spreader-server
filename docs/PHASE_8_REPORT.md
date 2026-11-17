@@ -120,7 +120,12 @@ embeddings and the live E2E calls included). Cumulative across the project:
 
 ## Human gate
 
-Visual acceptance of the editorial, batch, usage, settings, curation, connect and setup
-screens and of the PWA install; and a plugin test in Chrome/Edge and Firefox against the
-running stack (select text, check, see the compact report, open the full report,
-revoke). The agent stops here.
+Visual acceptance was given on 2026-11-17: the human reviewed the editorial, batch, usage,
+settings, curation, connect and setup screens and the PWA install and said everything looks
+okay. The real-browser plugin test is deferred by the human because the extension is built
+later; it is not recorded as passed. The zero-volume browser run of the setup wizard also
+moves to the Phase 9 clean-start acceptance, which starts a fresh stack anyway.
+
+Open follow-ups (not gates): API-key management UI, retention/four-eyes/backup screens and
+the persona test console, all waiting for their backend surface; the Docling layout/OCR
+item from Phase 4.

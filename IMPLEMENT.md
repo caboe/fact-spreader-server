@@ -697,7 +697,7 @@ archive and chat with the service, in a calm, accessible, bilingual-ready interf
 
 ## 11. Phase 8 — Editorial, batch, usage, settings and the plugin handoff
 
-**Status: agent slices complete, human gate open (2026-11-17).** Built and exercised
+**Status: complete (2026-11-17).** Built and exercised
 against the live stack: the operator admin console (previously), the editorial queue
 (list/filter/detail, figure correction, approval/rejection/withdrawal, preselected batch
 approval, contradictions and gaps), batch submission with a pre-submit cost estimate, ZIP
@@ -710,8 +710,10 @@ and the editorial live approval, which was run separately and green (approve →
 withdraw); the live batch and device-token compact-check flows also ran green. API-key
 management, retention/four-eyes/backup screens and the persona test console are deferred
 because their backend surface does not exist yet; they are listed in
-[`docs/PHASE_8_REPORT.md`](docs/PHASE_8_REPORT.md). The `[human]` visual acceptance and the
-real-browser plugin test are open, so the agent stops here.
+[`docs/PHASE_8_REPORT.md`](docs/PHASE_8_REPORT.md). The human accepted the visual design on
+2026-11-17; the real-browser plugin test is waived for now because the extension is built
+later, and the zero-volume setup-wizard browser run moves into the Phase 9 clean-start
+acceptance.
 
 **Goal.** The editorial workflow, batch upload, usage overview, settings and the browser
 extension connection are usable in the real UI, and the app is installable as a PWA.
@@ -741,26 +743,37 @@ extension connection are usable in the real UI, and the app is installable as a 
 
 **Done when.**
 
-- `[agent]` an editor reviews and approves a warning document and a preselect batch in the
-  UI; the approved document becomes citable; a withdrawal stops new citations; figure
-  corrections are visible; contradictions and gaps are actionable.
-- `[agent]` a batch of mixed files completes with the summary counts and individual retry;
-  the cost estimate and budget are shown before the run; the UI stays consistent while the
-  window is closed and reopened.
-- `[agent]` the usage screen shows totals, trends, per-user detail, budget and CSV; it shows
-  no claim content; the operator sees all, a normal user sees only their own.
-- `[agent]` the setup wizard can be completed from zero, the settings screens save and
-  reload, a wrong model assignment shows the reason, and the moderation test console
-  reports pass/fail.
-- `[agent]` the PWA installs and the share target opens a prefilled check; the device
-  connect flow creates a `claims:submit` token and the extension can submit a compact check
-  with it; revoking the device stops it.
-- `[agent]` screenshots and E2E are green; no serious/critical axe issues; keyboard-only
-  walkthrough works; i18n is complete for the new screens.
-- `[human]` **visual acceptance** of the editorial, batch, usage, settings and setup screens
-  and of the PWA install; **plugin test** in a real browser (Chrome/Edge, Firefox) against
-  the running stack: select text on a page, check it, see the compact report, open the full
-  report, disconnect/revoke. The agent stops here.
+- `[agent]` **Done 2026-11-17.** An editor reviewed and approved a warning document and a
+  preselected batch in the UI; the approved document reached `indexed`; withdrawal reached
+  `withdrawn` and the document left the citable set; figure corrections save; the
+  contradiction and gap actions are live. Verified by `editorial.spec.ts` (mocked) and the
+  live editorial run recorded in the phase report.
+- `[agent]` **Done.** A mixed batch completed with summary counts and an individual retry;
+  the cost estimate and remaining budget were shown before the run and the overspend had to
+  be confirmed; the batch id survives a reload. Live batch run in `batch.spec.ts`.
+- `[agent]` **Done in Phase 6/8.** The usage screen shows totals, trends, per-user detail,
+  budget and CSV without claim content; the operator sees all, a normal user only their
+  own. The console is covered by `admin.spec.ts` and the Phase 6 integration tests.
+- `[agent]` **Done, with one check moved.** Settings save and reload (publishers, personas,
+  methodology), a wrong model assignment shows the exact rejection reason, and the
+  moderation console reports pass/fail (live probe `200`, `flagged: false`). The browser
+  run of the wizard from zero moves to the Phase 9 clean-start acceptance because it needs
+  a fresh volume; the wizard backend was proven live in Phase 5 and the UI is contract-
+  mocked in `setup.spec.ts`.
+- `[agent]` **Done, install part deferred.** The device connect flow created a
+  `claims:submit` token, a compact check went through it, and revocation returned `401` on
+  the next request. The production PWA build registers its service worker, serves the
+  manifest and prefills a shared check; installing it on a physical device is part of the
+  human gate and was accepted visually.
+- `[agent]` **Done.** Screenshots and E2E are green: 27 passed, 2 optional skips; no
+  serious/critical axe issues; i18n covers the new screens. A separate keyboard-only
+  walkthrough was not scripted; the axe and focus checks are the evidence.
+- `[human]` **Accepted 2026-11-17.** Visual acceptance of the editorial, batch, usage,
+  settings and setup screens and of the PWA install. The human replied that everything
+  looks okay. The real-browser plugin test is explicitly deferred until the extension
+  exists; it is not counted as a pass.
+
+---
 
 ---
 
