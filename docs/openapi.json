@@ -171,6 +171,11 @@
       },
       "BatchInfo": {
         "properties": {
+          "actual_usd": {
+            "default": 0.0,
+            "title": "Actual Usd",
+            "type": "number"
+          },
           "budget_remaining_usd": {
             "anyOf": [
               {

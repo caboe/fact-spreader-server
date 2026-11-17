@@ -621,3 +621,20 @@ successful entries. Raw bytes are retained only for failures, not for accepted d
 
 **Rejected:** keeping raw bytes for every document (unnecessary storage and retention),
 retrying from the parsed Markdown (loses the original), re-running the whole batch.
+
+## D41 — Batch estimates are computed before any model call and checked against the budget
+
+**What:** before a batch creates documents, it counts PDF pages and embedded images,
+estimates `pages * 0.0001 + figures * 0.00036` USD, compares it with the remaining monthly
+budget, and refuses with `429 budget_exceeded` unless the caller sends
+`accept_estimate=true`. Vision calls in a batch carry the batch id as their request id, so
+the response can report `actual_usd` from usage events beside the estimate.
+
+**Why:** PROTOCOL §8.7 requires the estimate before processing and a hard budget boundary.
+Counting cheaply with pypdf avoids parsing or calling vision first. The request id is the
+existing usage correlation, so no new accounting table is needed. The estimate is a
+conservative planning number; actual cost is reported separately instead of pretending the
+estimate is billing truth.
+
+**Rejected:** starting the batch and stopping midway on budget, estimating from file size
+alone, a separate batch-usage table, hiding the estimate/actual difference.

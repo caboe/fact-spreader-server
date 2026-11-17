@@ -41,7 +41,8 @@ Three kinds of request share one API:
    in place, as are bounded re-checks on approval/withdrawal and the editor
    contradiction/gap lists, plus batch submission with ZIP sanitisation and per-file
    states, HTML/digital-PDF tables become Markdown, PDF figures get vision descriptions,
-   and batch metadata sidecars apply per file. Docling layout/OCR and real cost/budget blocks remain.
+   and batch metadata sidecars apply per file. Docling layout/OCR remains the main open parsing item; batch estimates
+   and the budget block are in place.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

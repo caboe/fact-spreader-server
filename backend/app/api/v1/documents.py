@@ -36,7 +36,9 @@ from app.llm.client import LLMClient, LLMError
 from app.services.auth import Principal, require_permission
 from app.services.batches import (
     batch_to_api,
+    budget_remaining,
     create_batch,
+    estimate_batch_uploads,
     finalise_batch,
     parse_metadata_sidecar,
     record_failure,
@@ -47,9 +49,8 @@ from app.services.documents import (
     create_document,
     document_to_api,
     enqueue_rechecks_for_document,
-    extract_pdf_images,
-    extract_pdf_tables,
     latest_version,
+    parse_pdf_assets,
     queue_review_counts,
     retry_failed_document,
     update_corpus_version,
@@ -163,37 +164,14 @@ async def submit_document(
                 if media in {"application/pdf", "application/x-pdf"} or filename.lower().endswith(
                     ".pdf"
                 ):
-                    sections = [file_text, extract_pdf_tables(data)]
-                    for index, (page_number, image_bytes) in enumerate(
-                        extract_pdf_images(data), start=1
-                    ):
-                        try:
-                            prepared = prepare_image(image_bytes, "image/png", settings)
-                            vision = await extract_image_text(
-                                LLMClient(settings, consumer="vision"),
-                                prepared,
-                                user_id=principal.user_id,
-                            )
-                        except (UrlFetchError, LLMError):
-                            continue
-                        label = f"Page {page_number} image {index}"
-                        figures.append(
-                            {
-                                "id": new_id("fig"),
-                                "page": page_number,
-                                "number": str(index),
-                                "caption": label,
-                                "description": vision.description,
-                                "description_source": "vision",
-                                "description_model_id": "fs-vision",
-                                "editor_checked": False,
-                                "created_at": utcnow().isoformat(),
-                            }
-                        )
-                        sections.append(
-                            f"## Figure: {label}\n\n{vision.description}\n\n{vision.text}"
-                        )
-                    file_text = "\n\n".join(section for section in sections if section.strip())
+                    tables, pdf_figures, sections, _pages = await parse_pdf_assets(
+                        data,
+                        settings=settings,
+                        user_id=principal.user_id,
+                    )
+                    figures.extend(pdf_figures)
+                    parts = [file_text, tables, *sections]
+                    file_text = "\n\n".join(part for part in parts if part.strip())
             upload_name = filename
             upload_size = len(data)
         else:
@@ -540,7 +518,16 @@ async def submit_batch(
     if total > 200_000_000:
         raise AppError(413, "payload_too_large", "The batch exceeds the total size limit.")
 
+    estimate = estimate_batch_uploads(uploads, settings)
+    remaining_budget = await budget_remaining(session, settings)
+    if estimate > remaining_budget and not body.accept_estimate:
+        raise AppError(
+            429,
+            "budget_exceeded",
+            "The batch estimate exceeds the remaining budget; confirm with accept_estimate.",
+        )
     batch = await create_batch(session, user_id=principal.user_id)
+    batch.estimated_usd = str(estimate)
     instance = (await session.execute(select(Instance).limit(1))).scalar_one()
     for filename, data, media in uploads:
         override = body.overrides.get(filename)
@@ -602,6 +589,15 @@ async def submit_batch(
         elif metadata.title is None:
             metadata.title = filename
         decision = request.app.state.language.resolve(text[:4000], metadata.language)
+        figures: list[dict[str, Any]] = []
+        if media in {"application/pdf", "application/x-pdf"} or filename.lower().endswith(".pdf"):
+            tables, figures, sections, _pages = await parse_pdf_assets(
+                data,
+                settings=settings,
+                user_id=principal.user_id,
+                request_id=batch.id,
+            )
+            text = "\n\n".join(part for part in [text, tables, *sections] if part.strip())
         try:
             await create_document(
                 session,
@@ -616,6 +612,7 @@ async def submit_batch(
                 detected_language=decision.detected,
                 unsupported_language=decision.unsupported,
                 source_url=None,
+                figures=figures,
                 batch_id=batch.id,
                 force=body.force,
                 source_name=filename,

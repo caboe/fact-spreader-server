@@ -13,9 +13,10 @@ import json
 import logging
 import mimetypes
 import zipfile
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts.api import (
@@ -27,8 +28,12 @@ from app.contracts.api import (
 )
 from app.core.config import Settings
 from app.core.ids import new_id, sha256_text, utcnow
-from app.db.models import Document, DocumentBatch, DocumentVersion
-from app.services.documents import document_to_api, latest_version
+from app.db.models import Document, DocumentBatch, DocumentVersion, Instance, UsageEvent
+from app.services.documents import (
+    document_to_api,
+    extract_pdf_images,
+    latest_version,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +210,7 @@ async def batch_to_api(
         state=batch.state,
         counts=counts,
         estimated_usd=float(batch.estimated_usd or 0),
+        actual_usd=await batch_actual_usd(session, batch.id),
         budget_remaining_usd=budget_remaining,
         files=files,
         warnings=[DocumentWarning(code="zip_sanitized", message=item) for item in (warnings or [])],
@@ -267,3 +273,52 @@ def parse_metadata_sidecar(data: bytes, filename: str) -> dict[str, DocumentMeta
     except (ValueError, TypeError, json.JSONDecodeError):
         logger.warning("batch_metadata_sidecar_invalid")
     return result
+
+
+def estimate_batch_uploads(uploads: list[tuple[str, bytes, str]], settings: Settings) -> float:
+    """Estimate vision and page costs before any parsing or model call."""
+    estimated = 0.0
+    for filename, data, media in uploads:
+        is_pdf = media in {"application/pdf", "application/x-pdf"} or filename.lower().endswith(
+            ".pdf"
+        )
+        if not is_pdf:
+            continue
+        try:
+            from io import BytesIO
+
+            from pypdf import PdfReader
+
+            pages = len(PdfReader(BytesIO(data)).pages)
+        except Exception:
+            pages = max(1, len(data) // 100_000 + 1)
+        images = len(extract_pdf_images(data))
+        estimated += pages * 0.0001 + images * 0.00036
+    return round(estimated, 6)
+
+
+async def budget_remaining(session: AsyncSession, settings: Settings) -> float:
+    instance = (await session.execute(select(Instance).limit(1))).scalar_one_or_none()
+    if instance is None:
+        return settings.monthly_budget_usd
+    now = datetime.now().astimezone()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    spent = (
+        await session.execute(
+            select(func.coalesce(func.sum(UsageEvent.cost_usd), 0)).where(
+                UsageEvent.created_at >= start
+            )
+        )
+    ).scalar_one()
+    return float(instance.monthly_budget_usd) - float(spent)
+
+
+async def batch_actual_usd(session: AsyncSession, batch_id: str) -> float:
+    spent = (
+        await session.execute(
+            select(func.coalesce(func.sum(UsageEvent.cost_usd), 0)).where(
+                UsageEvent.request_id == batch_id
+            )
+        )
+    ).scalar_one()
+    return round(float(spent), 6)

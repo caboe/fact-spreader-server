@@ -928,7 +928,7 @@ async def test_a_pdf_figure_gets_a_vision_description_with_page_and_model(
 ) -> None:
     import io
 
-    import app.api.v1.documents as documents_route
+    import app.services.documents as documents_service
     from app.services.image_input import ImageExtraction
     from PIL import Image, ImageDraw
 
@@ -943,7 +943,7 @@ async def test_a_pdf_figure_gets_a_vision_description_with_page_and_model(
             text="Registered suspects by age", description="A bar chart of suspect rates."
         )
 
-    monkeypatch.setattr(documents_route, "extract_image_text", fake_vision)
+    monkeypatch.setattr(documents_service, "extract_image_text", fake_vision)
     payload = {
         "input": {"type": "file"},
         "metadata": {
@@ -1135,3 +1135,37 @@ async def test_a_failed_batch_entry_can_be_retried_from_stored_bytes(
     assert detail.json()["state"] == "ready"
     content = await client.get(f"/v1/documents/{document_id}/content")
     assert "Recovered content." in content.text
+
+
+@pytest.mark.asyncio
+async def test_a_batch_over_the_remaining_budget_is_blocked_before_parsing(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    import io
+    from decimal import Decimal
+
+    from app.db.models import Instance
+    from PIL import Image
+
+    image = Image.new("RGB", (200, 120), "white")
+    pdf = io.BytesIO()
+    image.save(pdf, format="PDF")
+    async with app.state.db.session_factory() as session:
+        instance = (await session.execute(select(Instance).limit(1))).scalar_one()
+        instance.monthly_budget_usd = Decimal("0.000000")
+        await session.commit()
+    payload = {
+        "metadata": {
+            "publisher": "Federal Statistical Office of Germany (Destatis)",
+            "license": "CC0-1.0",
+            "redistribution": "full_text",
+            "language": "en",
+        }
+    }
+    response = await client.post(
+        "/v1/documents/batches",
+        data={"payload": __import__("json").dumps(payload)},
+        files={"files": ("budget.pdf", pdf.getvalue(), "application/pdf")},
+    )
+    assert response.status_code == 429, response.text
+    assert response.json()["code"] == "budget_exceeded"

@@ -30,9 +30,11 @@ from app.core.config import Settings
 from app.core.ids import new_id, sha256_text, utcnow
 from app.db.models import Document, DocumentVersion, Instance, Result
 from app.db.models import Job as JobRow
+from app.llm.client import LLMClient
 from app.retrieval.lightrag import LightRAGClient, LightRAGError
 from app.services.checks import create_check_job
-from app.services.input_reader import read_file_bytes
+from app.services.image_input import extract_image_text, prepare_image
+from app.services.input_reader import UrlFetchError, read_file_bytes
 from app.services.methodology import Methodology
 from app.services.publishers import PublisherRegistry
 
@@ -72,6 +74,54 @@ def extract_pdf_tables(data: bytes, *, max_pages: int = 20, max_tables: int = 10
     except Exception:
         logger.warning("pdf_table_extraction_failed")
         return ""
+
+
+async def parse_pdf_assets(
+    data: bytes,
+    *,
+    settings: Settings,
+    user_id: str | None,
+    request_id: str | None = None,
+) -> tuple[str, list[dict[str, Any]], list[str], int]:
+    """Return (table_markdown, figures, figure_sections, page_count) for a PDF.
+
+    Vision calls carry the caller's request id so a batch can aggregate their usage.
+    """
+    tables = extract_pdf_tables(data)
+    figures: list[dict[str, Any]] = []
+    sections: list[str] = []
+    images = extract_pdf_images(data)
+    llm = LLMClient(settings, consumer="vision", request_id=request_id)
+    for index, (page_number, image_bytes) in enumerate(images, start=1):
+        try:
+            prepared = prepare_image(image_bytes, "image/png", settings)
+            vision = await extract_image_text(llm, prepared, user_id=user_id)
+        except (UrlFetchError, Exception):
+            continue
+        label = f"Page {page_number} image {index}"
+        figures.append(
+            {
+                "id": new_id("fig"),
+                "page": page_number,
+                "number": str(index),
+                "caption": label,
+                "description": vision.description,
+                "description_source": "vision",
+                "description_model_id": "fs-vision",
+                "editor_checked": False,
+                "created_at": utcnow().isoformat(),
+            }
+        )
+        sections.append(f"## Figure: {label}\n\n{vision.description}\n\n{vision.text}")
+    try:
+        from io import BytesIO
+
+        from pypdf import PdfReader
+
+        pages = len(PdfReader(BytesIO(data)).pages)
+    except Exception:
+        pages = max(1, len(data) // 100_000 + 1)
+    return tables, figures, sections, pages
 
 
 def extract_pdf_images(data: bytes, limit: int = 5) -> list[tuple[int, bytes]]:

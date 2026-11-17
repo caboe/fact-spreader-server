@@ -690,6 +690,7 @@ class BatchInfo(ApiModel):
     state: str
     counts: BatchCounts
     estimated_usd: float = 0.0
+    actual_usd: float = 0.0
     budget_remaining_usd: float | None = None
     files: list[BatchFile] = Field(default_factory=list)
     warnings: list[DocumentWarning] = Field(default_factory=list)
