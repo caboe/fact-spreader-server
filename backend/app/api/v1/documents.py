@@ -65,6 +65,7 @@ from app.services.input_reader import (
     fetch_readable,
     read_file_bytes,
 )
+from app.services.limits import enforce_limits
 
 router = APIRouter(prefix="/v1", tags=["documents"])
 Submit = Annotated[Principal, Depends(require_permission("documents:submit"))]
@@ -208,6 +209,13 @@ async def submit_document(
         content_type = "text/markdown" if is_multipart else "text/plain"
     if not content.strip():
         raise AppError(422, "empty_input", "The document has no readable text.")
+    await enforce_limits(
+        session,
+        settings,
+        principal.user_id,
+        text_chars=len(content),
+        file_bytes=size or len(content.encode()),
+    )
     decision = request.app.state.language.resolve(content[:4000], None)
     if metadata.title is None:
         metadata.title = page_title or upload_name or (source_url or "Submitted document")
@@ -518,6 +526,13 @@ async def submit_batch(
     if total > 200_000_000:
         raise AppError(413, "payload_too_large", "The batch exceeds the total size limit.")
 
+    await enforce_limits(
+        session,
+        settings,
+        principal.user_id,
+        file_bytes=sum(len(data) for _, data, _ in uploads),
+        batch_files=len(uploads) + len(body.urls),
+    )
     estimate = estimate_batch_uploads(uploads, settings)
     remaining_budget = await budget_remaining(session, settings)
     if estimate > remaining_budget and not body.accept_estimate:

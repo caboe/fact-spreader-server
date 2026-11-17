@@ -34,6 +34,7 @@ from app.rendering import render_substance_text
 from app.services.auth import Principal, authenticate
 from app.services.checks import create_check_job, load_response
 from app.services.fast import run_fast
+from app.services.limits import enforce_limits
 from app.services.personas import PersonaRegistry
 
 router = APIRouter(prefix="/v1", tags=["openai"])
@@ -356,6 +357,9 @@ async def _create_job(
 ) -> tuple[JobRow, str]:
     session_factory = request.app.state.db.session_factory
     async with session_factory() as session:
+        await enforce_limits(
+            session, request.app.state.settings, principal.user_id, text_chars=len(text)
+        )
         job, _moderation = await create_check_job(
             session,
             settings=request.app.state.settings,
@@ -393,6 +397,9 @@ async def _fast_check(
     full result can always be version 2.
     """
     async with request.app.state.db.session_factory() as session:
+        await enforce_limits(
+            session, request.app.state.settings, principal.user_id, text_chars=len(text)
+        )
         job, _moderation = await create_check_job(
             session,
             settings=request.app.state.settings,

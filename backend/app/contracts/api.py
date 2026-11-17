@@ -729,3 +729,38 @@ class GapRecheckRequest(RequestModel):
 
 class BatchRetryRequest(RequestModel):
     document_ids: list[str] = Field(default_factory=list)
+
+
+class UserInfo(ApiModel):
+    id: str
+    email: str
+    display_name: str
+    roles: list[str] = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)
+    effective_permissions: list[str] = Field(default_factory=list)
+    denied_permissions: list[str] = Field(default_factory=list)
+    requests_per_day: int | None = None
+    text_chars: int | None = None
+    max_file_bytes: int | None = None
+    max_batch_files: int | None = None
+    is_active: bool = True
+
+
+class UserCreateRequest(RequestModel):
+    email: str = Field(min_length=3, max_length=320)
+    display_name: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=8, max_length=500)
+    roles: list[str] = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)
+
+
+class UserUpdateRequest(RequestModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=200)
+    roles: list[str] | None = None
+    permissions: list[str] | None = None
+    denied_permissions: list[str] | None = None
+    requests_per_day: int | None = None
+    text_chars: int | None = None
+    max_file_bytes: int | None = None
+    max_batch_files: int | None = None
+    is_active: bool | None = None

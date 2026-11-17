@@ -1221,3 +1221,55 @@ async def test_a_batch_reports_every_warning_class(app: Any, client: httpx.Async
     } <= codes
     assert batch["counts"]["duplicate"] >= 1
     assert batch["counts"]["warning"] >= 3
+
+
+@pytest.mark.asyncio
+async def test_roles_and_user_limits_are_enforced(app: Any, client: httpx.AsyncClient) -> None:
+    users = await client.get("/v1/users")
+    assert users.status_code == 200
+    admin = next(item for item in users.json()["data"] if item["email"] == "admin@test.invalid")
+
+    created = await client.post(
+        "/v1/users",
+        json={
+            "email": "researcher@test.invalid",
+            "display_name": "Researcher",
+            "password": "a-long-enough-password",
+            "roles": ["researcher"],
+        },
+    )
+    assert created.status_code == 201, created.text
+    permissions = created.json()["effective_permissions"]
+    assert "search:use" in permissions
+    assert "documents:review" not in permissions
+
+    lowered = await client.patch(f"/v1/users/{admin['id']}", json={"text_chars": 5})
+    assert lowered.status_code == 200
+    too_long = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "A claim longer than five characters."}},
+    )
+    assert too_long.status_code == 413
+    assert too_long.json()["code"] == "payload_too_large"
+
+    rate = await client.patch(
+        f"/v1/users/{admin['id']}", json={"requests_per_day": 1, "text_chars": 1000}
+    )
+    assert rate.status_code == 200
+    first = await client.post(
+        "/v1/documents",
+        json={
+            "input": {"type": "text", "text": "A document under the text limit."},
+            "metadata": {"title": "Small", "license": "CC0-1.0", "language": "en"},
+        },
+    )
+    assert first.status_code == 202, first.text
+    second = await client.post(
+        "/v1/documents",
+        json={
+            "input": {"type": "text", "text": "Another document."},
+            "metadata": {"title": "Small 2", "license": "CC0-1.0", "language": "en"},
+        },
+    )
+    assert second.status_code == 429
+    assert second.json()["code"] == "rate_limit_exceeded"

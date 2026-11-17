@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     cache_similarity_threshold: float = 0.93
     recheck_daily_budget: int = 200
     four_eyes_enabled: bool = False
+    requests_per_day: int = 500
+    user_text_chars: int = 20_000
+    user_max_file_bytes: int = 20_000_000
+    user_max_batch_files: int = 100
     context_retention_days: int = 90
     job_event_retention_days: int = 30
     job_retention_days: int = 90

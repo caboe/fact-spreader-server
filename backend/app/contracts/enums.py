@@ -97,3 +97,32 @@ PERMISSIONS: tuple[str, ...] = (
 
 def is_truth_bearing(value: Verdict | str | None) -> bool:
     return value in TRUTH_BEARING
+
+
+ROLE_TEMPLATES: dict[str, tuple[str, ...]] = {
+    "admin": PERMISSIONS,
+    "editor": (
+        "chat:use",
+        "claims:submit",
+        "claims:recheck",
+        "search:use",
+        "documents:submit",
+        "documents:review",
+        "quality:read",
+        "devices:manage",
+        "usage:read",
+    ),
+    "researcher": (
+        "chat:use",
+        "claims:submit",
+        "search:use",
+        "devices:manage",
+        "usage:read",
+    ),
+    "user": (
+        "chat:use",
+        "claims:submit",
+        "search:use",
+        "devices:manage",
+    ),
+}

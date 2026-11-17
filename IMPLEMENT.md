@@ -492,8 +492,9 @@ approved, indexed, withdrawn and versioned; approval and withdrawal trigger re-c
 session, encrypted secrets, one-time hashed recovery codes and TOTP-gated login once
 enabled; privileged accounts without TOTP receive `totp_setup_required`. Retention redacts
 old context, deletes old job events and unreferenced terminal jobs, and writes an audit
-row. Open: first-run wizard, role templates and per-user limits, full permission matrix
-and mandatory-TOTP enforcement for privileged roles.
+row. Role templates, explicit grants/denials and per-user request/text/file/batch limits
+are enforced, with `/v1/users` administration. Open: first-run wizard, the full
+permission-matrix test and mandatory-TOTP enforcement for privileged roles.
 
 **Goal.** The installation can be set up safely by a human, roles and permissions are
 enforced, every user has limits, and personal data follows the retention policy.

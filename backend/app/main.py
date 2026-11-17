@@ -26,6 +26,7 @@ from app.api.v1.openai import OpenAIAuthError
 from app.api.v1.openai import router as openai_router
 from app.api.v1.research import router as research_router
 from app.api.v1.usage import router as usage_router
+from app.api.v1.users import router as users_router
 from app.api.web.auth import router as auth_router
 from app.core.config import Settings, get_settings
 from app.core.errors import AppError, app_error_handler, problem
@@ -151,6 +152,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(devices_router)
     app.include_router(documents_router)
     app.include_router(editor_router)
+    app.include_router(users_router)
     app.include_router(openai_router)
     app.include_router(research_router)
     app.include_router(usage_router)

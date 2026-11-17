@@ -702,3 +702,21 @@ the query excludes referenced jobs. The audit row makes the cleanup visible.
 
 **Rejected:** deleting old results, deleting referenced jobs, silently skipping the audit,
 redacting claim text itself.
+
+## D46 — Roles are templates; per-user limits sit before the model boundary
+
+**What:** `User.roles` references fixed templates (`admin`, `editor`, `researcher`,
+`user`); explicit `permissions` grant more and `denied_permissions` remove; the effective
+set is the union of role permissions and grants minus denials, intersected with the known
+permission catalog. API keys and device tokens are intersected with that effective set.
+`/v1/users` (users:manage) creates/updates users and limits; a manager cannot grant a
+permission or role they do not hold. Per-user `requests_per_day`, `text_chars`,
+`max_file_bytes` and `max_batch_files` override deployment defaults and are checked before
+any model call or job creation.
+
+**Why:** IMPLEMENT Phase 5 requires role templates, multiple roles and limits enforced
+before work. Templates keep the policy in code; explicit grants still allow exceptions.
+Checking the daily counter before creating a job means a blocked request spends nothing.
+
+**Rejected:** hard-coding permissions per user only, letting a manager escalate beyond
+their own set, a separate quota table, enforcing limits after moderation/model calls.

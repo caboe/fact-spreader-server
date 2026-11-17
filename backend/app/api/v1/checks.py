@@ -40,6 +40,7 @@ from app.services.input_reader import (
     fetch_readable,
     read_file_bytes,
 )
+from app.services.limits import enforce_limits
 
 router = APIRouter(prefix="/v1", tags=["checks"])
 
@@ -157,6 +158,13 @@ async def create_check(
         request.app.state.settings,
         [persona.id for persona in request.app.state.personas.enabled()],
         allow_file=is_multipart,
+    )
+    await enforce_limits(
+        session,
+        request.app.state.settings,
+        principal.user_id,
+        text_chars=len(body.input.text or "") if body.input.text else None,
+        file_bytes=upload_size,
     )
     source_url: str | None = None
     if body.input.type == "url":

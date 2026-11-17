@@ -107,6 +107,11 @@ async def bootstrap(settings: Settings, *, print_api_key: bool) -> int:
                         settings.bootstrap_admin_password.get_secret_value()
                     ),
                     permissions=all_permissions(),
+                    roles=["admin"],
+                    requests_per_day=settings.requests_per_day,
+                    text_chars=settings.user_text_chars,
+                    max_file_bytes=settings.user_max_file_bytes,
+                    max_batch_files=settings.user_max_batch_files,
                     is_active=True,
                     llm_budget_usd=Decimal(str(settings.user_budget_usd)),
                     created_at=now,
@@ -116,6 +121,11 @@ async def bootstrap(settings: Settings, *, print_api_key: bool) -> int:
                 await session.flush()
             else:
                 admin.permissions = all_permissions()
+                admin.roles = ["admin"]
+                admin.requests_per_day = settings.requests_per_day
+                admin.text_chars = settings.user_text_chars
+                admin.max_file_bytes = settings.user_max_file_bytes
+                admin.max_batch_files = settings.user_max_batch_files
                 admin.is_active = True
                 admin.llm_budget_usd = Decimal(str(settings.user_budget_usd))
             if not settings.deepseek_api_key.get_secret_value():

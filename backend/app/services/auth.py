@@ -12,7 +12,7 @@ from fastapi import Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.contracts.enums import PERMISSIONS
+from app.contracts.enums import PERMISSIONS, ROLE_TEMPLATES
 from app.core.config import Settings
 from app.core.errors import AppError, permission_denied
 from app.core.ids import new_id, utcnow
@@ -47,6 +47,14 @@ class Principal:
 
     def has(self, permission: str) -> bool:
         return permission in self.permissions
+
+
+def effective_permissions(user: User) -> frozenset[str]:
+    granted = {
+        permission for role in (user.roles or []) for permission in ROLE_TEMPLATES.get(role, ())
+    }
+    granted.update(user.permissions or [])
+    return frozenset(granted & set(PERMISSIONS)) - set(user.denied_permissions or [])
 
 
 def _authentication_error(detail: str) -> AppError:
@@ -89,7 +97,7 @@ async def _authenticate_token(session: AsyncSession, token: str) -> Principal:
         raise _authentication_error("The API key is expired or revoked.")
     if not user.is_active:
         raise _authentication_error("The user is inactive.")
-    permissions = frozenset(key.permissions) & frozenset(user.permissions)
+    permissions = frozenset(key.permissions) & effective_permissions(user)
     key.last_used_at = now
     return Principal(
         user_id=user.id,
@@ -116,7 +124,7 @@ async def _authenticate_device(session: AsyncSession, token: str) -> Principal:
     now = utcnow()
     if device.revoked_at is not None or not user.is_active:
         raise _authentication_error("The device token is revoked or the user is inactive.")
-    permissions = frozenset(device.permissions) & frozenset(user.permissions)
+    permissions = frozenset(device.permissions) & effective_permissions(user)
     device.last_seen_at = now
     return Principal(
         user_id=user.id,
@@ -154,7 +162,7 @@ async def _authenticate_session(request: Request, session: AsyncSession, cookie:
         principal_id=f"usr_{user.id}",
         email=user.email,
         display_name=user.display_name,
-        permissions=frozenset(user.permissions),
+        permissions=effective_permissions(user),
         via="session",
     )
 
@@ -194,7 +202,7 @@ async def create_api_key(
         name=name,
         key_hash=digest,
         key_prefix=prefix,
-        permissions=permissions if permissions is not None else list(user.permissions),
+        permissions=(permissions if permissions is not None else list(effective_permissions(user))),
         created_at=now,
     )
     session.add(key)
