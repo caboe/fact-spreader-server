@@ -967,3 +967,78 @@ async def test_a_pdf_figure_gets_a_vision_description_with_page_and_model(
     assert figure["page"] == 1
     assert figure["description_model_id"] == "fs-vision"
     assert figure["description"] == "A bar chart of suspect rates."
+
+
+@pytest.mark.asyncio
+async def test_a_gap_recheck_queues_the_sampled_claims(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.db.models import CorpusGap, Result
+
+    fake_llm = FakeLLM()
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    now = utcnow()
+    job_id = new_id("job")
+    result_id = new_id("fc")
+    async with app.state.db.session_factory() as session:
+        session.add(
+            JobRow(
+                id=job_id,
+                kind="check",
+                state="done",
+                payload={},
+                progress=1.0,
+                created_at=now,
+                started_at=now,
+                finished_at=now,
+            )
+        )
+        session.add(
+            Result(
+                id=result_id,
+                job_id=job_id,
+                version=1,
+                status="complete",
+                preliminary=False,
+                turn_type="new_claim",
+                input={"type": "text", "text": "A claim from a corpus gap."},
+                detected_language="en",
+                response_language="en",
+                overall_verdict=None,
+                statements=[],
+                evidence=[],
+                contradictions=[],
+                argument_issues=[],
+                clarification_questions=[],
+                warnings=[],
+                moderation={},
+                pipeline={},
+                created_at=now,
+                completed_at=now,
+                deleted=False,
+            )
+        )
+        gap = CorpusGap(
+            id=new_id("gap"),
+            normalized_topic="a claim from a corpus gap",
+            query="A claim from a corpus gap.",
+            language="en",
+            topics=[],
+            frequency=1,
+            sample_result_ids=[result_id],
+            state="open",
+            first_seen=now,
+            last_seen=now,
+        )
+        session.add(gap)
+        await session.commit()
+        gap_id = gap.id
+    response = await client.post(f"/v1/editor/gaps/{gap_id}/recheck", json={"limit": 5})
+    assert response.status_code == 202, response.text
+    body = response.json()
+    assert len(body["jobs"]) == 1
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, body["jobs"][0]["id"])
+        assert job is not None
+        assert job.payload["recheck"] is True
+        assert job.payload["recheck_gap_id"] == gap_id

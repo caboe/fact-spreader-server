@@ -1380,6 +1380,20 @@
         "title": "FigureUpdateRequest",
         "type": "object"
       },
+      "GapRecheckRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 10,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "title": "GapRecheckRequest",
+        "type": "object"
+      },
       "GateInfo": {
         "properties": {
           "downgraded": {
@@ -4655,6 +4669,60 @@
           }
         },
         "summary": "Update Gap",
+        "tags": [
+          "editor"
+        ]
+      }
+    },
+    "/v1/editor/gaps/{gap_id}/recheck": {
+      "post": {
+        "operationId": "recheck_gap_v1_editor_gaps__gap_id__recheck_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gap_id",
+            "required": true,
+            "schema": {
+              "title": "Gap Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GapRecheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Recheck Gap V1 Editor Gaps  Gap Id  Recheck Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recheck Gap",
         "tags": [
           "editor"
         ]

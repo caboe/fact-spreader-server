@@ -564,3 +564,17 @@ per figure.
 **Rejected:** rendering PDF pages (no Poppler in the runtime image), adding an OCR library
 whose model lifecycle is another unpinned download, silently accepting an empty PDF,
 treating a figure description as evidence without an editor check.
+
+## D37 — Gap re-checks reuse the sampled result inputs and the same daily cap
+
+**What:** `POST /v1/editor/gaps/{id}/recheck` walks the gap's stored sample result ids, reuses
+their stored input and source metadata, and creates normal check jobs linked to the
+previous result. It shares the daily re-check counter with document-triggered re-checks and
+reports `skipped_budget` instead of dropping over-budget claims.
+
+**Why:** PROTOCOL §9.2 requires a gap action that re-checks its samples under budget. Using
+the stored input keeps the trigger independent of client text, and one counter prevents two
+editor actions from each spending a full daily budget.
+
+**Rejected:** accepting new claim text from the editor, a separate gap budget, silently
+skipping the rest.

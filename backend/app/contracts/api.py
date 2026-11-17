@@ -719,3 +719,7 @@ class BatchActionRequest(RequestModel):
 class BatchRejectRequest(RequestModel):
     document_ids: list[str] = Field(default_factory=list)
     reason: str = Field(min_length=1, max_length=1000)
+
+
+class GapRecheckRequest(RequestModel):
+    limit: int = Field(default=10, ge=1, le=50)
