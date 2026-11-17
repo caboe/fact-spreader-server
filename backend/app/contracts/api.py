@@ -101,6 +101,7 @@ class Provenance(ApiModel):
     indexed_at: datetime | None = None
     validation: dict[str, Any] | None = None
     figure: FigureInfo | None = None
+    withdrawn: bool = False
 
 
 class PassageTranslation(ApiModel):

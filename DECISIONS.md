@@ -653,3 +653,20 @@ provider's actual per-figure cost closely enough for the 30% planning target.
 
 **Rejected:** accepting empty PDFs as ready without a body, calling vision before the
 budget check, leaving the estimate at a value that overstates cost by more than 70%.
+
+## D43 — Document language is metadata, not a requested response language
+
+**What:** document submission detects the content language and uses the metadata
+`language` for the warning and stored provenance; it no longer passes that value as the
+response-language override. An unsupported document language becomes
+`unsupported_language` on the document instead of a `422`. Past results whose evidence
+points at a withdrawn document render that evidence with `provenance.withdrawn = true`
+at read time; the stored result row is not mutated.
+
+**Why:** a submitted document may legitimately be in a language the instance does not
+answer in; rejecting it made the warning class unreachable and blocked mixed-language
+batches. Marking withdrawn evidence in the response keeps stored results immutable while
+the UI can show that a cited source is no longer in the corpus.
+
+**Rejected:** rejecting unsupported document languages, mutating historical evidence rows,
+hiding withdrawn evidence from past reports.

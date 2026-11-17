@@ -208,7 +208,7 @@ async def submit_document(
         content_type = "text/markdown" if is_multipart else "text/plain"
     if not content.strip():
         raise AppError(422, "empty_input", "The document has no readable text.")
-    decision = request.app.state.language.resolve(content[:4000], metadata.language)
+    decision = request.app.state.language.resolve(content[:4000], None)
     if metadata.title is None:
         metadata.title = page_title or upload_name or (source_url or "Submitted document")
     instance = (await session.execute(select(Instance).limit(1))).scalar_one()
@@ -597,7 +597,7 @@ async def submit_batch(
                 raw_media_type=media,
             )
             continue
-        decision = request.app.state.language.resolve(text[:4000], metadata.language)
+        decision = request.app.state.language.resolve(text[:4000], None)
         try:
             await create_document(
                 session,
@@ -642,7 +642,7 @@ async def submit_batch(
         metadata = body.metadata.model_copy(deep=True)
         if metadata.title is None:
             metadata.title = page.title or url
-        decision = request.app.state.language.resolve(page.text[:4000], metadata.language)
+        decision = request.app.state.language.resolve(page.text[:4000], None)
         try:
             await create_document(
                 session,

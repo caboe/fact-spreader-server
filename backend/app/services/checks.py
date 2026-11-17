@@ -28,7 +28,7 @@ from app.contracts.api import (
 from app.contracts.enums import JobState, TurnType
 from app.core.config import Settings
 from app.core.ids import new_id, utcnow
-from app.db.models import Instance, ModerationEvent, Result, UsageEvent
+from app.db.models import Document, Instance, ModerationEvent, Result, UsageEvent
 from app.db.models import Job as JobRow
 from app.llm.aliases import FS_AUDIT, FS_EXTRACT, FS_MODERATION, FS_VERIFY
 from app.llm.client import LLMClient
@@ -147,6 +147,23 @@ async def load_response(
     if row is None or row.deleted:
         return None
     result = row_to_result(row)
+    document_ids = {item.provenance.document_id for item in result.evidence}
+    if document_ids:
+        withdrawn = set(
+            (
+                await session.execute(
+                    select(Document.id).where(
+                        Document.id.in_(document_ids), Document.state == "withdrawn"
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if withdrawn:
+            for item in result.evidence:
+                if item.provenance.document_id in withdrawn:
+                    item.provenance = item.provenance.model_copy(update={"withdrawn": True})
     compact = build_compact(result) if result.status == "complete" else None
     rendering = None
     if persona_id and row.renderings:

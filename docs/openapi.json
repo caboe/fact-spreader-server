@@ -2242,6 +2242,11 @@
               }
             ],
             "title": "Via Instance Id"
+          },
+          "withdrawn": {
+            "default": false,
+            "title": "Withdrawn",
+            "type": "boolean"
           }
         },
         "required": [
