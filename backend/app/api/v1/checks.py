@@ -24,6 +24,7 @@ from app.core.ids import new_id, normalize_text, utcnow
 from app.db.models import IdempotencyKey, JobEvent
 from app.db.models import Job as JobRow
 from app.db.session import get_session
+from app.llm.client import LLMClient, LLMError
 from app.services.auth import Principal, require_permission
 from app.services.checks import (
     create_check_job,
@@ -31,6 +32,7 @@ from app.services.checks import (
     load_response,
     request_hash,
 )
+from app.services.image_input import extract_image_text, prepare_image
 from app.services.input_reader import (
     UrlFetchError,
     UrlSafetyError,
@@ -75,6 +77,7 @@ async def create_check(
     upload_name: str | None = None
     upload_media: str | None = None
     upload_size: int | None = None
+    source_image = False
     file_text: str | None = None
     try:
         if is_multipart:
@@ -99,16 +102,45 @@ async def create_check(
             settings = request.app.state.settings
             if len(data) > settings.upload_max_bytes:
                 raise AppError(413, "payload_too_large", "The uploaded file is too large.")
-            try:
-                file_text, _title = read_file_bytes(
-                    filename=filename, content_type=media, data=data, settings=settings
+            if media.startswith("image/") or filename.rsplit(".", 1)[-1].lower() in {
+                "png",
+                "jpg",
+                "jpeg",
+                "webp",
+                "gif",
+            }:
+                try:
+                    prepared = prepare_image(data, media, settings)
+                except UrlFetchError as exc:
+                    raise AppError(422, "file_parse_failed", str(exc)) from exc
+                try:
+                    vision = await extract_image_text(
+                        LLMClient(settings, consumer="vision"),
+                        prepared,
+                        user_id=principal.user_id,
+                    )
+                except LLMError as exc:
+                    raise AppError(
+                        exc.status if exc.status in {429, 503} else 502,
+                        exc.code,
+                        exc.detail,
+                    ) from exc
+                file_text = (
+                    "Image text:\n" + vision.text + "\n\nImage description:\n" + vision.description
                 )
-            except UrlFetchError as exc:
-                raise AppError(422, "file_parse_failed", str(exc)) from exc
+                source_image = True
+                upload_media = media
+            else:
+                try:
+                    file_text, _title = read_file_bytes(
+                        filename=filename, content_type=media, data=data, settings=settings
+                    )
+                except UrlFetchError as exc:
+                    raise AppError(422, "file_parse_failed", str(exc)) from exc
+                upload_media = media
             if not file_text.strip():
                 raise AppError(422, "empty_input", "The uploaded file has no readable text.")
             upload_name = filename
-            upload_media = media
             upload_size = len(data)
         else:
             raw = await request.json()
@@ -136,7 +168,7 @@ async def create_check(
             raise AppError(502, "url_fetch_failed", str(exc)) from exc
         normalized = normalize_text(page.text[: request.app.state.settings.max_text_chars])
         source_url = page.url
-    elif body.input.type == "file":
+    elif body.input.type in {"file", "image"}:
         assert file_text is not None
         normalized = normalize_text(file_text[: request.app.state.settings.max_text_chars])
     else:
@@ -188,6 +220,7 @@ async def create_check(
         source_file_name=upload_name,
         source_media_type=upload_media,
         source_size_bytes=upload_size,
+        source_image=source_image,
         persona_id=body.persona_id,
         render_model_id=body.render_model_id,
         output_format=body.output_format.value,
@@ -367,26 +400,26 @@ def _validate_phase1_request(
     allow_file: bool = False,
 ) -> None:
     text = body.input.text
-    allowed_types = {"text", "url"} | ({"file"} if allow_file else set())
+    allowed_types = {"text", "url"} | ({"file", "image"} if allow_file else set())
     if body.input.type not in allowed_types:
         raise AppError(
             422,
             "input_type_not_supported",
             "The input type is not supported by this endpoint.",
         )
-    if body.input.type == "file":
+    if body.input.type in {"file", "image"}:
         if not allow_file:
             raise AppError(
                 422,
                 "input_type_not_supported",
-                "A file input must use the multipart form.",
+                "A file or image input must use the multipart form.",
             )
     elif body.input.type == "text":
         if text is None or not text.strip():
             raise AppError(422, "empty_input", "The input text is empty.")
         if len(text) > settings.max_text_chars:
             raise AppError(413, "payload_too_large", "The input text is too long.")
-    elif not body.input.url:
+    elif body.input.type == "url" and not body.input.url:
         raise AppError(422, "invalid_input", "A URL input requires a url.")
     if body.context:
         raise AppError(

@@ -132,6 +132,7 @@ class CheckPipeline:
         source_file_name: str | None = None,
         source_media_type: str | None = None,
         source_size_bytes: int | None = None,
+        source_image: bool = False,
         on_statement: Callable[[Statement], Awaitable[None]] | None = None,
     ) -> PipelineOutcome:
         started = utcnow()
@@ -345,6 +346,16 @@ class CheckPipeline:
                     message="No approved document matched this input.",
                 )
             )
+        if source_image:
+            warnings.append(
+                WarningInfo(
+                    code="image_authenticity_not_checked",
+                    message=(
+                        "Only statements in the image were checked; the image's authenticity "
+                        "was not checked."
+                    ),
+                )
+            )
         warnings = _dedupe_warnings(warnings)
         cited_ids = _cited_evidence_ids(statements)
         evidence = [pool.by_id[eid] for eid in cited_ids if eid in pool.by_id]
@@ -356,7 +367,9 @@ class CheckPipeline:
             preliminary=False,
             turn_type=turn_type,
             input=InputInfo(
-                type="url" if source_url else ("file" if source_file_name else "text"),
+                type="image"
+                if source_image
+                else ("url" if source_url else ("file" if source_file_name else "text")),
                 text=normalized,
                 language=decision.detected,
                 url=source_url,

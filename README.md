@@ -31,19 +31,21 @@ the sexual-minors block.
 | LLM gateway | internal OpenAI-compatible chat/embeddings proxy, aliases, budget, usage, embedding lock |
 | Languages | en/de/fr/es deterministic substance; unsupported input falls back to English |
 | Operations | pinned Postgres+pgvector+AGE, Redis, stock LightRAG v1.5.0, health/readiness |
-| Tests | 55 unit, 19 integration, migration up/down/up, OpenAPI drift, compose checks |
+| Tests | 55 unit, 20 integration, migration up/down/up, OpenAPI drift, compose checks |
 
 Phase 2 so far adds three runtime personas (analyst, mediator, straight-talker), the
 deterministic checks plus a consistency judge with one re-render and a template fallback,
 output moderation, `GET /v1/models` with the persona list, `POST /v1/chat/completions` with
 checked streaming, SSRF-guarded URL input (HTML/PDF readers), multipart file input
-(PDF/DOCX/HTML/Markdown/text), a read-only claim archive with cursor pagination, durable
-statement-level SSE events with `Last-Event-ID` replay and queued-job cancellation. A live
-OpenAI-compatible canonical run passed the consistency check on the first attempt; a live
-streaming run delivered the result in the first chunk and narrative deltas only afterwards.
+(PDF/DOCX/HTML/Markdown/text), image input through the mandatory vision path, a read-only
+claim archive with cursor pagination, durable statement-level SSE events with
+`Last-Event-ID` replay and queued-job cancellation. A live OpenAI-compatible canonical run
+passed the consistency check on the first attempt; a live streaming run delivered the
+result in the first chunk and narrative deltas only afterwards; a live screenshot check
+extracted the text and returned `true_but_misleading` with the image-authenticity warning.
 
-Still open in Phase 2: image uploads and vision, conversation history/turn classification,
-translated evidence and quote labels, feedback on archive entries, and the remaining
+Still open in Phase 2: conversation history/turn classification, translated evidence and
+quote labels, feedback on archive entries, a device-token handoff and the remaining
 multilingual persona checks. Later phases add research, fast mode, the editorial pipeline
 and the UI.
 

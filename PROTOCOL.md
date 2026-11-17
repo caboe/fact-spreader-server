@@ -661,7 +661,7 @@ Warnings are `{"code": string, "statement_id"?: string, "message": string}`. Cod
 `stale_evidence`, `audit_incomplete`, `gate_downgraded`, `no_matching_document`,
 `quote_context_unavailable`, `quote_translated`, `translation_unavailable`,
 `unsupported_language`, `unsupported_evidence_language`, `figure_unchecked`,
-`relies_on_figure_description`, `consistency_fallback`, `output_moderation_replaced`,
+`relies_on_figure_description`, `image_authenticity_not_checked`, `consistency_fallback`, `output_moderation_replaced`,
 `moderation_flagged`, `injection_suspected`, `provider_fallback`,
 `data_flow_restricted`, `budget_low`, `preliminary_result`, `full_result_follows`,
 `duplicate_suspected`, `license_missing`, `low_source_grade`, `parse_warning`,

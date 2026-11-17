@@ -12,6 +12,7 @@ from app.contracts.enums import JobState
 from app.core.ids import new_id, utcnow
 from app.db.models import Document, DocumentVersion, JobEvent
 from app.db.models import Job as JobRow
+from app.services.image_input import ImageExtraction
 from app.services.input_reader import FetchedDocument
 from sqlalchemy import func, select
 
@@ -348,3 +349,43 @@ async def test_markdown_file_is_parsed_and_kept_out_of_the_corpus(
         assert job.payload["text"] == "# Fixture\n\nImmigrants commit more crimes."
         assert job.payload["source_file_name"] == "claim.md"
         assert job.payload["source_media_type"] == "text/markdown"
+
+
+@pytest.mark.asyncio
+async def test_image_upload_uses_the_vision_extraction(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from io import BytesIO
+
+    from PIL import Image
+
+    monkeypatch.setattr(
+        checks_service,
+        "LLMClient",
+        lambda settings, consumer="pipeline", request_id=None: FakeLLM(),
+    )
+    buffer = BytesIO()
+    Image.new("RGB", (40, 20), "white").save(buffer, format="PNG")
+
+    async def fake_extract(llm: Any, prepared: Any, user_id: str | None) -> ImageExtraction:
+        assert prepared.width == 40 and prepared.height == 20
+        return ImageExtraction(
+            text="Immigrants commit more crimes.",
+            description="A screenshot with a sentence.",
+            labels=["screenshot"],
+        )
+
+    monkeypatch.setattr(checks_route, "extract_image_text", fake_extract)
+    response = await client.post(
+        "/v1/factcheck",
+        data={"payload": '{"input":{"type":"image","language":"en"}}'},
+        files={"file": ("shot.png", buffer.getvalue(), "image/png")},
+    )
+    assert response.status_code == 202, response.text
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        assert job.payload["source_image"] is True
+        assert "Image text:" in job.payload["text"]
+        assert "Immigrants commit more crimes." in job.payload["text"]

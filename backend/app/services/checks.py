@@ -192,6 +192,7 @@ async def create_check_job(
     source_file_name: str | None = None,
     source_media_type: str | None = None,
     source_size_bytes: int | None = None,
+    source_image: bool = False,
 ) -> tuple[JobRow, ModerationInfo]:
     moderation = await ModerationService(LLMClient(settings, consumer="moderation")).classify_check(
         text, user_id=user_id
@@ -215,6 +216,7 @@ async def create_check_job(
         "source_file_name": source_file_name,
         "source_media_type": source_media_type,
         "source_size_bytes": source_size_bytes,
+        "source_image": source_image,
     }
     job = JobRow(
         id=job_id,
@@ -305,6 +307,7 @@ async def run_check_job(
         source_file_name=payload.get("source_file_name"),
         source_media_type=payload.get("source_media_type"),
         source_size_bytes=payload.get("source_size_bytes"),
+        source_image=bool(payload.get("source_image")),
         on_statement=on_statement,
     )
     result = outcome.result

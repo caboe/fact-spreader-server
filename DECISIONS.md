@@ -282,3 +282,21 @@ pulling Docling into the API process; Docling takes over document ingestion in P
 **Rejected:** a separate upload path (contract drift), base64 in JSON (memory and size
 handling), accepting images without a capable tested vision model (silent failure), adding
 Docling to the check request path (startup and image cost).
+
+
+## D21 — Image input is sanitized with Pillow and read by the vision alias
+
+**What:** image uploads are decoded, EXIF-transposed, stripped of metadata by re-encoding to
+PNG, pixel-capped and sent as a data URL to the configured `fs-vision` alias through the
+gateway. The vision result is text + description + labels; the normal extraction and gate
+then run. The result carries `input.type=image` and the warning
+`image_authenticity_not_checked`. Image files are rejected when the model call fails.
+
+**Why:** the vision model is mandatory from the start (PURPOSE §3.10); the image is subject
+matter, never evidence; metadata can carry personal data; a silent fallback to text-only
+would claim a check that did not happen. Pillow is the smallest pinned library for the
+sanitization and dimension cap.
+
+**Rejected:** passing original bytes with EXIF to the provider, checking authenticity
+(explicitly out of v1), using the chat model for images (no tested vision capability),
+storing the image bytes in the job payload or corpus.
