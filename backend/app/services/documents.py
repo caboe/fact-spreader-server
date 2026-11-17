@@ -193,6 +193,7 @@ async def create_document(
     figures: list[dict[str, Any]] | None = None,
     force: bool = False,
     batch_id: str | None = None,
+    source_name: str | None = None,
 ) -> tuple[Document, DocumentVersion, list[DocumentWarning], str | None, DocumentEstimate]:
     content = content.strip()
     if not content:
@@ -269,7 +270,7 @@ async def create_document(
         version=1,
         content_hash=content_hash,
         content_md=content,
-        file_path=None,
+        file_path=source_name,
         size_bytes=size_bytes,
         created_at=now,
     )

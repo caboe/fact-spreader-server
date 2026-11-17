@@ -208,6 +208,7 @@ async def submit_document(
             source_url=source_url,
             figures=figures,
             force=body.force,
+            source_name=upload_name or source_url,
         )
     except ValueError as exc:
         raise AppError(422, "invalid_input", str(exc)) from exc
@@ -492,7 +493,7 @@ async def submit_batch(
     instance = (await session.execute(select(Instance).limit(1))).scalar_one()
     for filename, data, media in uploads:
         override = body.overrides.get(filename)
-        metadata = body.metadata
+        metadata = body.metadata.model_copy(deep=True)
         if override is not None:
             merged = body.metadata.model_dump()
             merged.update(override.model_dump(exclude_unset=True, exclude_none=True))
@@ -558,6 +559,7 @@ async def submit_batch(
                 source_url=None,
                 batch_id=batch.id,
                 force=body.force,
+                source_name=filename,
             )
         except (ValueError, OSError) as exc:
             await record_failure(
@@ -579,7 +581,7 @@ async def submit_batch(
                 user_id=principal.user_id,
             )
             continue
-        metadata = body.metadata
+        metadata = body.metadata.model_copy(deep=True)
         if metadata.title is None:
             metadata.title = page.title or url
         decision = request.app.state.language.resolve(page.text[:4000], metadata.language)

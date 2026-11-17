@@ -186,7 +186,7 @@ async def batch_to_api(
         files.append(
             BatchFile(
                 document_id=document.id,
-                filename=document.title,
+                filename=(version.file_path if version and version.file_path else document.title),
                 state=document.state,
                 warnings=info.warnings,
             )
