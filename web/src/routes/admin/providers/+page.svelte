@@ -4,6 +4,7 @@
     ApiError,
     listModels,
     listProviders,
+    probeModel,
     testProvider,
     updateProvider,
     type ModelInfo,
@@ -19,6 +20,7 @@
   let busy = $state('');
   let selected = $state('');
   let newKey = $state('');
+  let probe = $state<Record<string, string>>({});
 
   onMount(load);
 
@@ -39,6 +41,22 @@
     try {
       const result = await testProvider(id);
       notice = `${tr('admin.provider_ok')}: ${result.models.length} ${tr('admin.models')} · ${result.latency_ms} ms`;
+    } catch (cause) {
+      error = cause instanceof ApiError ? cause.message : tr('common.error');
+    } finally {
+      busy = '';
+    }
+  }
+
+  async function probeCaps(modelId: string): Promise<void> {
+    busy = modelId;
+    error = '';
+    notice = '';
+    try {
+      const report = await probeModel(modelId);
+      probe[modelId] = report.results
+        .map((result) => `${result.capability}: ${result.status}${result.detail ? ` (${result.detail})` : ''}`)
+        .join(' · ');
     } catch (cause) {
       error = cause instanceof ApiError ? cause.message : tr('common.error');
     } finally {
@@ -114,6 +132,7 @@
     <button type="submit" disabled={busy === 'key'}>{tr('admin.save')}</button>
   </form>
   <p class="hint">{tr('admin.key_hint')}</p>
+  <p class="hint">{tr('admin.provider_hint')}</p>
 </section>
 
 <section class="panel">
@@ -122,7 +141,7 @@
     <thead>
       <tr>
         <th>{tr('admin.model')}</th><th>{tr('admin.role')}</th><th>{tr('admin.capabilities')}</th
-        ><th>{tr('admin.tested')}</th><th>{tr('admin.local')}</th>
+        ><th>{tr('admin.tested')}</th><th>{tr('admin.local')}</th><th></th>
       </tr>
     </thead>
     <tbody>
@@ -133,6 +152,19 @@
           <td>{(model.capabilities ?? []).join(', ')}</td>
           <td>{(model.tested_capabilities ?? []).join(', ') || '—'}</td>
           <td>{model.is_local ? tr('common.yes') : tr('common.no')}</td>
+          <td class="right">
+            {#if model.gateway_alias === null}
+              <button
+                type="button"
+                class="ghost"
+                onclick={() => probeCaps(model.id)}
+                disabled={busy === model.id}
+              >
+                {tr('admin.probe')}
+              </button>
+            {/if}
+            {#if probe[model.id]}<p class="probe">{probe[model.id]}</p>{/if}
+          </td>
         </tr>
       {/each}
     </tbody>
@@ -205,9 +237,21 @@
     font-weight: 600;
     cursor: pointer;
   }
+  button.ghost {
+    background: var(--fs-bg);
+    color: var(--fs-text);
+    box-shadow: var(--fs-shadow-soft);
+  }
   button:disabled {
     opacity: 0.6;
     cursor: wait;
+  }
+  .probe {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+    color: var(--fs-muted);
+    max-width: 24rem;
+    white-space: normal;
   }
   .hint {
     color: var(--fs-muted);

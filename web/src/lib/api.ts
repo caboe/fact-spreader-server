@@ -371,3 +371,16 @@ export async function updateProvider(
     body: JSON.stringify(body),
   });
 }
+
+export async function probeModel(
+  id: string,
+  capabilities: string[] = [],
+): Promise<{
+  model_id: string;
+  results: { capability: string; status: string; detail: string; latency_ms: number }[];
+}> {
+  return request(`/v1/config/models/${encodeURIComponent(id)}/probe`, {
+    method: 'POST',
+    body: JSON.stringify({ capabilities }),
+  });
+}

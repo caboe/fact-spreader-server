@@ -169,6 +169,9 @@ const en: Catalog = {
   'admin.progress': 'Progress',
   'admin.documents': 'Documents',
 
+  'admin.probe': 'Probe capabilities',
+  'admin.provider_hint': 'A reachable provider can still reject completions (for example without credit). Probe a model to run a real completion.',
+
 };
 
 const de: Catalog = {
@@ -334,6 +337,9 @@ const de: Catalog = {
   'admin.job_state': 'Status',
   'admin.progress': 'Fortschritt',
   'admin.documents': 'Dokumente',
+
+  'admin.probe': 'Fähigkeiten testen',
+  'admin.provider_hint': 'Ein erreichbarer Provider kann Completions trotzdem ablehnen (z. B. ohne Guthaben). Teste ein Modell für einen echten Aufruf.',
 
 };
 
@@ -501,6 +507,9 @@ const fr: Catalog = {
   'admin.progress': 'Progression',
   'admin.documents': 'Documents',
 
+  'admin.probe': 'Tester les capacités',
+  'admin.provider_hint': 'Un fournisseur joignable peut quand même refuser les complétions (par exemple sans crédit). Testez un modèle pour un appel réel.',
+
 };
 
 const es: Catalog = {
@@ -666,6 +675,9 @@ const es: Catalog = {
   'admin.job_state': 'Estado',
   'admin.progress': 'Progreso',
   'admin.documents': 'Documentos',
+
+  'admin.probe': 'Probar capacidades',
+  'admin.provider_hint': 'Un proveedor accesible puede rechazar las completions (por ejemplo sin saldo). Prueba un modelo para una llamada real.',
 
 };
 
