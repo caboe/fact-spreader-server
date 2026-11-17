@@ -38,7 +38,8 @@ Three kinds of request share one API:
    cache, versioned preliminary/full results, newest-version archive views, manual
    re-checks and QS soft deletion are in place. Phase 4 has started: document
    submission, review, approval, worker indexing, withdrawal and duplicate handling are
-   in place; Docling parsing, figures, batches and the re-check trigger remain.
+   in place, as are bounded re-checks on approval/withdrawal and the editor
+   contradiction/gap lists. Docling parsing, figures, batches and cost estimates remain.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.
