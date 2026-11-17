@@ -23,21 +23,20 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phase 1 complete; Phase 2 in progress (2026-11-17).** The order of work is:
+**Phase 1 and Phase 2 complete; Phase 3 in progress (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
 2. ~~Write `IMPLEMENT.md`: phases with "Done when" checks tagged `[agent]` or
    `[human]`. Phase 1 is a vertical slice.~~ Approved 2026-11-16.
 3. Implement phase by phase. Phase 1 is complete; its live evidence is in
-   `docs/PHASE_1_REPORT.md`. Phase 2 is in progress: persona rendering, the consistency
-   checker, the OpenAI-compatible checked-streaming surface, SSRF-guarded URL input, the
-   read-only claim archive, statement-level SSE/replay/cancellation, multipart file input,
-   image input through the vision path, device tokens, archive feedback, conversation
-   context and translated evidence are done; the full live persona × language matrix is
-   the remaining Phase 2 acceptance item. A Phase 3 slice (retrieval plus a
-   citation-checked attributed summary) is in place; the summary judge, fast mode and the
-   deeper audit remain.
+   `docs/PHASE_1_REPORT.md`. Phase 2 is complete; its live inputs, streaming traces,
+   twelve-combination persona matrix and spend are in `docs/PHASE_2_REPORT.md`. Phase 3 is
+   in progress: research retrieval and the citation-checked summary with its independent
+   judge, one targeted re-retrieval round for an open confounder, contradiction records,
+   the staleness downgrade, the `audit_incomplete` gate and corpus-gap aggregation are in
+   place. Fast mode with the semantic cache, the full re-check archive flow and the Phase 3
+   live acceptance run remain.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

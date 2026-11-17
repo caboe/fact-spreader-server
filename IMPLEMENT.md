@@ -284,14 +284,13 @@ do not fork or patch LightRAG.
 
 ## 5. Phase 2 — Inputs, streaming and the OpenAI surface
 
-**Status: in progress (2026-11-17).** Done: the three runtime personas, deterministic
-checks plus the consistency judge, one re-render and template fallback, output moderation,
-`GET /v1/models`, `POST /v1/chat/completions` with checked streaming, SSRF-guarded URL
-input (HTML/PDF readers), multipart file input (PDF/DOCX/HTML/Markdown/text), image input
-through the vision path, a read-only claim archive and durable statement-level SSE with
-`Last-Event-ID` replay and queued cancellation, revocable device tokens and archive
-feedback, conversation context and labelled evidence translations; 59 unit and 22
-integration tests are green. Open: the full live persona × language matrix.
+**Status: complete (2026-11-17).** The full live persona × language matrix passed: twelve
+runs, all `format = persona` with `consistency.passed = true` on the first attempt and no
+warnings. Plain text, PDF, Markdown, URL and image inputs produced completed results; the
+live SSE trace has two statement events before `result`/`done`; checked streaming sends the
+substance before any narrative; device-token revocation and archive feedback were exercised
+live. `make verify` is green with 63 unit and 26 integration tests at `28ee94a`; the live
+evidence and spend are in [`docs/PHASE_2_REPORT.md`](docs/PHASE_2_REPORT.md).
 
 **Goal.** The check works for text, files, URLs and images, streams partial results, and is
 usable by the extension through the OpenAI-compatible endpoint with a checked persona
