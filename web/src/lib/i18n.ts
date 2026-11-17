@@ -74,6 +74,19 @@ const en: Catalog = {
   'state.done': 'Done',
   'state.failed': 'Failed',
   'state.cancelled': 'Cancelled',
+  'totp.title': 'Two-factor authentication',
+  'totp.intro': 'Privileged accounts need a TOTP code. Add the secret to your authenticator app, then confirm a code.',
+  'totp.start': 'Generate secret',
+  'totp.secret': 'Secret',
+  'totp.uri': 'Setup link',
+  'totp.code': 'Code from the app',
+  'totp.confirm': 'Confirm',
+  'totp.recovery': 'Save these recovery codes now; each one works once.',
+  'totp.enabled': 'Two-factor authentication is enabled.',
+  'totp.done': 'Continue',
+  'totp.banner': 'Two-factor authentication is required for this account.',
+  'totp.enable': 'Set up TOTP',
+
 };
 
 const de: Catalog = {
@@ -145,6 +158,19 @@ const de: Catalog = {
   'state.done': 'Fertig',
   'state.failed': 'Fehlgeschlagen',
   'state.cancelled': 'Abgebrochen',
+  'totp.title': 'Zwei-Faktor-Authentifizierung',
+  'totp.intro': 'Privilegierte Konten brauchen einen TOTP-Code. Trage das Secret in deine Authenticator-App ein und bestätige einen Code.',
+  'totp.start': 'Secret erzeugen',
+  'totp.secret': 'Secret',
+  'totp.uri': 'Einrichtungs-Link',
+  'totp.code': 'Code aus der App',
+  'totp.confirm': 'Bestätigen',
+  'totp.recovery': 'Speichere diese Wiederherstellungscodes jetzt; jeder gilt einmal.',
+  'totp.enabled': 'Zwei-Faktor-Authentifizierung ist aktiviert.',
+  'totp.done': 'Weiter',
+  'totp.banner': 'Für dieses Konto ist Zwei-Faktor-Authentifizierung erforderlich.',
+  'totp.enable': 'TOTP einrichten',
+
 };
 
 const fr: Catalog = {
@@ -216,6 +242,19 @@ const fr: Catalog = {
   'state.done': 'Terminé',
   'state.failed': 'Échoué',
   'state.cancelled': 'Annulé',
+  'totp.title': 'Authentification à deux facteurs',
+  'totp.intro': "Les comptes privilégiés nécessitent un code TOTP. Ajoutez le secret à votre application d'authentification, puis confirmez un code.",
+  'totp.start': 'Générer le secret',
+  'totp.secret': 'Secret',
+  'totp.uri': "Lien d'installation",
+  'totp.code': "Code de l'application",
+  'totp.confirm': 'Confirmer',
+  'totp.recovery': "Enregistrez ces codes de récupération maintenant ; chacun ne fonctionne qu'une fois.",
+  'totp.enabled': "L'authentification à deux facteurs est activée.",
+  'totp.done': 'Continuer',
+  'totp.banner': "L'authentification à deux facteurs est requise pour ce compte.",
+  'totp.enable': 'Configurer le TOTP',
+
 };
 
 const es: Catalog = {
@@ -287,6 +326,19 @@ const es: Catalog = {
   'state.done': 'Terminado',
   'state.failed': 'Fallido',
   'state.cancelled': 'Cancelado',
+  'totp.title': 'Autenticación en dos pasos',
+  'totp.intro': 'Las cuentas privilegiadas necesitan un código TOTP. Añade el secreto a tu aplicación de autenticación y confirma un código.',
+  'totp.start': 'Generar secreto',
+  'totp.secret': 'Secreto',
+  'totp.uri': 'Enlace de configuración',
+  'totp.code': 'Código de la aplicación',
+  'totp.confirm': 'Confirmar',
+  'totp.recovery': 'Guarda estos códigos de recuperación ahora; cada uno funciona una vez.',
+  'totp.enabled': 'La autenticación en dos pasos está activada.',
+  'totp.done': 'Continuar',
+  'totp.banner': 'Esta cuenta requiere autenticación en dos pasos.',
+  'totp.enable': 'Configurar TOTP',
+
 };
 
 const catalogs: Record<Lang, Catalog> = { en, de, fr, es };

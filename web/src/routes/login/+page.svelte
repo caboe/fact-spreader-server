@@ -16,8 +16,9 @@
     error = '';
     busy = true;
     try {
-      session.set(await login(email, password, totp));
-      goto('/');
+      const result = await login(email, password, totp);
+      session.set(result);
+      goto(result.totp_setup_required ? '/totp' : '/');
     } catch (cause) {
       error = cause instanceof ApiError ? cause.message : tr('login.failed');
     } finally {

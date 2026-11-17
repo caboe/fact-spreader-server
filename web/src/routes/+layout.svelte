@@ -63,6 +63,13 @@
   </div>
 </header>
 
+{#if $session?.totp_setup_required}
+  <div class="setup-banner" role="status">
+    <span>{tr('totp.banner')}</span>
+    <a href="/totp">{tr('totp.enable')}</a>
+  </div>
+{/if}
+
 <main class="shell-main">
   {@render children()}
 </main>
@@ -127,6 +134,17 @@
   }
   .who {
     color: var(--fs-muted);
+  }
+  .setup-banner {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    padding: 0.55rem 1rem;
+    background: var(--fs-accent-soft);
+    color: var(--fs-text);
+    font-size: 0.9rem;
   }
   .shell-main {
     padding: 1.5rem 1.25rem 3rem;

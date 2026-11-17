@@ -249,3 +249,16 @@ export async function chatStream(
   }
   return { jobId };
 }
+
+export async function startTotpSetup(): Promise<{ secret: string; otpauth_uri: string }> {
+  return request('/api/auth/totp/setup', { method: 'POST' });
+}
+
+export async function confirmTotp(
+  code: string,
+): Promise<{ enabled: boolean; recovery_codes: string[] }> {
+  return request('/api/auth/totp/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
