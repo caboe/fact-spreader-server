@@ -59,6 +59,17 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         started = time.perf_counter()
         try:
             response = await call_next(request)
+            response.headers["X-Request-Id"] = request_id
+            logging.getLogger("app.request").info(
+                "request_completed",
+                extra={
+                    "route": request.url.path,
+                    "method": request.method,
+                    "status": response.status_code,
+                    "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                },
+            )
+            return response
         except Exception:
             logging.getLogger("app.request").exception(
                 "request_failed",
@@ -67,14 +78,3 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             raise
         finally:
             request_id_ctx.reset(token)
-        response.headers["X-Request-Id"] = request_id
-        logging.getLogger("app.request").info(
-            "request_completed",
-            extra={
-                "route": request.url.path,
-                "method": request.method,
-                "status": response.status_code,
-                "latency_ms": round((time.perf_counter() - started) * 1000, 1),
-            },
-        )
-        return response
