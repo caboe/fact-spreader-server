@@ -1042,3 +1042,31 @@ async def test_a_gap_recheck_queues_the_sampled_claims(
         assert job is not None
         assert job.payload["recheck"] is True
         assert job.payload["recheck_gap_id"] == gap_id
+
+
+@pytest.mark.asyncio
+async def test_a_batch_metadata_sidecar_overrides_per_file_fields(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    payload = {
+        "metadata": {
+            "publisher": "Federal Statistical Office of Germany (Destatis)",
+            "license": "dl-de/by-2-0",
+            "redistribution": "full_text",
+            "language": "en",
+        }
+    }
+    csv = b"filename,title,license\ntram-sidecar.md,Sidecar title,CC0-1.0\n"
+    response = await client.post(
+        "/v1/documents/batches",
+        data={"payload": __import__("json").dumps(payload)},
+        files=[
+            ("files", ("tram-sidecar.md", b"# Sidecar\n\nA sidecar document.", "text/markdown")),
+            ("metadata_file", ("meta.csv", csv, "text/csv")),
+        ],
+    )
+    assert response.status_code == 202, response.text
+    document_id = response.json()["batch"]["files"][0]["document_id"]
+    document = (await client.get(f"/v1/documents/{document_id}")).json()
+    assert document["title"] == "Sidecar title"
+    assert document["license"] == "CC0-1.0"

@@ -37,6 +37,7 @@ from app.services.batches import (
     batch_to_api,
     create_batch,
     finalise_batch,
+    parse_metadata_sidecar,
     record_failure,
     sanitise_zip,
 )
@@ -512,6 +513,15 @@ async def submit_batch(
             uploads.append(
                 (value.filename or "upload", data, value.content_type or "application/octet-stream")
             )
+    sidecar_overrides: dict[str, DocumentMetadata] = {}
+    metadata_file = form.get("metadata_file")
+    if isinstance(metadata_file, UploadFile):
+        sidecar_data = await metadata_file.read()
+        await metadata_file.close()
+        sidecar_overrides = parse_metadata_sidecar(
+            sidecar_data, metadata_file.filename or "metadata.csv"
+        )
+    body.overrides = {**body.overrides, **sidecar_overrides}
     zip_warnings: list[str] = []
     archive = form.get("archive")
     if isinstance(archive, UploadFile):

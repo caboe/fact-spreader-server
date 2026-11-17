@@ -593,3 +593,17 @@ Docling remains the plan for layout reconstruction, OCR layout and hard scans.
 
 **Rejected:** flattening tables into running text (loses rows), adding Docling in this slice
 without a tested model download, parsing tables with an LLM.
+
+## D39 — Batch metadata sidecars are per-file overrides, not document text
+
+**What:** a `metadata_file` part on `POST /v1/documents/batches` is parsed as JSON (object
+keyed by filename) or CSV (`filename,title,publisher,...`); it merges into the existing
+per-file overrides, which take precedence over common metadata and are applied to the
+document, never to its content. Malformed sidecars are ignored with a warning.
+
+**Why:** PROTOCOL §8.7 allows a CSV/JSON sidecar instead of repeating per-file metadata in
+the payload. Keeping overrides out of the parsed text avoids making metadata look like
+document evidence. The parser is deliberately small because the v1 columns are fixed.
+
+**Rejected:** putting sidecar values into the Markdown, failing the whole batch on a bad
+row, requiring a strict CSV schema.

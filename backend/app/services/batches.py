@@ -7,10 +7,13 @@ safe entries continue. Failed entries remain visible as documents in state ``fai
 
 from __future__ import annotations
 
+import csv
 import io
+import json
 import logging
 import mimetypes
 import zipfile
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +22,7 @@ from app.contracts.api import (
     BatchCounts,
     BatchFile,
     BatchInfo,
+    DocumentMetadata,
     DocumentWarning,
 )
 from app.core.config import Settings
@@ -210,3 +214,52 @@ async def finalise_batch(session: AsyncSession, batch: DocumentBatch) -> None:
     batch.counts = counts.model_dump(mode="json")
     batch.state = "ready" if counts.failed == 0 else "partial"
     batch.updated_at = utcnow()
+
+
+def parse_metadata_sidecar(data: bytes, filename: str) -> dict[str, DocumentMetadata]:
+    """Parse a JSON or CSV sidecar keyed by uploaded filename.
+
+    Unknown or malformed rows are skipped; the batch still processes the files.
+    """
+    text = data.decode("utf-8", errors="replace")
+    result: dict[str, DocumentMetadata] = {}
+    try:
+        if filename.lower().endswith(".json") or text.lstrip().startswith("{"):
+            raw = json.loads(text)
+            if not isinstance(raw, dict):
+                return {}
+            for key, value in raw.items():
+                if isinstance(value, dict):
+                    result[str(key)] = DocumentMetadata.model_validate(value)
+            return result
+        reader = csv.DictReader(io.StringIO(text))
+        for row in reader:
+            name = str(row.get("filename") or row.get("file") or "").strip()
+            if not name:
+                continue
+            payload: dict[str, Any] = {}
+            for field in (
+                "title",
+                "publisher",
+                "publication_date",
+                "url",
+                "doi",
+                "dataset_id",
+                "license",
+                "redistribution",
+                "language",
+                "source_quality_override",
+            ):
+                value = (row.get(field) or "").strip()
+                if value:
+                    payload[field] = value
+            for field in ("authors", "domain_tags"):
+                value = (row.get(field) or "").strip()
+                if value:
+                    payload[field] = [
+                        item.strip() for item in value.replace("|", ";").split(";") if item.strip()
+                    ]
+            result[name] = DocumentMetadata.model_validate(payload)
+    except (ValueError, TypeError, json.JSONDecodeError):
+        logger.warning("batch_metadata_sidecar_invalid")
+    return result

@@ -26,9 +26,10 @@ audit and worker-driven LightRAG indexing with a corpus-version bump. A live Des
 housing report was approved and indexed in 10.1 s, cited by a rent check, and a
 resubmission was marked `duplicate`. Approval and withdrawal trigger bounded
 re-checks for matching claims, with budget exhaustion surfaced as a warning; editor lists
-for contradictions and gaps are available. Batch submission with multiple files, URLs and a sanitised ZIP now
-reports per-file states and supports batch approve/reject. Docling tables/scans, figures,
-batch retry/metadata sidecars and cost estimates are still open.
+for contradictions and gaps are available. Batch submission with multiple files, URLs and a sanitised ZIP
+reports per-file states, applies CSV/JSON metadata sidecars and supports batch
+approve/reject. HTML and digital-PDF tables become Markdown; PDF figures get vision
+descriptions. Docling layout/OCR, batch retry and real cost/budget blocks are still open.
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes
