@@ -670,3 +670,19 @@ the UI can show that a cited source is no longer in the corpus.
 
 **Rejected:** rejecting unsupported document languages, mutating historical evidence rows,
 hiding withdrawn evidence from past reports.
+
+## D44 — TOTP is enrolled through the web session and recovery codes are one-time
+
+**What:** `/api/auth/totp/setup` stores an encrypted pending secret; `/confirm` verifies a
+code, enables TOTP and returns eight recovery codes once while storing only their hashes;
+login requires a TOTP or unused recovery code once enabled. Recovery codes are consumed on
+use. Privileged accounts without TOTP log in with `totp_setup_required=true` so they can
+enrol, rather than being locked out of the setup page.
+
+**Why:** a server-rendered recovery path is safer than requiring a second channel, and the
+session already has CSRF protection for the enrolment POST. Storing recovery codes hashed
+matches the secret-storage rule. The flag makes the mandatory policy visible; a harder
+enforcement pass belongs with the role/setup work rather than blocking the only admin.
+
+**Rejected:** storing recovery codes in plaintext, disabling TOTP with a password alone,
+an email reset flow (no email in v1), locking privileged users out before they can enrol.

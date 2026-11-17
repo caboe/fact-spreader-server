@@ -17,6 +17,7 @@ from app.core.config import Settings
 from app.core.errors import AppError, permission_denied
 from app.core.ids import new_id, utcnow
 from app.core.security import (
+    SecretBox,
     hash_password,
     hash_token,
     new_api_key,
@@ -28,6 +29,10 @@ from app.db.session import get_session
 
 SESSION_COOKIE = "fs_session"
 SESSION_HOURS = 12
+TOTP_ISSUER = "Fact Spreader"
+TOTP_REQUIRED_PERMISSIONS = frozenset(
+    {"config:manage", "methodology:manage", "users:manage", "documents:review"}
+)
 
 
 @dataclass(frozen=True)
@@ -253,3 +258,42 @@ def user_is_privileged(principal: Principal) -> bool:
 
 def settings_supported_languages(settings: Settings) -> list[str]:
     return list(settings.supported_languages)
+
+
+def totp_required(permissions: list[str] | frozenset[str]) -> bool:
+    return bool(TOTP_REQUIRED_PERMISSIONS & set(permissions))
+
+
+def encrypt_totp_secret(settings: Settings, secret: str) -> bytes:
+    return SecretBox(settings.secret_material).encrypt(secret)
+
+
+def decrypt_totp_secret(settings: Settings, encrypted: bytes) -> str:
+    return SecretBox(settings.secret_material).decrypt(encrypted)
+
+
+def new_recovery_codes(count: int = 8) -> tuple[list[str], list[str]]:
+    import secrets
+
+    plain = [f"fc-rec-{secrets.token_hex(5)}" for _ in range(count)]
+    return plain, [hash_token(code) for code in plain]
+
+
+def verify_totp(user: User, code: str, settings: Settings) -> tuple[bool, bool]:
+    """Return (valid, used_recovery_code)."""
+    import pyotp
+
+    code = code.strip()
+    if not code:
+        return False, False
+    if user.totp_enabled and user.totp_secret_enc:
+        secret = decrypt_totp_secret(settings, user.totp_secret_enc)
+        if pyotp.TOTP(secret).verify(code, valid_window=1):
+            return True, False
+    hashed = hash_token(code)
+    codes = list(user.totp_recovery_codes or [])
+    if hashed in codes:
+        codes.remove(hashed)
+        user.totp_recovery_codes = codes
+        return True, True
+    return False, False

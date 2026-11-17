@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–4 complete; Phase 5 not started (2026-11-17).** The order of work is:
+**Phases 1–4 complete; Phase 5 in progress (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -43,7 +43,9 @@ Three kinds of request share one API:
    states, HTML/digital-PDF tables become Markdown, PDF figures get vision descriptions,
    and batch metadata sidecars apply per file; retries, estimates and the budget block
    are in place. Phase 4 is complete; Docling layout/OCR is recorded as a follow-up, not a
-   gate, in the phase report.
+   gate, in the phase report. Phase 5 has started with TOTP enrolment, encrypted secrets
+   and one-time recovery codes; the setup wizard, role templates, limits and retention
+   remain.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

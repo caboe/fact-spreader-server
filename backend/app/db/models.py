@@ -60,6 +60,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     totp_secret_enc: Mapped[bytes | None] = mapped_column()
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    totp_recovery_codes: Mapped[list[str]] = mapped_column(JSONB, default=list)
     llm_budget_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=Decimal("15.000000"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

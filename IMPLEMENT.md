@@ -488,6 +488,12 @@ approved, indexed, withdrawn and versioned; approval and withdrawal trigger re-c
 
 ## 8. Phase 5 — Identity, roles, setup, limits and retention
 
+**Status: in progress (2026-11-17).** Done: TOTP enrolment/confirmation through the web
+session, encrypted secrets, one-time hashed recovery codes and TOTP-gated login once
+enabled; privileged accounts without TOTP receive `totp_setup_required`. Open: first-run
+wizard, role templates and per-user limits, retention jobs, full permission matrix and
+mandatory-TOTP enforcement for privileged roles.
+
 **Goal.** The installation can be set up safely by a human, roles and permissions are
 enforced, every user has limits, and personal data follows the retention policy.
 
