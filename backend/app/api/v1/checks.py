@@ -41,7 +41,11 @@ async def create_check(
     session: Annotated[AsyncSession, Depends(get_session)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> Response:
-    _validate_phase1_request(body, request.app.state.settings)
+    _validate_phase1_request(
+        body,
+        request.app.state.settings,
+        [persona.id for persona in request.app.state.personas.enabled()],
+    )
     normalized = normalize_text(body.input.text or "")
     payload_for_hash = body.model_dump(mode="json")
     if idempotency_key:
@@ -79,6 +83,9 @@ async def create_check(
         user_id=principal.user_id,
         response_language=body.response_language,
         turn_type=body.turn_type or TurnType.NEW_CLAIM,
+        persona_id=body.persona_id,
+        render_model_id=body.render_model_id,
+        output_format=body.output_format.value,
     )
     await session.commit()
     job = job_to_api(job_row)
@@ -123,7 +130,11 @@ async def get_check(
             content=envelope.model_dump(mode="json"),
         )
     if job.result_id:
-        response = await load_response(session, job.result_id)
+        response = await load_response(
+            session,
+            job.result_id,
+            persona_id=(job.payload or {}).get("persona_id"),
+        )
         envelope = JobEnvelope(job=job_to_api(job), result=response)
         etag = f'"{job.result_id}:{response.result.version if response else 1}"'
         if request.headers.get("If-None-Match") == etag:
@@ -194,7 +205,9 @@ async def _load_owned_job(session: AsyncSession, job_id: str, principal: Princip
     return job
 
 
-def _validate_phase1_request(body: CheckRequest, settings: Settings) -> None:
+def _validate_phase1_request(
+    body: CheckRequest, settings: Settings, request_personas: list[str]
+) -> None:
     text = body.input.text
     if body.input.type != "text":
         raise AppError(

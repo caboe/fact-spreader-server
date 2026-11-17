@@ -158,3 +158,37 @@ def confounder_label(confounder: str, language: str) -> str:
         confounder,
         _CONFOUNDER_LABELS["en"].get(confounder, confounder.replace("_", " ")),
     )
+
+
+_FALLBACK_HEADINGS: dict[str, dict[str, str]] = {
+    "en": {
+        "true": "What is true",
+        "missing": "What is missing",
+        "unverifiable": "What is not verifiable",
+        "evidence": "Evidence",
+    },
+    "de": {
+        "true": "Was stimmt",
+        "missing": "Was fehlt",
+        "unverifiable": "Was nicht überprüfbar ist",
+        "evidence": "Belege",
+    },
+    "fr": {
+        "true": "Ce qui est vrai",
+        "missing": "Ce qui manque",
+        "unverifiable": "Ce qui n'est pas vérifiable",
+        "evidence": "Preuves",
+    },
+    "es": {
+        "true": "Lo que es cierto",
+        "missing": "Lo que falta",
+        "unverifiable": "Lo que no se puede verificar",
+        "evidence": "Pruebas",
+    },
+}
+
+
+def fallback_heading(key: str, language: str) -> str:
+    return _FALLBACK_HEADINGS.get(language, _FALLBACK_HEADINGS["en"]).get(
+        key, _FALLBACK_HEADINGS["en"][key]
+    )

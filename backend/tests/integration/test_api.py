@@ -81,7 +81,7 @@ async def test_models_require_authentication(app: Any) -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as anonymous:
         response = await anonymous.get("/v1/models")
     assert response.status_code == 401
-    assert response.json()["code"] == "authentication_required"
+    assert response.json()["error"]["code"] == "authentication_required"
 
 
 @pytest.mark.asyncio
@@ -192,6 +192,7 @@ async def test_worker_persists_the_job_state_and_the_result(
                 document_id=document_id,
                 passage="Immigrants commit more crimes, according to the fixture.",
             ),
+            personas=app.state.personas,
             job=job,
         )
         await session.commit()

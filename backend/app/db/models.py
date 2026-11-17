@@ -23,6 +23,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -256,6 +257,9 @@ class Result(Base):
     clarification_questions: Mapped[list[str]] = mapped_column(JSONB, default=list)
     warnings: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     moderation: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    renderings: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
     pipeline: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

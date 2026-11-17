@@ -18,7 +18,8 @@ from app.api.internal.llm import router as internal_llm_router
 from app.api.v1.checks import router as checks_router
 from app.api.v1.health import router as health_router
 from app.api.v1.instance import router as instance_router
-from app.api.v1.models import router as models_router
+from app.api.v1.openai import OpenAIAuthError
+from app.api.v1.openai import router as openai_router
 from app.api.v1.usage import router as usage_router
 from app.api.web.auth import router as auth_router
 from app.core.config import Settings, get_settings
@@ -28,6 +29,7 @@ from app.db.session import Database
 from app.retrieval.lightrag import LightRAGClient
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
+from app.services.personas import PersonaRegistry
 from app.services.publishers import PublisherRegistry
 
 logger = logging.getLogger("app.main")
@@ -47,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.db = database
         app.state.redis = cache
         app.state.publishers = PublisherRegistry.from_path(settings.publisher_list_path)
+        app.state.personas = PersonaRegistry.from_path(settings.personas_path)
         app.state.methodology = Methodology.load(settings.checklist_dir, settings.pattern_list_path)
         app.state.language = LanguageService(
             settings.supported_languages, settings.default_response_language
@@ -96,6 +99,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             extra={"errors": jsonable_encoder(exc.errors())},
         )
 
+    @app.exception_handler(OpenAIAuthError)
+    async def openai_auth_handler(request: Request, exc: Exception) -> JSONResponse:
+        assert isinstance(exc, OpenAIAuthError)
+        return JSONResponse(
+            status_code=exc.status,
+            content={
+                "error": {
+                    "message": exc.message,
+                    "type": "authentication_error",
+                    "code": exc.code,
+                    "param": None,
+                }
+            },
+        )
+
     @app.exception_handler(_InternalAuthError)
     async def internal_auth_handler(request: Request, exc: Exception) -> JSONResponse:
         assert isinstance(exc, _InternalAuthError)
@@ -124,7 +142,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(instance_router)
     app.include_router(checks_router)
-    app.include_router(models_router)
+    app.include_router(openai_router)
     app.include_router(usage_router)
     app.include_router(auth_router)
     app.include_router(internal_llm_router, include_in_schema=False)

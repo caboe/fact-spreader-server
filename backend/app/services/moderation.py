@@ -77,6 +77,13 @@ class ModerationService:
         self._llm = llm
 
     async def classify_check(self, text: str, *, user_id: str | None) -> ModerationInfo:
+        return await self._classify(text, user_id=user_id, purpose="moderation")
+
+    async def classify_output(self, text: str, *, user_id: str | None) -> ModerationInfo:
+        """Moderate a rendered narrative. Any hit replaces the text (PROTOCOL §4.5)."""
+        return await self._classify(text, user_id=user_id, purpose="output_moderation")
+
+    async def _classify(self, text: str, *, user_id: str | None, purpose: str) -> ModerationInfo:
         if sexual_minors_floor(text):
             return ModerationInfo(
                 backend="hard_floor:sexual_minors",
@@ -94,7 +101,7 @@ class ModerationService:
                 messages=messages,
                 output_model=ModerationOutput,
                 data_classes=["user_input", "moderation"],
-                purpose="moderation",
+                purpose=purpose,
                 user_id=user_id,
                 max_tokens=300,
             )

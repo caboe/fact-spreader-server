@@ -39,6 +39,20 @@ class LLMUsage:
     tokens_out: int = 0
 
 
+class TextLLM(Protocol):
+    async def chat_text(
+        self,
+        *,
+        alias: str,
+        messages: list[dict[str, str]],
+        data_classes: list[str],
+        purpose: str,
+        user_id: str | None = None,
+        max_tokens: int = 1200,
+        temperature: float = 0.4,
+    ) -> tuple[str, LLMUsage]: ...
+
+
 class StructuredLLM(Protocol):
     async def chat_structured(
         self,
@@ -53,6 +67,10 @@ class StructuredLLM(Protocol):
     ) -> tuple[T, LLMUsage]: ...
 
 
+class RenderLLM(StructuredLLM, TextLLM, Protocol):
+    pass
+
+
 class LLMClient:
     def __init__(
         self,
@@ -60,6 +78,7 @@ class LLMClient:
         *,
         transport: Any = None,
         consumer: str = "pipeline",
+        request_id: str | None = None,
     ) -> None:
         self._settings = settings
         self._http = OutboundHTTP(
@@ -68,6 +87,7 @@ class LLMClient:
             transport=transport,
         )
         self._consumer = consumer
+        self._request_id = request_id
         self._base = settings.internal_gateway_url.rstrip("/")
         self._key = settings.internal_llm_key.get_secret_value()
 
@@ -146,6 +166,55 @@ class LLMClient:
             text = text[start : end + 1]
         return output_model.model_validate_json(text)
 
+    async def chat_text(
+        self,
+        *,
+        alias: str,
+        messages: list[dict[str, str]],
+        data_classes: list[str],
+        purpose: str,
+        user_id: str | None = None,
+        max_tokens: int = 1200,
+        temperature: float = 0.4,
+    ) -> tuple[str, LLMUsage]:
+        headers = {
+            "Authorization": f"Bearer {self._key}",
+            "X-FS-Consumer": self._consumer,
+            "X-FS-Data-Classes": ",".join(data_classes),
+            "X-FS-Purpose": purpose,
+            "Content-Type": "application/json",
+        }
+        if user_id:
+            headers["X-FS-User-Id"] = user_id
+        if self._request_id:
+            headers["X-Request-Id"] = self._request_id
+        body = {
+            "model": alias,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        response = await self._http.request(
+            "POST",
+            f"{self._base}/chat/completions",
+            json=body,
+            headers=headers,
+        )
+        if response.status_code >= 400:
+            raise _gateway_error(response)
+        try:
+            payload = response.json()
+            content = payload["choices"][0]["message"]["content"]
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise LLMOutputError("gateway returned a malformed chat completion") from exc
+        if not isinstance(content, str) or not content.strip():
+            raise LLMOutputError("the model returned an empty narrative")
+        usage = payload.get("usage") or {}
+        return content.strip(), LLMUsage(
+            tokens_in=int(usage.get("prompt_tokens") or 0),
+            tokens_out=int(usage.get("completion_tokens") or 0),
+        )
+
     async def _call(
         self,
         *,
@@ -165,6 +234,8 @@ class LLMClient:
         }
         if user_id:
             headers["X-FS-User-Id"] = user_id
+        if self._request_id:
+            headers["X-Request-Id"] = self._request_id
         body = {
             "model": alias,
             "messages": messages,

@@ -183,3 +183,51 @@ if the feature was used. The Phase 2 work is visible in the API contract and in 
 **Rejected:** accepting and ignoring unsupported fields (silent behaviour change), returning
 `501` for the whole endpoint (blocks the working slice), implementing a half-parser for
 files without the shared ingestion path.
+
+## D15 — Persona renderings are released only after two independent checks
+
+**What:** every narrative passes deterministic checks (citation IDs, second-person rules
+for impersonal personas, question limits, bottom-line and verdict-label rules, unbacked
+pattern names) and a judge call. The free-text judge `issues` list is used only when the
+judge reports `passed = false`; the explicit violation lists still fail a narrative that the
+judge marked passed. A failed first attempt is re-rendered once; a second failure uses the
+deterministic template and records `consistency_fallback`. The output is then moderated;
+a hit replaces it with the template and records `output_moderation_replaced`.
+
+**Why:** hard invariant 3 and 12. The first live judge run returned advisory issues with
+`passed = true`; treating those as failures made every persona fall back. The explicit
+violation fields are the contract; free-text advice is not a failure. The final rendering
+is stored with the result, keyed by persona, so a GET can return exactly what was checked.
+
+**Rejected:** streaming token-by-token before the judge (violates checked streaming),
+trusting the judge's `passed` alone (misses deterministic address-mode and citation errors),
+showing the failed narrative with a warning (violates style-never-substance and safety).
+
+## D16 — Rendering and judge output budgets are 8k/6k tokens
+
+**What:** the narrative call gets 8,000 output tokens and the judge 6,000; the OpenAI
+adapter forwards `max_tokens`/`max_completion_tokens` only as a lower rendering limit.
+
+**Why:** the provider's reasoning tokens count against the output budget. A 1,600-token
+render budget produced an empty content string twice in the live OpenAI test. The
+verification call already needed 8,000 for the same reason.
+
+**Rejected:** a premium model for rendering (cost without a quality need), disabling
+reasoning (not a documented switch), treating empty content as a successful template
+(hides a provider failure).
+
+## D17 — The OpenAI adapter waits on the same durable job
+
+**What:** `/v1/chat/completions` creates the same check job as the native endpoint, polls
+its durable state, and only then emits the response or the first SSE chunk. The persona
+narrative is fully rendered and checked by the worker before the first content delta.
+The adapter accepts exactly one user message in Phase 2; further history returns a clear
+`context_not_supported` error.
+
+**Why:** one pipeline, one gate and one result; no second code path with different verdicts.
+The checked-streaming invariant requires the substance first and the narrative only after
+the check. Accepting history and silently ignoring it would change the meaning of a check.
+
+**Rejected:** a synchronous in-request pipeline (duplicates the worker path and loses
+durable partial results), token streaming straight from the provider (unchecked text), a
+separate OpenAI pipeline (contract drift).

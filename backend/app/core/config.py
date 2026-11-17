@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 60
     cors_extension_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     publisher_list_path: str = "../methodology/publishers.json"
+    personas_path: str = "../PERSONAS.md"
     checklist_dir: str = "../methodology/checklists"
     pattern_list_path: str = "../methodology/patterns.json"
     fixture_corpus_dir: str = "../tests/fixtures/corpus"

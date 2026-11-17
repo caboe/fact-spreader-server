@@ -1207,60 +1207,6 @@
         "title": "ModerationInfo",
         "type": "object"
       },
-      "OpenAIModelCard": {
-        "properties": {
-          "created": {
-            "title": "Created",
-            "type": "integer"
-          },
-          "factcheck": {
-            "additionalProperties": true,
-            "title": "Factcheck",
-            "type": "object"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "object": {
-            "default": "model",
-            "title": "Object",
-            "type": "string"
-          },
-          "owned_by": {
-            "default": "fact-spreader",
-            "title": "Owned By",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "created"
-        ],
-        "title": "OpenAIModelCard",
-        "type": "object"
-      },
-      "OpenAIModelList": {
-        "properties": {
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/OpenAIModelCard"
-            },
-            "title": "Data",
-            "type": "array"
-          },
-          "object": {
-            "default": "list",
-            "title": "Object",
-            "type": "string"
-          }
-        },
-        "required": [
-          "data"
-        ],
-        "title": "OpenAIModelList",
-        "type": "object"
-      },
       "OutputFormat": {
         "enum": [
           "substance",
@@ -2399,6 +2345,25 @@
         ]
       }
     },
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "chat_completions_v1_chat_completions_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Chat Completions",
+        "tags": [
+          "openai"
+        ]
+      }
+    },
     "/v1/factcheck": {
       "post": {
         "operationId": "create_check_v1_factcheck_post",
@@ -2561,22 +2526,24 @@
     },
     "/v1/models": {
       "get": {
-        "operationId": "list_models_v1_models_get",
+        "operationId": "openai_models_v1_models_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OpenAIModelList"
+                  "additionalProperties": true,
+                  "title": "Response Openai Models V1 Models Get",
+                  "type": "object"
                 }
               }
             },
             "description": "Successful Response"
           }
         },
-        "summary": "List Models",
+        "summary": "Openai Models",
         "tags": [
-          "models"
+          "openai"
         ]
       }
     },

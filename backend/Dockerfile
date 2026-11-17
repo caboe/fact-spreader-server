@@ -26,7 +26,8 @@ COPY backend/app ./app
 COPY backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY methodology /methodology
 COPY tests/fixtures/corpus /tests/fixtures/corpus
-RUN chmod -R a+rX /methodology /tests/fixtures/corpus
+COPY PERSONAS.md /PERSONAS.md
+RUN chmod -R a+rX /methodology /tests/fixtures/corpus /PERSONAS.md
 
 RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh \
     && chmod 0644 pyproject.toml alembic.ini \

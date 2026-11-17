@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, TypeVar
 
-from app.llm.aliases import FS_EXTRACT, FS_MODERATION, FS_VERIFY
+from app.llm.aliases import FS_CHAT, FS_EXTRACT, FS_MODERATION, FS_VERIFY
 from app.llm.client import LLMError, LLMUsage
 from app.pipeline.extraction import ExtractedStatementOut, ExtractionOutput
 from app.pipeline.verification import (
@@ -19,6 +19,7 @@ from app.pipeline.verification import (
     _TextWithEvidenceOut,
     _UnverifiableOut,
 )
+from app.rendering.service import JudgeOutput
 from app.retrieval.lightrag import RetrievalChunk, RetrievalResult
 from app.services.moderation import ModerationOutput
 from pydantic import BaseModel
@@ -27,10 +28,36 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class FakeLLM:
-    def __init__(self, *, block: bool = False, unavailable: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        block: bool = False,
+        unavailable: bool = False,
+        narratives: list[str] | None = None,
+        judge_issues: list[str] | None = None,
+    ) -> None:
         self.block = block
         self.unavailable = unavailable
+        self.narratives = list(narratives or ["The raw figure is supported [E1]."])
+        self.judge_issues = list(judge_issues or [])
         self.calls: list[str] = []
+
+    async def chat_text(
+        self,
+        *,
+        alias: str,
+        messages: list[dict[str, str]],
+        data_classes: list[str],
+        purpose: str,
+        user_id: str | None = None,
+        max_tokens: int = 1200,
+        temperature: float = 0.4,
+    ) -> tuple[str, LLMUsage]:
+        self.calls.append(alias)
+        if self.unavailable:
+            raise LLMError(503, "provider_unavailable", "fake provider outage")
+        text = self.narratives.pop(0) if self.narratives else "The evidence is insufficient."
+        return text, LLMUsage(tokens_in=10, tokens_out=5)
 
     async def chat_structured(
         self,
@@ -51,6 +78,8 @@ class FakeLLM:
                 categories=["sexual_minors"] if self.block else [],
                 sexual_minors=self.block,
             )
+        elif alias == FS_CHAT and output_model is JudgeOutput:
+            output = JudgeOutput(passed=not self.judge_issues, issues=self.judge_issues)
         elif alias == FS_EXTRACT:
             text = _input_text(messages)
             output = ExtractionOutput(

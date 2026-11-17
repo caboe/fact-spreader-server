@@ -8,12 +8,14 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phase 1 complete (2026-11-17). Phase 2 next.** The specs were revised for the v1 scope on
-2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md) as the decision
-log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
+**Phase 1 complete; Phase 2 in progress (2026-11-17).** The specs were revised for the v1
+scope on 2026-11-16 using [`docs/REDESIGN_NOTES_DE.md`](docs/REDESIGN_NOTES_DE.md) as the
+decision log; [`IMPLEMENT.md`](IMPLEMENT.md) is the approved plan and
 [`DECISIONS.md`](DECISIONS.md) records the non-obvious implementation choices. The Phase 1
 evidence, including live-model spend, is in
-[`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md).
+[`docs/PHASE_1_REPORT.md`](docs/PHASE_1_REPORT.md). Phase 2 has started with the persona
+renderer and the OpenAI-compatible checked-streaming surface; file/URL/image input,
+statement-level SSE, the full archive and the rest of Phase 2 remain open.
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes
@@ -29,12 +31,19 @@ the sexual-minors block.
 | LLM gateway | internal OpenAI-compatible chat/embeddings proxy, aliases, budget, usage, embedding lock |
 | Languages | en/de/fr/es deterministic substance; unsupported input falls back to English |
 | Operations | pinned Postgres+pgvector+AGE, Redis, stock LightRAG v1.5.0, health/readiness |
-| Tests | 35 unit, 9 integration, migration up/down/up, OpenAPI drift, compose checks |
+| Tests | 44 unit, 15 integration, migration up/down/up, OpenAPI drift, compose checks |
 
-Not yet in Phase 1: file/URL/image input, persona narration and consistency judge, the
-OpenAI-compatible chat surface, research, fast mode/cache, the claim archive endpoints
-beyond usage, the editorial document pipeline, the web UI and Caddy. Those are Phases 2–9
-in [`IMPLEMENT.md`](IMPLEMENT.md).
+Phase 2 so far adds three runtime personas (analyst, mediator, straight-talker), the
+deterministic checks plus a consistency judge with one re-render and a template fallback,
+output moderation, `GET /v1/models` with the persona list, and
+`POST /v1/chat/completions` with checked streaming. A live OpenAI-compatible canonical run
+passed the consistency check on the first attempt; a live streaming run delivered the
+result in the first chunk and narrative deltas only afterwards.
+
+Still open in Phase 2: file/URL/image input with SSRF and the shared parser; statement-level
+SSE events, reconnect replay and cancellation; conversation history/turn classification;
+translated evidence and quote labels; the basic claim archive; the remaining multilingual
+persona checks. Later phases add research, fast mode, the editorial pipeline and the UI.
 
 ## Quick start (development)
 

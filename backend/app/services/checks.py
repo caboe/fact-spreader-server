@@ -20,7 +20,9 @@ from app.contracts.api import (
     FactCheckResult,
     Job,
     ModerationInfo,
+    OutputModeration,
     PipelineInfo,
+    WarningInfo,
 )
 from app.contracts.enums import JobState, TurnType
 from app.core.config import Settings
@@ -31,10 +33,12 @@ from app.llm.aliases import FS_AUDIT, FS_EXTRACT, FS_MODERATION, FS_VERIFY
 from app.llm.client import LLMClient
 from app.pipeline.compact import build_compact
 from app.pipeline.runner import CheckPipeline, PipelineError, config_hash, refused_result
+from app.rendering import RenderingService
 from app.retrieval.lightrag import LightRAGClient
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
 from app.services.moderation import ModerationService
+from app.services.personas import PersonaConfigError, PersonaRegistry
 from app.services.publishers import PublisherRegistry
 
 
@@ -68,7 +72,12 @@ def pipeline_info(
     )
 
 
-def result_to_row(result: FactCheckResult, *, user_id: str | None) -> Result:
+def result_to_row(
+    result: FactCheckResult,
+    *,
+    user_id: str | None,
+    renderings: dict[str, Any] | None = None,
+) -> Result:
     return Result(
         id=result.id,
         job_id=result.job_id,
@@ -94,6 +103,7 @@ def result_to_row(result: FactCheckResult, *, user_id: str | None) -> Result:
         clarification_questions=result.clarification_questions,
         warnings=[item.model_dump(mode="json", by_alias=True) for item in result.warnings],
         moderation=result.moderation.model_dump(mode="json", by_alias=True),
+        renderings=renderings or {},
         pipeline=result.pipeline.model_dump(mode="json", by_alias=True),
         created_at=result.created_at,
         completed_at=result.completed_at,
@@ -128,13 +138,22 @@ def row_to_result(row: Result) -> FactCheckResult:
     )
 
 
-async def load_response(session: AsyncSession, result_id: str) -> CheckResponse | None:
+async def load_response(
+    session: AsyncSession, result_id: str, *, persona_id: str | None = None
+) -> CheckResponse | None:
     row = await session.get(Result, result_id)
     if row is None or row.deleted:
         return None
     result = row_to_result(row)
     compact = build_compact(result) if result.status == "complete" else None
-    return CheckResponse(result=result, rendering=None, compact=compact)
+    rendering = None
+    if persona_id and row.renderings:
+        raw = row.renderings.get(persona_id)
+        if raw:
+            from app.contracts.api import Rendering
+
+            rendering = Rendering.model_validate(raw)
+    return CheckResponse(result=result, rendering=rendering, compact=compact)
 
 
 def job_to_api(row: JobRow) -> Job:
@@ -163,6 +182,11 @@ async def create_check_job(
     user_id: str | None,
     response_language: str | None,
     turn_type: TurnType,
+    persona_id: str | None = None,
+    render_model_id: str | None = None,
+    output_format: str = "substance",
+    render_max_tokens: int = 8000,
+    render_temperature: float = 0.4,
 ) -> tuple[JobRow, ModerationInfo]:
     moderation = await ModerationService(LLMClient(settings, consumer="moderation")).classify_check(
         text, user_id=user_id
@@ -177,6 +201,11 @@ async def create_check_job(
         "turn_type": turn_type.value,
         "moderation": moderation.model_dump(mode="json"),
         "user_id": user_id,
+        "persona_id": persona_id,
+        "render_model_id": render_model_id,
+        "output_format": output_format,
+        "render_max_tokens": render_max_tokens,
+        "render_temperature": render_temperature,
     }
     job = JobRow(
         id=job_id,
@@ -229,6 +258,7 @@ async def run_check_job(
     methodology: Methodology,
     language: LanguageService,
     lightrag: LightRAGClient,
+    personas: PersonaRegistry,
     job: JobRow,
 ) -> str:
     # The worker claimed the job in another session; the instance passed here is
@@ -262,7 +292,40 @@ async def run_check_job(
         turn_type=TurnType(payload.get("turn_type") or TurnType.NEW_CLAIM.value),
         moderation=moderation,
     )
-    session.add(result_to_row(outcome.result, user_id=job_row.user_id))
+    result = outcome.result
+    renderings: dict[str, Any] = {}
+    persona_id = payload.get("persona_id")
+    if persona_id and result.status == "complete" and payload.get("output_format") != "compact":
+        try:
+            render_outcome = await RenderingService(
+                llm=LLMClient(settings, consumer="render", request_id=job_row.id),
+                personas=personas,
+                moderation=ModerationService(
+                    LLMClient(settings, consumer="moderation", request_id=job_row.id)
+                ),
+                user_id=job_row.user_id,
+            ).render(
+                result,
+                persona_id=str(persona_id),
+                language=result.response_language,
+                render_model_id=payload.get("render_model_id"),
+                max_tokens=int(payload.get("render_max_tokens") or 8000),
+                temperature=float(payload.get("render_temperature") or 0.4),
+            )
+            result.warnings.extend(render_outcome.warnings)
+            renderings[str(persona_id)] = render_outcome.rendering.model_dump(mode="json")
+            if render_outcome.output_moderation:
+                result.moderation.output_moderation = OutputModeration.model_validate(
+                    render_outcome.output_moderation
+                )
+        except (PersonaConfigError, KeyError, ValueError) as exc:
+            result.warnings.append(
+                WarningInfo(
+                    code="consistency_fallback",
+                    message=f"The persona rendering could not be produced: {type(exc).__name__}.",
+                )
+            )
+    session.add(result_to_row(result, user_id=job_row.user_id, renderings=renderings))
     session.add(
         ModerationEvent(
             id=new_id("mod"),

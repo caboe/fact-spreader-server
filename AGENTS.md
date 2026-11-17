@@ -23,14 +23,17 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phase 1 complete (2026-11-17). Phase 2 next.** The order of work is:
+**Phase 1 complete; Phase 2 in progress (2026-11-17).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
 2. ~~Write `IMPLEMENT.md`: phases with "Done when" checks tagged `[agent]` or
    `[human]`. Phase 1 is a vertical slice.~~ Approved 2026-11-16.
 3. Implement phase by phase. Phase 1 is complete; its live evidence is in
-   `docs/PHASE_1_REPORT.md`. Phase 2 (inputs, SSE, OpenAI surface, rendering) is next.
+   `docs/PHASE_1_REPORT.md`. Phase 2 is in progress: persona rendering, the consistency
+   checker and the OpenAI-compatible checked-streaming surface are done; file/URL/image
+   input, statement-level SSE, the full archive and the remaining multilingual work are
+   still open.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

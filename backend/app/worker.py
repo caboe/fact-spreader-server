@@ -28,6 +28,7 @@ from app.retrieval.lightrag import LightRAGClient
 from app.services.checks import run_check_job
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
+from app.services.personas import PersonaRegistry
 from app.services.publishers import PublisherRegistry
 
 logger = logging.getLogger("app.worker")
@@ -88,6 +89,7 @@ async def run_once(database: Database, settings: Settings, worker_id: str) -> bo
                     settings.supported_languages, settings.default_response_language
                 ),
                 lightrag=LightRAGClient(settings),
+                personas=PersonaRegistry.from_path(settings.personas_path),
                 job=job,
             )
             await session.commit()
