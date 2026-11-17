@@ -56,8 +56,11 @@ hits, plus an optional attributed summary. Code checks every citation, an indepe
 `fs-verify` judge confirms support, and a failed or timed-out summary is withheld. A claim
 with an open confounder triggers one targeted retrieval; the pure gate still downgrades a
 proposed `true` to `insufficient_evidence` with `audit_incomplete`. Contradiction records,
-the staleness downgrade and corpus-gap aggregation are in place. Fast mode with the
-semantic cache and the full re-check archive flow are still open.
+the staleness downgrade and corpus-gap aggregation are in place. Fast mode serves a
+pgvector semantic-cache hit in 1.3–1.7 s and a cold preliminary in 9.6 s while the full
+check runs as a new version; the archive lists only the newest version and keeps the whole
+chain in its detail. Manual re-checks and QS soft deletion are implemented. Automatic
+re-checks on corpus changes and the Phase 3 live acceptance run are still open.
 
 ## Quick start (development)
 
