@@ -53,6 +53,7 @@
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     <button type="submit" disabled={busy}>{busy ? tr('common.loading') : tr('login.submit')}</button>
   </form>
+  <p class="meta"><a href="/setup">{tr('setup.title')}</a></p>
 </section>
 
 <style>
@@ -98,5 +99,10 @@
   .error {
     color: var(--fs-false);
     margin: 0;
+  }
+  .meta {
+    margin: 1rem 0 0;
+    font-size: 0.85rem;
+    color: var(--fs-muted);
   }
 </style>

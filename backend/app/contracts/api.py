@@ -695,6 +695,16 @@ class ChecklistOverrideRequest(RequestModel):
     confounders: list[ConfounderOverride] | None = None
 
 
+class ModerationTestRequest(RequestModel):
+    confirm: bool = False
+
+
+class ModerationTestResult(ApiModel):
+    backend: str
+    flagged: bool = False
+    categories: list[str] = Field(default_factory=list)
+
+
 class ReindexRequest(RequestModel):
     confirm: bool = False
     reason: str | None = Field(default=None, max_length=500)
@@ -1045,6 +1055,19 @@ class BatchInfo(ApiModel):
 
 class BatchResponse(ApiModel):
     batch: BatchInfo
+
+
+class BatchEstimateFile(ApiModel):
+    filename: str
+    size_bytes: int
+
+
+class BatchEstimateResponse(ApiModel):
+    estimate_usd: float
+    budget_remaining_usd: float
+    exceeds_budget: bool = False
+    files: list[BatchEstimateFile] = Field(default_factory=list)
+    warnings: list[DocumentWarning] = Field(default_factory=list)
 
 
 class BatchSubmitRequest(RequestModel):

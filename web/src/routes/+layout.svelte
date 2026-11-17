@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { dev } from '$app/environment';
   import { page } from '$app/stores';
   import { getSession, logout } from '$lib/api';
   import { session } from '$lib/session';
@@ -10,7 +11,35 @@
 
   let { children } = $props();
 
+  interface InstallPrompt extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: string }>;
+  }
+
+  let installPrompt = $state<InstallPrompt | null>(null);
+  let iosHint = $state(false);
+  let installDismissed = $state(false);
+  let removePromptListener: (() => void) | null = null;
+
   onMount(async () => {
+    if (!dev && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        /* installability is a progressive enhancement */
+      });
+    }
+    const capture = (event: Event) => {
+      event.preventDefault();
+      installPrompt = event as InstallPrompt;
+    };
+    window.addEventListener('beforeinstallprompt', capture);
+    removePromptListener = () => window.removeEventListener('beforeinstallprompt', capture);
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as { standalone?: boolean }).standalone === true;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    installDismissed = localStorage.getItem('fs-pwa-dismissed') === '1';
+    iosHint = ios && !standalone;
+
     setLang(initialLang());
     try {
       session.set(await getSession());
@@ -18,6 +47,20 @@
       session.set(null);
     }
   });
+
+  onDestroy(() => removePromptListener?.());
+
+  async function install(): Promise<void> {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+  }
+
+  function dismissInstall(): void {
+    installDismissed = true;
+    localStorage.setItem('fs-pwa-dismissed', '1');
+  }
 
   async function signOut(): Promise<void> {
     try {
@@ -44,6 +87,16 @@
     <a href="/" aria-current={$page?.url?.pathname === '/' ? 'page' : undefined}>{tr('nav.check')}</a>
     <a href="/archive">{tr('nav.archive')}</a>
     <a href="/chat">{tr('nav.chat')}</a>
+    {#if $session?.user.permissions.includes('devices:manage')}
+      <a href="/connect" aria-current={$page?.url?.pathname.startsWith('/connect') ? 'page' : undefined}
+        >{tr('nav.connect')}</a
+      >
+    {/if}
+    {#if $session?.user.permissions.includes('documents:submit')}
+      <a href="/submit" aria-current={$page?.url?.pathname.startsWith('/submit') ? 'page' : undefined}
+        >{tr('nav.submit')}</a
+      >
+    {/if}
     {#if $session?.user.permissions.includes('documents:review')}
       <a href="/editorial" aria-current={$page?.url?.pathname.startsWith('/editorial') ? 'page' : undefined}
         >{tr('nav.editorial')}</a
@@ -71,6 +124,16 @@
   </div>
 </header>
 
+{#if !installDismissed && (installPrompt || iosHint)}
+  <div class="install-banner" role="status">
+    <span>{installPrompt ? tr('pwa.install_hint') : tr('pwa.ios_hint')}</span>
+    {#if installPrompt}
+      <button type="button" onclick={install}>{tr('pwa.install')}</button>
+    {/if}
+    <button type="button" class="link" onclick={dismissInstall}>{tr('pwa.dismiss')}</button>
+  </div>
+{/if}
+
 {#if $session?.totp_setup_required}
   <div class="setup-banner" role="status">
     <span>{tr('totp.banner')}</span>
@@ -83,6 +146,31 @@
 </main>
 
 <style>
+  .install-banner {
+    display: flex;
+    gap: 0.7rem;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 0.5rem 1.2rem;
+    background: var(--fs-accent-soft);
+    color: var(--fs-text);
+    font-size: 0.88rem;
+  }
+  .install-banner button {
+    padding: 0.3rem 0.8rem;
+    border-radius: 0.4rem;
+    border: none;
+    background: var(--fs-accent);
+    color: var(--fs-accent-contrast);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .install-banner button.link {
+    background: none;
+    color: var(--fs-accent);
+    font-weight: 500;
+  }
   .shell-header {
     display: flex;
     flex-wrap: wrap;

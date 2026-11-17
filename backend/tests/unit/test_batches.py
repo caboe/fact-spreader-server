@@ -27,3 +27,39 @@ def test_a_json_sidecar_maps_by_filename() -> None:
 
 def test_an_invalid_sidecar_is_ignored() -> None:
     assert parse_metadata_sidecar(b"not json or csv", "metadata.csv") == {}
+
+
+async def test_retrying_an_image_document_returns_a_warning_instead_of_raising() -> None:
+    """A retry that cannot parse the stored bytes must stay a per-file result, not a 500."""
+    from types import SimpleNamespace
+
+    from app.core.config import Settings
+    from app.services.documents import retry_failed_document
+
+    document = SimpleNamespace(
+        title="scan.png",
+        content_hash="hash",
+        language="en",
+        license=None,
+        source_quality="D",
+        state="failed",
+        warnings=[],
+        updated_at=None,
+    )
+    version = SimpleNamespace(
+        raw_bytes=b"not-an-image",
+        raw_media_type="image/png",
+        file_path="scan.png",
+        content_md="",
+        content_hash="hash",
+        size_bytes=0,
+    )
+    warning = await retry_failed_document(
+        None,  # type: ignore[arg-type]
+        document=document,  # type: ignore[arg-type]
+        version=version,  # type: ignore[arg-type]
+        settings=Settings(),
+    )
+    assert warning is not None
+    assert warning.code == "parse_warning"
+    assert "vision path" in warning.message

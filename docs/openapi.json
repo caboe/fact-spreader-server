@@ -139,6 +139,61 @@
         "title": "BatchCounts",
         "type": "object"
       },
+      "BatchEstimateFile": {
+        "properties": {
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "filename",
+          "size_bytes"
+        ],
+        "title": "BatchEstimateFile",
+        "type": "object"
+      },
+      "BatchEstimateResponse": {
+        "properties": {
+          "budget_remaining_usd": {
+            "title": "Budget Remaining Usd",
+            "type": "number"
+          },
+          "estimate_usd": {
+            "title": "Estimate Usd",
+            "type": "number"
+          },
+          "exceeds_budget": {
+            "default": false,
+            "title": "Exceeds Budget",
+            "type": "boolean"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/BatchEstimateFile"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentWarning"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "estimate_usd",
+          "budget_remaining_usd"
+        ],
+        "title": "BatchEstimateResponse",
+        "type": "object"
+      },
       "BatchFile": {
         "properties": {
           "document_id": {
@@ -2431,6 +2486,43 @@
           }
         },
         "title": "ModerationInfo",
+        "type": "object"
+      },
+      "ModerationTestRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          }
+        },
+        "title": "ModerationTestRequest",
+        "type": "object"
+      },
+      "ModerationTestResult": {
+        "properties": {
+          "backend": {
+            "title": "Backend",
+            "type": "string"
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "flagged": {
+            "default": false,
+            "title": "Flagged",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "backend"
+        ],
+        "title": "ModerationTestResult",
         "type": "object"
       },
       "OutputModeration": {
@@ -6967,6 +7059,48 @@
         ]
       }
     },
+    "/v1/config/moderation-test": {
+      "post": {
+        "description": "Run the benign moderation probe the wizard uses, without changing setup state.",
+        "operationId": "moderation_test_v1_config_moderation_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModerationTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModerationTestResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Moderation Test",
+        "tags": [
+          "config"
+        ]
+      }
+    },
     "/v1/config/personas": {
       "get": {
         "operationId": "list_personas_v1_config_personas_get",
@@ -7684,6 +7818,28 @@
           }
         },
         "summary": "Submit Batch",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/v1/documents/batches/estimate": {
+      "post": {
+        "description": "Estimate a batch without creating documents, so the UI can show the cost first.\n\nThe same upload rules apply: ZIP entries are sanitised and the total size and count\nlimits are enforced. No parsing, no model call and no document row.",
+        "operationId": "estimate_batch_v1_documents_batches_estimate_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchEstimateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Estimate Batch",
         "tags": [
           "documents"
         ]

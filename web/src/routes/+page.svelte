@@ -38,6 +38,20 @@
       }
     }
     personas = await listPersonas().catch(() => []);
+    // Share target: Android shares text or a URL into "/?text=…" or "/?url=…".
+    const params = new URLSearchParams(window.location.search);
+    const sharedText = params.get('text')?.trim();
+    const sharedUrl = params.get('url')?.trim();
+    if (sharedText) {
+      mode = 'text';
+      text = sharedText;
+    } else if (sharedUrl) {
+      mode = 'url';
+      url = sharedUrl;
+    }
+    if (sharedText || sharedUrl) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   });
   onDestroy(() => source?.close());
 

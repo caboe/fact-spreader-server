@@ -50,6 +50,9 @@
     <a href="/admin/settings" aria-current={$page.url.pathname === '/admin/settings' ? 'page' : undefined}
       >{tr('admin.settings')}</a
     >
+    <a href="/admin/curation" aria-current={$page.url.pathname === '/admin/curation' ? 'page' : undefined}
+      >{tr('admin.curation')}</a
+    >
     <a href="/admin/reindex" aria-current={$page.url.pathname === '/admin/reindex' ? 'page' : undefined}
       >{tr('admin.reindex')}</a
     >

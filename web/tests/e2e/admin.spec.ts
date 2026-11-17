@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { capture } from './helpers';
 
 // The admin UI is exercised with contract-shaped fixtures so the test needs no TOTP
 // credential and spends no model budget. The endpoints themselves have integration tests.
@@ -183,4 +184,22 @@ test('settings expose the data-flow policy and re-index stays disabled until con
   await expect(start).toBeDisabled();
   await page.getByRole('checkbox').check();
   await expect(start).toBeEnabled();
+});
+
+
+test('the admin screens have wide, dark and narrow captures', async ({ page }) => {
+  const screens: [string, string][] = [
+    ['/admin', 'admin-overview'],
+    ['/admin/providers', 'admin-providers'],
+    ['/admin/roles', 'admin-roles'],
+    ['/admin/users', 'admin-users'],
+    ['/admin/usage', 'admin-usage'],
+    ['/admin/settings', 'admin-settings'],
+    ['/admin/reindex', 'admin-reindex'],
+  ];
+  for (const [path, name] of screens) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await capture(page, name, '../docs/screenshots/phase-8');
+  }
 });

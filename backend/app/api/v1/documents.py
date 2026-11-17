@@ -13,6 +13,8 @@ from starlette.datastructures import UploadFile
 from app.contracts.api import (
     ApprovalRequest,
     BatchActionRequest,
+    BatchEstimateFile,
+    BatchEstimateResponse,
     BatchRejectRequest,
     BatchResponse,
     BatchRetryRequest,
@@ -21,6 +23,7 @@ from app.contracts.api import (
     DocumentMetadata,
     DocumentSubmitRequest,
     DocumentSubmitResponse,
+    DocumentWarning,
     FigureUpdateRequest,
     Job,
     RejectRequest,
@@ -689,6 +692,61 @@ async def submit_batch(
     await session.commit()
     info = await batch_to_api(session, batch, warnings=zip_warnings)
     return BatchResponse(batch=info)
+
+
+@router.post("/documents/batches/estimate", response_model=BatchEstimateResponse)
+async def estimate_batch(
+    request: Request,
+    principal: Submit,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> BatchEstimateResponse:
+    """Estimate a batch without creating documents, so the UI can show the cost first.
+
+    The same upload rules apply: ZIP entries are sanitised and the total size and count
+    limits are enforced. No parsing, no model call and no document row.
+    """
+    content_type = request.headers.get("content-type", "")
+    if not content_type.startswith("multipart/form-data"):
+        raise AppError(422, "invalid_input", "A batch estimate must be multipart.")
+    form = await request.form()
+    payload_part = form.get("payload")
+    payload_raw = payload_part if isinstance(payload_part, str) else "{}"
+    try:
+        body = BatchSubmitRequest.model_validate_json(payload_raw)
+    except ValueError as exc:
+        raise AppError(422, "validation_error", "The batch payload is invalid.") from exc
+    uploads: list[tuple[str, bytes, str]] = []
+    for key, value in form.multi_items():
+        if key in {"files", "file"} and isinstance(value, UploadFile):
+            data = await value.read()
+            await value.close()
+            uploads.append(
+                (value.filename or "upload", data, value.content_type or "application/octet-stream")
+            )
+    warnings: list[str] = []
+    archive = form.get("archive")
+    if isinstance(archive, UploadFile):
+        zip_data = await archive.read()
+        await archive.close()
+        zipped, warnings = sanitise_zip(zip_data, request.app.state.settings)
+        uploads.extend(zipped)
+    if len(uploads) + len(body.urls) > 100:
+        raise AppError(413, "payload_too_large", "A batch accepts at most 100 files.")
+    total = sum(len(data) for _, data, _ in uploads)
+    if total > 200_000_000:
+        raise AppError(413, "payload_too_large", "The batch exceeds the total size limit.")
+    estimate = estimate_batch_uploads(uploads, request.app.state.settings)
+    remaining = await budget_remaining(session, request.app.state.settings)
+    return BatchEstimateResponse(
+        estimate_usd=estimate,
+        budget_remaining_usd=round(remaining, 6),
+        exceeds_budget=estimate > remaining,
+        files=[
+            BatchEstimateFile(filename=filename, size_bytes=len(data))
+            for filename, data, _media in uploads
+        ],
+        warnings=[DocumentWarning(code="zip_sanitized", message=item) for item in warnings],
+    )
 
 
 @router.get("/documents/batches/{batch_id}", response_model=BatchResponse)

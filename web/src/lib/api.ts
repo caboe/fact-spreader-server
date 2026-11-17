@@ -390,6 +390,7 @@ export async function probeModel(
 export type DocumentInfo = components['schemas']['DocumentInfo'];
 export type DocumentFigure = components['schemas']['DocumentFigure'];
 export type BatchInfo = components['schemas']['BatchInfo'];
+export type BatchEstimateResponse = components['schemas']['BatchEstimateResponse'];
 export type DeviceInfo = components['schemas']['DeviceInfo'];
 
 export interface ReviewQueue {
@@ -539,10 +540,24 @@ export interface SubmissionMetadata {
 
 export interface BatchUploadInput {
   files?: File[];
+  archive?: File;
+  metadataFile?: File;
   urls?: string[];
   metadata?: SubmissionMetadata;
   acceptEstimate?: boolean;
   force?: boolean;
+}
+
+export async function estimateBatch(input: {
+  files?: File[];
+  archive?: File;
+  urls?: string[];
+}): Promise<BatchEstimateResponse> {
+  const form = new FormData();
+  form.set('payload', JSON.stringify({ urls: input.urls ?? [] }));
+  for (const file of input.files ?? []) form.append('files', file);
+  if (input.archive) form.append('archive', input.archive);
+  return request('/v1/documents/batches/estimate', { method: 'POST', body: form });
 }
 
 export async function submitBatch(input: BatchUploadInput): Promise<{ batch: BatchInfo }> {
@@ -557,6 +572,8 @@ export async function submitBatch(input: BatchUploadInput): Promise<{ batch: Bat
     }),
   );
   for (const file of input.files ?? []) form.append('files', file);
+  if (input.archive) form.append('archive', input.archive);
+  if (input.metadataFile) form.append('metadata_file', input.metadataFile);
   return request('/v1/documents/batches', { method: 'POST', body: form });
 }
 
@@ -564,10 +581,17 @@ export async function getBatch(id: string): Promise<{ batch: BatchInfo }> {
   return request(`/v1/documents/batches/${encodeURIComponent(id)}`);
 }
 
+export interface BatchActionResult {
+  document_id: string;
+  state?: string;
+  error?: string;
+  message?: string;
+}
+
 export async function approveBatch(
   id: string,
   body: { document_ids?: string[]; license_confirmed: boolean; redistribution: string; note?: string },
-): Promise<{ batch: BatchInfo }> {
+): Promise<{ results: BatchActionResult[] }> {
   return request(`/v1/documents/batches/${encodeURIComponent(id)}/approve`, {
     method: 'POST',
     body: JSON.stringify(body),
@@ -577,21 +601,24 @@ export async function approveBatch(
 export async function rejectBatch(
   id: string,
   body: { document_ids?: string[]; reason: string },
-): Promise<{ batch: BatchInfo }> {
+): Promise<{ results: BatchActionResult[] }> {
   return request(`/v1/documents/batches/${encodeURIComponent(id)}/reject`, {
     method: 'POST',
     body: JSON.stringify(body),
   });
 }
 
-export async function retryBatch(id: string, documentIds: string[] = []): Promise<{ batch: BatchInfo }> {
+export async function retryBatch(
+  id: string,
+  documentIds: string[] = [],
+): Promise<{ results: BatchActionResult[] }> {
   return request(`/v1/documents/batches/${encodeURIComponent(id)}/retry`, {
     method: 'POST',
     body: JSON.stringify({ document_ids: documentIds }),
   });
 }
 
-export async function listDevices(): Promise<{ data: DeviceInfo[] }> {
+export async function listDevices(): Promise<DeviceInfo[]> {
   return request('/v1/devices');
 }
 
@@ -607,4 +634,188 @@ export async function createDevice(
 
 export async function revokeDevice(id: string): Promise<void> {
   await request(`/v1/devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// --- curation settings: publishers, personas, methodology (Phase 8) ------------
+
+export type PersonaConfig = components['schemas']['PersonaInfo'];
+export type PublisherListInfo = components['schemas']['PublisherListInfo'];
+export type MethodologySummary = components['schemas']['MethodologySummary'];
+
+export interface PublisherOverrideInput {
+  key: string;
+  grade?: string;
+  disputed?: boolean;
+  note?: string;
+}
+
+export async function listPublishers(): Promise<PublisherListInfo> {
+  return request('/v1/config/publishers');
+}
+
+export async function savePublisherOverrides(
+  entries: PublisherOverrideInput[],
+): Promise<PublisherListInfo> {
+  return request('/v1/config/publishers/overrides', {
+    method: 'PUT',
+    body: JSON.stringify({ entries }),
+  });
+}
+
+export async function publisherDiff(): Promise<
+  { key: string; publisher: string | null; field: string; shipped: unknown; local: unknown }[]
+> {
+  return request('/v1/config/publishers/diff');
+}
+
+export async function listPersonaConfig(): Promise<PersonaConfig[]> {
+  return request('/v1/config/personas');
+}
+
+export async function savePersona(
+  id: string,
+  body: Record<string, unknown>,
+): Promise<PersonaConfig> {
+  return request(`/v1/config/personas/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deletePersona(id: string): Promise<void> {
+  await request(`/v1/config/personas/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export interface ChecklistInfo {
+  topic: string;
+  name: string;
+  version: number;
+  staleness_days: number;
+  confounders: { id: string; label: string; retrieval_hint: string }[];
+}
+
+export interface PatternInfo {
+  id: string;
+  name?: string;
+  definition?: string;
+  mechanism?: string;
+  [key: string]: unknown;
+}
+
+export interface MethodologyInfo {
+  patterns_version: string;
+  version: number;
+  checklists: ChecklistInfo[];
+  patterns: PatternInfo[];
+  overrides: Record<string, unknown>;
+}
+
+export async function getMethodology(): Promise<MethodologyInfo> {
+  return request('/v1/config/methodology');
+}
+
+export async function saveChecklist(
+  topic: string,
+  body: { staleness_days?: number; confounders?: { id: string; label?: string; retrieval_hint?: string }[] },
+): Promise<MethodologyInfo> {
+  return request(`/v1/config/methodology/checklists/${encodeURIComponent(topic)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function savePattern(
+  id: string,
+  body: { name?: string; definition?: string; mechanism?: string },
+): Promise<MethodologyInfo> {
+  return request(`/v1/config/methodology/patterns/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function moderationTest(): Promise<{
+  backend: string;
+  flagged: boolean;
+  categories: string[];
+}> {
+  return request('/v1/config/moderation-test', {
+    method: 'POST',
+    body: JSON.stringify({ confirm: true }),
+  });
+}
+
+export type InstanceInfo = components['schemas']['InstanceInfo'];
+
+export async function getInstance(): Promise<InstanceInfo> {
+  return request('/v1/instance');
+}
+
+// --- first-run setup wizard (Phase 5 backend, Phase 8 UI) ----------------------
+
+export type SetupStatus = components['schemas']['SetupStatus'];
+export type SetupAdminCreated = components['schemas']['SetupAdminCreated'];
+
+export async function setupStatus(): Promise<SetupStatus> {
+  return request('/api/setup/status');
+}
+
+export async function setupAdmin(body: {
+  token: string;
+  email: string;
+  password: string;
+  display_name: string;
+}): Promise<SetupAdminCreated> {
+  return request('/api/setup/admin', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function setupConfirmTotp(
+  token: string,
+  code: string,
+): Promise<{ recovery_codes: string[] }> {
+  return request('/api/setup/admin/totp', {
+    method: 'POST',
+    body: JSON.stringify({ token, code }),
+  });
+}
+
+export async function setupOrganization(body: {
+  name: string;
+  organization?: string;
+  contact?: string;
+  overview_public: boolean;
+  monthly_budget_usd?: number;
+}): Promise<SetupStatus> {
+  return request('/api/setup/organization', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function setupProvider(body: {
+  name: string;
+  base_url: string;
+  api_key?: string;
+  is_local: boolean;
+  use: 'chat' | 'embedding';
+}): Promise<{ provider_id: string; models: string[]; tested_at: string }> {
+  return request('/api/setup/provider', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function setupModels(body: {
+  chat_model: string;
+  embedding_model: string;
+  embedding_dim?: number;
+  multilingual: boolean;
+}): Promise<{ aliases: string[]; chat_model: string; embedding_model: string }> {
+  return request('/api/setup/models', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function setupModerationTest(): Promise<{
+  backend: string;
+  flagged: boolean;
+  categories: string[];
+}> {
+  return request('/api/setup/moderation-test', { method: 'POST', body: '{}' });
+}
+
+export async function setupComplete(): Promise<{ complete: boolean; instance_id: string }> {
+  return request('/api/setup/complete', { method: 'POST', body: '{}' });
 }

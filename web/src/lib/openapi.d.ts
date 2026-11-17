@@ -524,6 +524,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/config/moderation-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moderation Test
+         * @description Run the benign moderation probe the wizard uses, without changing setup state.
+         */
+        post: operations["moderation_test_v1_config_moderation_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/config/personas": {
         parameters: {
             query?: never;
@@ -827,6 +847,29 @@ export interface paths {
         put?: never;
         /** Submit Batch */
         post: operations["submit_batch_v1_documents_batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/documents/batches/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Estimate Batch
+         * @description Estimate a batch without creating documents, so the UI can show the cost first.
+         *
+         *     The same upload rules apply: ZIP entries are sanitised and the total size and count
+         *     limits are enforced. No parsing, no model call and no document row.
+         */
+        post: operations["estimate_batch_v1_documents_batches_estimate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1393,6 +1436,29 @@ export interface components {
              * @default 0
              */
             warning: number;
+        };
+        /** BatchEstimateFile */
+        BatchEstimateFile: {
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+        };
+        /** BatchEstimateResponse */
+        BatchEstimateResponse: {
+            /** Budget Remaining Usd */
+            budget_remaining_usd: number;
+            /** Estimate Usd */
+            estimate_usd: number;
+            /**
+             * Exceeds Budget
+             * @default false
+             */
+            exceeds_budget: boolean;
+            /** Files */
+            files?: components["schemas"]["BatchEstimateFile"][];
+            /** Warnings */
+            warnings?: components["schemas"]["DocumentWarning"][];
         };
         /** BatchFile */
         BatchFile: {
@@ -2248,6 +2314,26 @@ export interface components {
              */
             flagged: boolean;
             output_moderation?: components["schemas"]["OutputModeration"];
+        };
+        /** ModerationTestRequest */
+        ModerationTestRequest: {
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+        };
+        /** ModerationTestResult */
+        ModerationTestResult: {
+            /** Backend */
+            backend: string;
+            /** Categories */
+            categories?: string[];
+            /**
+             * Flagged
+             * @default false
+             */
+            flagged: boolean;
         };
         /** OutputModeration */
         OutputModeration: {
@@ -4374,6 +4460,39 @@ export interface operations {
             };
         };
     };
+    moderation_test_v1_config_moderation_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModerationTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModerationTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_personas_v1_config_personas_get: {
         parameters: {
             query?: never;
@@ -4940,6 +5059,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+        };
+    };
+    estimate_batch_v1_documents_batches_estimate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchEstimateResponse"];
                 };
             };
         };

@@ -20,6 +20,8 @@ from app.contracts.api import (
     ModelCreate,
     ModelInfo,
     ModelUpdate,
+    ModerationTestRequest,
+    ModerationTestResult,
     PatternOverrideRequest,
     PersonaInfo,
     PersonaWrite,
@@ -45,6 +47,7 @@ from app.contracts.api import (
 from app.core.errors import AppError
 from app.db.models import Job as JobRow
 from app.db.session import get_session
+from app.llm.client import LLMClient
 from app.services import (
     methodology_overrides,
     persona_overrides,
@@ -53,6 +56,8 @@ from app.services import (
     reindex,
 )
 from app.services.auth import Principal, require_permission
+from app.services.moderation import ModerationService
+from app.services.setup import SETUP_MODERATION_SAMPLE
 
 router = APIRouter(prefix="/v1/config", tags=["config"])
 ConfigManage = Annotated[Principal, Depends(require_permission("config:manage"))]
@@ -424,6 +429,29 @@ async def reindex_status(
         progress=job.progress,
         documents=len((job.payload or {}).get("document_ids") or []),
         error=job.error,
+    )
+
+
+@router.post("/moderation-test", response_model=ModerationTestResult)
+async def moderation_test(
+    body: ModerationTestRequest,
+    request: Request,
+    principal: ConfigManage,
+    session: SessionDep,
+) -> ModerationTestResult:
+    """Run the benign moderation probe the wizard uses, without changing setup state."""
+    if not body.confirm:
+        raise AppError(
+            422,
+            "confirmation_required",
+            "The moderation test spends a model call and needs explicit confirmation.",
+        )
+    service = ModerationService(LLMClient(request.app.state.settings, consumer="setup"))
+    result = await service.classify_check(SETUP_MODERATION_SAMPLE, user_id=None)
+    return ModerationTestResult(
+        backend=result.backend or "",
+        flagged=result.flagged,
+        categories=list(result.categories),
     )
 
 

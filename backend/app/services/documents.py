@@ -614,7 +614,7 @@ async def retry_failed_document(
             data=version.raw_bytes,
             settings=settings,
         )
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, UrlFetchError) as exc:
         return DocumentWarning(code="parse_warning", message=str(exc)[:500])
     if not text.strip():
         return DocumentWarning(code="parse_warning", message="The retry produced no readable text.")

@@ -55,10 +55,15 @@ Three kinds of request share one API:
    place; `make verify` includes `web-check`. Against the live stack the Playwright suite
    is 12 passed, 1 skipped (the optional TOTP re-enrolment): text, file, image, URL and a
    streamed chat answer all reach the report, and the human accepted the visual design on
-   2026-11-17. See `docs/PHASE_7_REPORT.md`. Phase 8 has started
-   with the operator admin console (registry, role assignment, users, usage, data-flow and
-   budget settings, re-index); the editorial, batch, remaining settings, plugin and PWA
-   slices are open. See `docs/PHASE_8_REPORT.md`.
+   2026-11-17. See `docs/PHASE_7_REPORT.md`. Phase 8's agent slices are
+   complete: the operator admin console, the editorial queue, batch upload with a
+   pre-submit estimate, curation settings, the first-run setup wizard, the device-token
+   connect flow with `docs/EXTENSION.md`, and the PWA. The Playwright suite is 27 passed,
+   2 skipped against the live stack, including live batch, editorial approve→index→withdraw
+   and device-token compact-check runs. The `[human]` visual acceptance and the
+   real-browser plugin test are open. API-key management and the retention/four-eyes/backup
+   settings are deferred because their backend surface does not exist yet. See
+   `docs/PHASE_8_REPORT.md`.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

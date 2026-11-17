@@ -697,13 +697,21 @@ archive and chat with the service, in a calm, accessible, bilingual-ready interf
 
 ## 11. Phase 8 — Editorial, batch, usage, settings and the plugin handoff
 
-**Status: in progress (2026-11-17).** The operator admin console is built: overview,
-providers and models with connection test and write-only key replacement, validated role
-assignment with the shared reasons, user administration and limits, usage summaries/CSV,
-data-flow and role-budget settings, and a confirmed re-index view. It reuses the Phase 6
-API; the editorial queue, batch upload, persona/methodology/publisher editors, plugin
-handoff and PWA remain. `make web-check` is green and the mocked Playwright admin suite
-passes. See [`docs/PHASE_8_REPORT.md`](docs/PHASE_8_REPORT.md).
+**Status: agent slices complete, human gate open (2026-11-17).** Built and exercised
+against the live stack: the operator admin console (previously), the editorial queue
+(list/filter/detail, figure correction, approval/rejection/withdrawal, preselected batch
+approval, contradictions and gaps), batch submission with a pre-submit cost estimate, ZIP
+sanitisation, per-file states, retry and batch approval, the curation settings (publishers
+with diff, personas, methodology, moderation console), the first-run setup wizard, the
+device-token connect flow with the one-time extension handoff and `docs/EXTENSION.md`, and
+the PWA (manifest, icons, share target, service worker, install prompt). The Playwright
+suite is **27 passed, 2 skipped** in 5.1 min: the skips are the optional TOTP re-enrolment
+and the editorial live approval, which was run separately and green (approve → indexed →
+withdraw); the live batch and device-token compact-check flows also ran green. API-key
+management, retention/four-eyes/backup screens and the persona test console are deferred
+because their backend surface does not exist yet; they are listed in
+[`docs/PHASE_8_REPORT.md`](docs/PHASE_8_REPORT.md). The `[human]` visual acceptance and the
+real-browser plugin test are open, so the agent stops here.
 
 **Goal.** The editorial workflow, batch upload, usage overview, settings and the browser
 extension connection are usable in the real UI, and the app is installable as a PWA.
