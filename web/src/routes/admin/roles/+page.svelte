@@ -100,8 +100,11 @@
 <style>
   .roles {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr));
     gap: 1rem;
+  }
+  .roles > article {
+    min-width: 0;
   }
   .panel {
     background: var(--fs-surface);
@@ -142,6 +145,9 @@
     color: var(--fs-misleading);
     font-size: 0.85rem;
   }
+  .reasons li {
+    overflow-wrap: anywhere;
+  }
   form {
     display: flex;
     gap: 0.5rem;
@@ -154,9 +160,13 @@
     gap: 0.25rem;
     font-size: 0.8rem;
     color: var(--fs-muted);
-    flex: 1;
+    flex: 1 1 14rem;
+    min-width: 0;
   }
   select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding: 0.45rem 0.6rem;
     border-radius: 0.5rem;
     border: 1px solid color-mix(in srgb, var(--fs-border) 60%, transparent);
