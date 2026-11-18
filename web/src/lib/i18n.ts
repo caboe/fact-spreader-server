@@ -83,6 +83,8 @@ const en: Catalog = {
   'totp.confirm': 'Confirm',
   'totp.recovery': 'Save these recovery codes now; each one works once.',
   'totp.enabled': 'Two-factor authentication is enabled.',
+  'totp.re_enrol': 'Re-enrol authenticator',
+  'totp.re_enrol_hint': 'Lost the authenticator? Enrol a new one here; the old secret stops working immediately.',
   'totp.done': 'Continue',
   'totp.banner': 'Two-factor authentication is required for this account.',
   'totp.enable': 'Set up TOTP',
