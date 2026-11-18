@@ -79,18 +79,31 @@ The live run uses fast mode. Full-pipeline latency was measured separately in Ph
 (p50 35.1 s, p95 81.8 s); the fast path is the one the evaluation can run across the whole
 set within the budget.
 
-## Results
+## Baseline (2026-11-18)
 
-The baseline is not committed yet. The first 25-case live run completed against a corpus
-that did not yet contain the fixture documents; its numbers are recorded in
-`docs/PHASE_9_REPORT.md` but do not measure the labels and are not used. The fixture corpus
-was then seeded (10 documents), but the next run stopped on `402 Insufficient Balance` from
-the provider before predictions were written. After the provider key is topped up:
+The fixture corpus was seeded in full (23 documents) and the 25 cases were run through the
+full pipeline. The recorded predictions are `tests/eval/predictions.baseline.jsonl`;
+`make eval-recorded` reproduces these numbers without a network:
 
-```bash
-make eval-live
-make eval-recorded
-```
+| Metric | Value |
+| --- | --- |
+| Cases | 25 |
+| No verdict | 0 |
+| Accuracy | 0.640 |
+| Macro-F1 (7 verdicts) | 0.625 |
+| Misleadingness recall | 0.333 |
+| True precision / recall | 1.000 / 0.833 |
+| True-but-misleading precision / recall | 0.667 / 0.333 |
+| False precision / recall | 1.000 / 1.000 |
+| Contested precision / recall | 0.500 / 1.000 |
+| Gate-downgrade rate | 0.160 |
+| Latency p50 / p95 | 16.3 s / 71.2 s |
+| Cache-hit rate (<1.5 s) | 0.000 |
+| Cost | $0.0812 ($0.003248/check) |
 
-and commit `tests/eval/predictions.baseline.jsonl` with the resulting numbers. Re-running
-`make eval-live` overwrites the baseline; review the diff before committing it.
+The set is small and the numbers describe this synthetic corpus. Two pipeline issues were
+found while producing them and fixed before the baseline: retrieval ignored a document-level
+source-quality override (all fixture evidence was graded D), and verification output hit the
+8k-token cap on longer evidence sets (candidates are now capped at six with a compact-output
+instruction). Re-running `make eval-live` overwrites the baseline; review the diff before
+committing it.

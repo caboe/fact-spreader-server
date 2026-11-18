@@ -4,7 +4,7 @@ title: "Average annual hours actually worked per worker (fixture)"
 publisher: "OECD"
 language: "en"
 domain_tags: ["economics"]
-publication_date: "2024-06-01"
+publication_date: "2026-06-01"
 url: "https://data.oecd.org/fixture/hours.htm"
 doi: "10.1787/fixture-hours-aggregate"
 dataset_id: "fixture-labour-dataset"

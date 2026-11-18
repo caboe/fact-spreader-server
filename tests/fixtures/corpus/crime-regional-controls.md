@@ -4,7 +4,7 @@ title: "Regional analysis with controls finds no independent association (fixtur
 publisher: "Example Economic Institute"
 language: "en"
 domain_tags: ["racism", "economics"]
-publication_date: "2025-01-15"
+publication_date: "2026-05-15"
 url: "https://example.org/fixture/regional"
 doi: "10.1234/fixture-regional"
 license: "CC0-1.0"

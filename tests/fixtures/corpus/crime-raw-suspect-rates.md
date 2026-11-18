@@ -4,7 +4,7 @@ title: "Police crime statistics: registered suspects by population group (fixtur
 publisher: "Federal Criminal Police Office (BKA)"
 language: "en"
 domain_tags: ["racism", "politics"]
-publication_date: "2024-04-09"
+publication_date: "2026-04-09"
 url: "https://www.bka.de/fixture/pks"
 dataset_id: "fixture-pks-dataset"
 license: "CC0-1.0"

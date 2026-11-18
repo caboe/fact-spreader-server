@@ -4,7 +4,7 @@ title: "Recorded offending after adjusting for age, sex and socioeconomic status
 publisher: "Example Research Institute"
 language: "en"
 domain_tags: ["racism", "politics", "poverty"]
-publication_date: "2023-11-02"
+publication_date: "2026-01-15"
 url: "https://example.org/fixture/adjusted"
 doi: "10.1234/fixture-adjusted-study"
 dataset_id: "fixture-adjusted-study-data"

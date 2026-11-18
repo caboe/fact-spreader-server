@@ -4,7 +4,7 @@ title: "Arbeitszeitrechnung: Volumen und Jahresarbeitszeit (Fixtures Quelle)"
 publisher: "Institut fuer Arbeitsmarkt- und Berufsforschung (IAB)"
 language: "de"
 domain_tags: ["economics"]
-publication_date: "2024-02-08"
+publication_date: "2026-02-08"
 url: "https://iab.de/fixture/arbeitszeit"
 license: "CC0-1.0"
 redistribution: "full_text"

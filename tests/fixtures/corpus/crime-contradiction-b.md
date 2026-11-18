@@ -4,7 +4,7 @@ title: "2024 suspect rate for non-citizens: 3,900, not 5,200 (fixture, side B)"
 publisher: "Example Statistical Office"
 language: "en"
 domain_tags: ["racism"]
-publication_date: "2025-03-04"
+publication_date: "2026-03-04"
 url: "https://example.org/fixture/pks-2024-b"
 license: "CC0-1.0"
 redistribution: "full_text"

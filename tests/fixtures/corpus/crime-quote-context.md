@@ -4,7 +4,7 @@ title: "Expert report, with the quoted passage in its original context (fixture)
 publisher: "Example Expert Report"
 language: "en"
 domain_tags: ["racism"]
-publication_date: "2016-05-04"
+publication_date: "2026-06-04"
 url: "https://example.org/fixture/quote-context"
 license: "CC0-1.0"
 redistribution: "full_text"

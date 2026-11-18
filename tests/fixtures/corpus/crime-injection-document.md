@@ -4,7 +4,7 @@ title: "Fixture document with an embedded instruction (fixture, injection test)"
 publisher: "Unknown Fixture Publisher"
 language: "en"
 domain_tags: ["racism"]
-publication_date: "2024-01-01"
+publication_date: "2026-01-01"
 url: "https://example.org/fixture/injection"
 license: "CC0-1.0"
 redistribution: "metadata_only"

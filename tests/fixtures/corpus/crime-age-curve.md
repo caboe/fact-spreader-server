@@ -4,7 +4,7 @@ title: "Registered offending peaks among young men in every population group (fi
 publisher: "Example Journal of Criminology"
 language: "en"
 domain_tags: ["racism", "politics"]
-publication_date: "2022-09-12"
+publication_date: "2026-02-12"
 url: "https://example.org/fixture/age-curve"
 doi: "10.1234/fixture-age-curve"
 license: "CC0-1.0"

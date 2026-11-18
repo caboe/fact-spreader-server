@@ -4,7 +4,7 @@ title: "Housing supply and rent levels (fixture, distractor)"
 publisher: "Example Statistical Office"
 language: "en"
 domain_tags: ["poverty", "economics"]
-publication_date: "2024-07-01"
+publication_date: "2026-07-01"
 url: "https://example.org/fixture/housing"
 license: "CC0-1.0"
 redistribution: "full_text"

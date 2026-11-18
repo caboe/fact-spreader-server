@@ -4,7 +4,7 @@ title: "Health outcomes and household income (fixture, cross-domain)"
 publisher: "Example Institute of Public Health"
 language: "en"
 domain_tags: ["medicine", "poverty"]
-publication_date: "2024-08-12"
+publication_date: "2026-08-12"
 url: "https://example.org/fixture/poverty-health"
 doi: "10.1234/fixture-poverty-health"
 license: "CC0-1.0"

@@ -4,7 +4,7 @@ title: "Press summary of the adjusted study (fixture, near-duplicate)"
 publisher: "Example Research Institute"
 language: "en"
 domain_tags: ["racism"]
-publication_date: "2023-11-03"
+publication_date: "2026-01-16"
 url: "https://example.org/fixture/adjusted-summary"
 license: "CC0-1.0"
 redistribution: "full_text"

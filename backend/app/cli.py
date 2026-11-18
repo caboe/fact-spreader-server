@@ -57,14 +57,27 @@ from app.services.retention import run_retention
 DEFAULT_FIXTURES = (
     "crime-raw-suspect-rates",
     "crime-adjusted-study",
+    "crime-adjusted-study-shared-dataset",
     "crime-age-curve",
     "crime-convictions-international",
     "crime-pks-methodology-de",
-    "crime-adjusted-study-shared-dataset",
     "crime-contradiction-a",
     "crime-contradiction-b",
     "crime-stale-figure",
     "crime-german-only",
+    "crime-near-duplicate-reframing",
+    "crime-quote-context",
+    "crime-regional-controls",
+    "crime-distractor-housing",
+    "crime-outdated-statistic",
+    "crime-injection-document",
+    "environment-distractor",
+    "history-distractor",
+    "hours-aggregate-oecd",
+    "hours-destatis-parttime-de",
+    "hours-disaggregated-eurostat",
+    "hours-iab-arbeitszeitrechnung-de",
+    "poverty-health-cross",
 )
 
 
@@ -312,6 +325,8 @@ async def seed_fixtures(settings: Settings, *, approve: bool) -> int:
                 if existing is not None and existing.state == "indexed":
                     existing.source_quality = quality.grade
                     existing.source_quality_basis = quality.basis.model_dump(mode="json")
+                    existing.publication_date = _date(meta.get("publication_date"))
+                    existing.title = str(meta.get("title") or existing.title)
                     existing.updated_at = utcnow()
                     await session.commit()
                     print(f"skip indexed {key} (grade refreshed)", file=sys.stderr)

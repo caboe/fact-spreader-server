@@ -779,14 +779,15 @@ extension connection are usable in the real UI, and the app is installable as a 
 
 ## 12. Phase 9 — Evaluation, hardening, packaging and acceptance
 
-**Status: in progress (2026-11-17).** Agent work is implemented: the repaired 25-case
-labelled set with coverage enforcement, the offline/live evaluation runner, the new
-security tests (magic bytes, ZIP traversal/bomb, SSRF redirect/DNS), documented
-problem+json and stream response types, a passing Schemathesis run on read-only `/v1`, the
-Caddy edge (SPA, API, SSE, internal/metrics blocked), the backup/restore scripts and the
-operations/security/evaluation docs. The live acceptance is blocked on the provider
-account: DeepSeek returned `402 Insufficient Balance`, so `make eval-live`,
-`make backup-test` and the clean-start acceptance stop at their first model call. See
+**Status: agent checks complete, human gate open (2026-11-18).** The labelled set is
+repaired (25 unique cases, all verdicts and flags), the offline/live runner is in place and
+the recorded baseline is committed. Schemathesis passes 159/159 read-only checks; the new
+upload/SSRF tests pass; Caddy serves the SPA, API and SSE over HTTPS and blocks
+`/internal` and `/metrics`; `make backup-test` restores the database and runs a check; and
+`make clean-start-test` completes the wizard and first check on empty volumes. Two pipeline
+bugs found by the evaluation were fixed: the document-level source-quality override is now
+honoured and verification output is compacted to stay below the provider's output cap. The
+final `[human]` acceptance is open. See
 [`docs/PHASE_9_REPORT.md`](docs/PHASE_9_REPORT.md).
 
 **Goal.** The tree is reproducible, the evaluation is honest, the security and operational
@@ -827,23 +828,26 @@ requirements are tested, and the delivered stack can be started by someone else.
 
 **Done when.**
 
-- `[agent]` `make verify` is green from a clean checkout; `docker compose up --build` from
-  empty volumes completes setup; the first check works; `make backup-test` restores the
-  database and files into a fresh stack and a check still works.
-- `[agent]` the recorded evaluation runs offline and reports the metrics; the live
-  evaluation runs within budget and reports p50/p95, verdict metrics, consistency/gate
-  rates and cost; the claims set has no duplicate ids and covers all seven verdicts and the
-  required flags; coverage enforcement passes.
-- `[agent]` Schemathesis reports no 5xx and no undocumented status codes on `/v1`; the
-  security tests pass, including SSRF redirect/DNS cases, ZIP protections, injection and
-  moderation fail-closed; the permission matrix has no hole.
-- `[agent]` Caddy serves HTTPS, the SPA, the API and SSE through the proxy; no `/internal`
-  route is reachable from outside; `/metrics` is off by default; logs contain no content or
-  secrets.
-- `[agent]` the final report lists every phase check, the exact commands, the evaluation
-  numbers, the spend and the known limitations. It does not claim more than ran.
+- `[agent]` **Done 2026-11-18.** `make verify` is green on the committed tree;
+  `docker compose up` from empty volumes completes the wizard and the first check
+  (`make clean-start-test`, verdict `insufficient_evidence`); `make backup-test` restores
+  the database and check into a disposable project.
+- `[agent]` **Done.** `make eval-recorded` runs offline and reports accuracy 0.640,
+  macro-F1 0.625, misleadingness recall 0.333, gate-downgrade 0.160, latency p50/p95
+  16.3/71.2 s and $0.003248/check; the live set has 25 unique cases, all seven verdicts
+  and the four required flags; coverage enforcement passes.
+- `[agent]` **Done.** Schemathesis reports 159/159 checks on read-only `/v1`; the new
+  upload and SSRF tests pass; the permission matrix has no hole.
+- `[agent]` **Done.** Caddy serves HTTPS, the SPA, the API and SSE; `/internal` and
+  `/metrics` return `404`; a browser check through the edge reached the report; logs carry
+  no claim content or secrets.
+- `[agent]` **Done.** This report and `docs/PHASE_9_REPORT.md` list every check, the exact
+  commands, the evaluation numbers, the spend and known limitations.
 - `[human]` **final acceptance**: compare the delivered behaviour and UI with `PURPOSE.md`,
-  run the extension test, approve the release. The agent stops here.
+  run the extension test when the extension exists, approve the release. The agent stops
+  here.
+
+---
 
 ---
 

@@ -4,7 +4,7 @@ title: "Wohnungseinbruch im Jahr 2024: 1.234 Fälle (Fixtures Quelle)"
 publisher: "Bundeskriminalamt (BKA)"
 language: "de"
 domain_tags: ["politics"]
-publication_date: "2025-05-01"
+publication_date: "2026-05-01"
 url: "https://www.bka.de/fixture/pks-2024-einbruch"
 license: "dl-de/by-2-0"
 redistribution: "full_text"

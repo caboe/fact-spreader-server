@@ -4,7 +4,7 @@ title: "Air quality indicators (fixture, distractor)"
 publisher: "Example Environment Agency"
 language: "en"
 domain_tags: ["environment", "medicine"]
-publication_date: "2024-04-01"
+publication_date: "2026-04-01"
 url: "https://example.org/fixture/air"
 license: "CC0-1.0"
 redistribution: "full_text"

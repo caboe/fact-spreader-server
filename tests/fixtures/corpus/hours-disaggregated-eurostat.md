@@ -4,7 +4,7 @@ title: "Usual weekly hours by full-time and part-time employment (fixture)"
 publisher: "Eurostat"
 language: "en"
 domain_tags: ["economics"]
-publication_date: "2024-05-15"
+publication_date: "2026-05-15"
 url: "https://ec.europa.eu/eurostat/fixture/hours"
 doi: "10.2908/fixture-hours-disaggregated"
 dataset_id: "fixture-labour-dataset-disaggregated"

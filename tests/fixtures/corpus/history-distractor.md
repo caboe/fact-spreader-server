@@ -4,7 +4,7 @@ title: "Archival sources on post-war migration (fixture, distractor)"
 publisher: "Example Historical Archive"
 language: "en"
 domain_tags: ["history"]
-publication_date: "2020-10-01"
+publication_date: "2026-03-01"
 url: "https://example.org/fixture/history"
 license: "CC0-1.0"
 redistribution: "full_text"

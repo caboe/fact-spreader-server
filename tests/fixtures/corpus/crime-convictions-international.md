@@ -4,7 +4,7 @@ title: "Conviction data show a much smaller difference than suspect data (fixtur
 publisher: "Example Academy of Sciences"
 language: "en"
 domain_tags: ["racism", "politics"]
-publication_date: "2022-06-01"
+publication_date: "2026-03-01"
 url: "https://example.org/fixture/convictions"
 doi: "10.1234/fixture-convictions"
 license: "CC0-1.0"

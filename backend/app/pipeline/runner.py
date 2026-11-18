@@ -620,11 +620,18 @@ class CheckPipeline:
                 await self.session.flush()
             evidence_id = f"E{pool.next_index}"
             pool.next_index += 1
-            resolution = self.publishers.resolve(
-                publisher=document.publisher, url=document.url, doi=document.doi
-            )
-            grade = resolution.grade
-            basis_data = resolution.basis.model_dump(mode="json")
+            basis_stored = dict(document.source_quality_basis or {})
+            if basis_stored.get("source") == "document_override":
+                # An explicit document-level grade (for example the synthetic evaluation
+                # corpus) wins over the shipped publisher list at retrieval time too.
+                grade = document.source_quality
+                basis_data = basis_stored
+            else:
+                resolution = self.publishers.resolve(
+                    publisher=document.publisher, url=document.url, doi=document.doi
+                )
+                grade = resolution.grade
+                basis_data = resolution.basis.model_dump(mode="json")
             evidence = Evidence(
                 id=evidence_id,
                 evidence_id=passage.id,

@@ -18,7 +18,7 @@ EVAL_API_KEY_FILE ?= .local/eval-api-key
 .PHONY: install fmt fmt-check lint typecheck test test-integration migrate migrate-check \
 	openapi openapi-check compose-check web-install web-check web-e2e verify stack-up \
 	stack-down stack-logs bootstrap seed-fixtures stack-smoke spend clean \
-	eval-check eval-recorded eval-live backup backup-test schemathesis
+	eval-check eval-recorded eval-live backup backup-test clean-start-test schemathesis
 
 install:
 	mkdir -p $(UV_CACHE_DIR) $(BUILDX_CONFIG)
@@ -102,6 +102,9 @@ backup:
 
 backup-test:
 	./scripts/backup-test.sh
+
+clean-start-test:
+	./scripts/clean-start-test.sh
 
 schemathesis:
 	@test -f "$(EVAL_API_KEY_FILE)" || (echo "missing $(EVAL_API_KEY_FILE); see docs/EVALUATION.md" && exit 2)

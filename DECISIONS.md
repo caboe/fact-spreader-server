@@ -921,3 +921,56 @@ coverage.
 
 **Rejected:** an admin API of its own, exposing provider keys for editing, a live TOTP
 secret in test configuration, embedding policy decisions in the pages.
+
+## D58 — The recorded evaluation is a committed prediction file
+
+**What:** `make eval-live` submits the labelled cases through the real API, writes one
+prediction per case incrementally to `tests/eval/predictions.baseline.jsonl`, and can resume
+an interrupted run. `make eval-recorded` scores that file without a network or a model.
+
+**Why:** a full re-run of 25 cases takes minutes and costs money, so CI and reviewers need a
+deterministic replay. Storing predictions instead of full reports keeps generated prose out
+of the repository and the baseline reviewable as a diff.
+
+**Rejected:** re-running the live suite in `make verify` (cost, latency, provider flakiness),
+committing full reports, scoring a partial run silently (missing predictions and failed
+checks are reported as errors or `no verdict`).
+
+## D59 — A document-level source-quality override also applies at retrieval
+
+**What:** when `documents.source_quality_basis.source == "document_override"`, the retrieval
+runner uses the stored grade instead of resolving the publisher again.
+
+**Why:** the explicit approval CLI sets a document-level grade for the synthetic corpus;
+recomputing it at retrieval silently downgraded all fixture evidence to D and turned every
+supported claim into `insufficient_evidence`. The override is the more specific decision.
+
+**Rejected:** special-casing fixture publishers in the publisher list, letting the retrieval
+path recompute and ignore an explicit operator decision.
+
+## D60 — Verification caps candidates and output
+
+**What:** at most six candidate passages are sent to the verification model, and the prompt
+asks for at most six evidence links, three points per list and a 120-word rationale.
+
+**Why:** with the full fixture corpus, verification produced an 8k-token output that was cut
+mid-JSON and retried into the same failure. A bounded prompt keeps the answer inside the
+provider's output limit without dropping the audit fields.
+
+**Rejected:** raising `max_tokens` beyond the provider limit, silently accepting a truncated
+JSON answer, dropping verification for large evidence sets.
+
+## D61 — Caddy builds and serves the SPA; backups cover the application database
+
+**What:** the edge image builds `web/` and copies the static output into Caddy, which serves
+the SPA, `/api`, `/v1` (SSE flushed), health endpoints and blocks `/internal` and `/metrics`.
+`make backup` dumps the application database; LightRAG is treated as derived and rebuilt
+from approved documents rather than backed up.
+
+**Why:** one origin avoids CORS and keeps the session cookie and CSRF handling simple; the
+SSE flush is a proxy setting, not application code. The database holds the authored state
+and uploaded originals, while the vector store is reproducible.
+
+**Rejected:** a separate nginx/web container (another origin to configure), backing up the
+LightRAG volume (large, derived, inconsistent with the approved corpus after a restore),
+enabling the proxy access log (content and query leakage).

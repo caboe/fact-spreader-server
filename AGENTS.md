@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–8 complete; Phase 9 in progress (2026-11-17).** The order of work is:
+**Phases 1–8 complete; Phase 9 agent checks complete (2026-11-18), final acceptance open.** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -65,12 +65,11 @@ Three kinds of request share one API:
    zero-volume setup-wizard browser run moves into the Phase 9 clean-start acceptance.
    API-key management and the retention/four-eyes/backup settings are deferred because
    their backend surface does not exist yet. See `docs/PHASE_8_REPORT.md`.
-   Phase 9 is in progress: the repaired 25-case labelled set, the offline/live evaluation
-   runner, the new security tests, the Caddy edge, backups and the
-   operations/security/evaluation docs are implemented. Live acceptance is blocked on the
-   DeepSeek account balance (`402 Insufficient Balance`): the seeded evaluation,
-   `backup-test` and the clean-start acceptance stop at their first model call. See
-   `docs/PHASE_9_REPORT.md`.
+   Phase 9's agent checks are complete: the 25-case labelled set and committed
+   predictions, the offline/live evaluation runner, Schemathesis 159/159 on read-only /v1,
+   the new upload/SSRF tests, the Caddy edge, backup-test and clean-start-test. Two bugs
+   the evaluation exposed (ignored document-level source quality, oversized verification
+   output) were fixed. Final human acceptance is open. See `docs/PHASE_9_REPORT.md`.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.

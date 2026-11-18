@@ -4,7 +4,7 @@ title: "Teilzeitquote nach Geschlecht (Fixtures Quelle)"
 publisher: "Statistisches Bundesamt (Destatis)"
 language: "de"
 domain_tags: ["economics", "poverty"]
-publication_date: "2024-03-20"
+publication_date: "2026-03-20"
 url: "https://www.destatis.de/fixture/teilzeit"
 license: "dl-de/by-2-0"
 redistribution: "full_text"

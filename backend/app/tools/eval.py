@@ -133,10 +133,15 @@ def score(cases: list[Case], predictions: dict[str, dict[str, Any]]) -> dict[str
     if missing:
         _fail(f"no prediction for {len(missing)} cases, first: {missing[:5]}")
     wrong_shape = [
-        case.id for case in cases if predictions[case.id].get("predicted_verdict") not in VERDICTS
+        case.id
+        for case in cases
+        if predictions[case.id].get("predicted_verdict") not in (*VERDICTS, None)
     ]
     if wrong_shape:
         _fail(f"a prediction has no valid verdict, first: {wrong_shape[:5]}")
+    no_verdict = [
+        case.id for case in cases if predictions[case.id].get("predicted_verdict") is None
+    ]
 
     per_class: dict[str, dict[str, float | int]] = {}
     correct = 0
@@ -195,6 +200,7 @@ def score(cases: list[Case], predictions: dict[str, dict[str, Any]]) -> dict[str
     cost = sum(float(prediction.get("cost_usd") or 0.0) for prediction in predictions.values())
     return {
         "cases": len(cases),
+        "no_verdict": len(no_verdict),
         "accuracy": round(correct / len(cases), 4),
         "macro_f1": round(macro_f1, 4),
         "misleadingness_recall": per_class["true_but_misleading"]["recall"],
@@ -229,7 +235,7 @@ async def _poll(
         payload: dict[str, Any] = response.json()
         state = (payload.get("job") or {}).get("state")
         if state in {"failed", "cancelled"}:
-            _fail(f"job {job_id} ended as {state}: {(payload.get('job') or {}).get('error')}")
+            return payload
         if payload.get("result") is not None:
             return payload
         await asyncio.sleep(1.5)
@@ -262,13 +268,19 @@ async def _one_case(
             wait = 5 * (attempt + 1)
             print(f"  {case.id}: transient HTTP {response.status_code}, retry in {wait}s")
             await asyncio.sleep(wait)
+        error = None
         if response.status_code == 200:
             check = response.json()
             job_id = (check.get("job") or {}).get("id", "")
         elif response.status_code == 202:
             job_id = response.json()["job"]["id"]
             envelope = await _poll(client, job_id, headers, budget_seconds)
-            check = envelope["result"]
+            job_state = (envelope.get("job") or {}).get("state")
+            if job_state in {"failed", "cancelled"}:
+                error = (envelope.get("job") or {}).get("error")
+                check = {"result": {}, "rendering": None}
+            else:
+                check = envelope["result"]
         else:
             _fail(
                 f"POST /v1/factcheck for {case.id} returned HTTP {response.status_code}: "
@@ -279,11 +291,13 @@ async def _one_case(
         rendering = check.get("rendering") or {}
         consistency = rendering.get("consistency") or {}
         statements = result.get("statements") or []
-        print(f"  {case.id}: {result.get('overall_verdict')} in {latency_ms} ms")
+        label = result.get("overall_verdict") if error is None else "failed"
+        print(f"  {case.id}: {label} in {latency_ms} ms")
         return {
             "id": case.id,
             "expected_verdict": case.expected,
             "predicted_verdict": result.get("overall_verdict"),
+            "error": error,
             "result_id": result.get("id"),
             "job_id": job_id,
             "preliminary": bool(result.get("preliminary")),
@@ -298,6 +312,40 @@ async def _one_case(
         }
 
 
+def _prepare_predictions(
+    path: Path, *, fresh: bool, started: datetime, fast: bool
+) -> dict[str, dict[str, Any]]:
+    if path.exists() and not fresh:
+        try:
+            return load_predictions(path)
+        except SystemExit:
+            pass
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        handle.write(
+            f"# Recorded evaluation predictions from {started.isoformat()} (fast={fast}).\n"
+        )
+        handle.write("# Replay offline with: make eval-recorded\n")
+    return {}
+
+
+def _append_prediction(path: Path, prediction: dict[str, Any]) -> None:
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(prediction, ensure_ascii=False) + "\n")
+
+
+def _rewrite_predictions(
+    path: Path, *, started: datetime, fast: bool, ordered: list[dict[str, Any]]
+) -> None:
+    with path.open("w", encoding="utf-8") as handle:
+        handle.write(
+            f"# Recorded evaluation predictions from {started.isoformat()} (fast={fast}).\n"
+        )
+        handle.write("# Replay offline with: make eval-recorded\n")
+        for prediction in ordered:
+            handle.write(json.dumps(prediction, ensure_ascii=False) + "\n")
+
+
 async def _run_live_async(
     cases: list[Case],
     *,
@@ -308,15 +356,26 @@ async def _run_live_async(
     budget_seconds: float,
     out: Path,
     concurrency: int,
+    fresh: bool,
 ) -> dict[str, dict[str, Any]]:
     headers = {"Authorization": f"Bearer {api_key}"}
     selected = cases[:limit] if limit else cases
     started = datetime.now(UTC)
+    predictions = await asyncio.to_thread(
+        _prepare_predictions, out, fresh=fresh, started=started, fast=fast
+    )
+    if predictions:
+        print(f"resuming: {len(predictions)} predictions already recorded")
+    pending = [case for case in selected if case.id not in predictions]
+    if not pending:
+        print("nothing to do: every case already has a prediction")
+        return predictions
     semaphore = asyncio.Semaphore(concurrency)
+    new_predictions: list[dict[str, Any]] = []
     async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
         before = await _usage_cost(client, headers)
-        results = await asyncio.gather(
-            *(
+        tasks = [
+            asyncio.create_task(
                 _one_case(
                     client,
                     case,
@@ -325,24 +384,22 @@ async def _run_live_async(
                     budget_seconds=budget_seconds,
                     semaphore=semaphore,
                 )
-                for case in selected
             )
-        )
+            for case in pending
+        ]
+        for finished in asyncio.as_completed(tasks):
+            prediction = await finished
+            new_predictions.append(prediction)
+            await asyncio.to_thread(_append_prediction, out, prediction)
         after = await _usage_cost(client, headers)
-    predictions = {prediction["id"]: prediction for prediction in results}
     delta = max(0.0, after - before)
-    share = round(delta / len(predictions), 6) if predictions else 0.0
-    for prediction in predictions.values():
+    share = round(delta / len(new_predictions), 6) if new_predictions else 0.0
+    for prediction in new_predictions:
         prediction["cost_usd"] = share
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w", encoding="utf-8") as handle:
-        handle.write(
-            f"# Recorded evaluation predictions from {started.isoformat()} (fast={fast}).\n"
-        )
-        handle.write("# Replay offline with: make eval-recorded\n")
-        for prediction in predictions.values():
-            handle.write(json.dumps(prediction, ensure_ascii=False) + "\n")
-    print(f"recorded {len(predictions)} predictions to {out}")
+        predictions[prediction["id"]] = prediction
+    ordered = [predictions[case.id] for case in selected if case.id in predictions]
+    await asyncio.to_thread(_rewrite_predictions, out, started=started, fast=fast, ordered=ordered)
+    print(f"recorded {len(new_predictions)} new predictions to {out}")
     return predictions
 
 
@@ -356,6 +413,7 @@ def run_live(
     budget_seconds: float,
     out: Path,
     concurrency: int = 4,
+    fresh: bool = False,
 ) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = asyncio.run(
         _run_live_async(
@@ -367,6 +425,7 @@ def run_live(
             budget_seconds=budget_seconds,
             out=out,
             concurrency=concurrency,
+            fresh=fresh,
         )
     )
     return result
@@ -381,6 +440,7 @@ def _print_report(metrics: dict[str, Any], coverage: dict[str, Any]) -> None:
     )
     print("  flags: " + ", ".join(f"{key}={value}" for key, value in coverage["flags"].items()))
     print("\nMetrics")
+    print(f"  no verdict: {metrics['no_verdict']}")
     print(f"  accuracy: {metrics['accuracy']:.3f}")
     print(f"  macro F1: {metrics['macro_f1']:.3f}")
     print(f"  misleadingness recall: {metrics['misleadingness_recall']:.3f}")
@@ -417,6 +477,7 @@ def main() -> None:
     )
     parser.add_argument("--limit", type=int, default=0, help="score only the first N cases")
     parser.add_argument("--concurrency", type=int, default=4, help="parallel checks in live mode")
+    parser.add_argument("--fresh", action="store_true", help="ignore an existing predictions file")
     parser.add_argument("--timeout", type=float, default=240.0, help="per-check timeout in seconds")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000")
     parser.add_argument("--api-key-file", default="../.local/api-key")
@@ -447,6 +508,7 @@ def main() -> None:
             budget_seconds=args.timeout,
             out=out,
             concurrency=args.concurrency,
+            fresh=args.fresh,
         )
         metrics = score(cases, predictions)
     else:

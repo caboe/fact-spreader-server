@@ -4,7 +4,7 @@ title: "2024 suspect rate for non-citizens: 5,200 per 100,000 (fixture, side A)"
 publisher: "Federal Criminal Police Office (BKA)"
 language: "en"
 domain_tags: ["racism"]
-publication_date: "2025-02-10"
+publication_date: "2026-02-10"
 url: "https://www.bka.de/fixture/pks-2024-a"
 license: "CC0-1.0"
 redistribution: "full_text"

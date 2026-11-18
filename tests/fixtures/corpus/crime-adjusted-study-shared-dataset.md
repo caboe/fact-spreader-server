@@ -4,7 +4,7 @@ title: "Adjusted offending estimates, full report (fixture)"
 publisher: "Example Research Institute"
 language: "en"
 domain_tags: ["racism", "politics"]
-publication_date: "2023-11-02"
+publication_date: "2026-01-15"
 url: "https://example.org/fixture/adjusted-full"
 doi: "10.1234/fixture-adjusted-study-full"
 dataset_id: "fixture-adjusted-study-data"

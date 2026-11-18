@@ -8,7 +8,7 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phases 1–8 complete; Phase 9 in progress (2026-11-17).** The stack runs end to end:
+**Phases 1–8 complete; Phase 9 agent checks complete (2026-11-18), final acceptance open.** The stack runs end to end:
 check, report, archive, chat, editorial review, batch submission, operator settings, PWA
 and the device-token connect flow. `make verify` is green and the Playwright suite passed
 27 tests against the live stack (2 optional skips). Live evidence and spend are in the

@@ -4,7 +4,7 @@ title: "Methodische Hinweise zur Polizeilichen Kriminalstatistik (Fixtures Quell
 publisher: "Bundeskriminalamt (BKA)"
 language: "de"
 domain_tags: ["racism", "politics"]
-publication_date: "2024-04-09"
+publication_date: "2026-04-09"
 url: "https://www.bka.de/fixture/pks-methodik"
 dataset_id: "fixture-pks-dataset"
 license: "dl-de/by-2-0"
