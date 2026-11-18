@@ -1,8 +1,9 @@
 """Pipeline worker (PROTOCOL §4.1, IMPLEMENT Phase 1).
 
 Claims jobs with ``FOR UPDATE SKIP LOCKED``, processes one at a time, and keeps failed or
-retryable jobs visible. Partial result durability arrives with the Phase 2 SSE work; the
-result row itself is already durable.
+retryable jobs visible. Interactive checks are claimed before bulk document indexing, so a
+single large batch cannot make a user's check wait behind every file. Partial result
+durability arrives with the Phase 2 SSE work; the result row itself is already durable.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import os
 import signal
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
@@ -42,7 +43,15 @@ async def claim_job(session: AsyncSession, worker_id: str) -> JobRow | None:
     statement = (
         select(JobRow)
         .where(JobRow.state == "queued")
-        .order_by(JobRow.created_at)
+        # Interactive checks before background ingestion; everything else keeps FIFO order.
+        .order_by(
+            case(
+                (JobRow.kind == "check", 0),
+                (JobRow.kind.in_(("document_index", "reindex")), 2),
+                else_=1,
+            ),
+            JobRow.created_at,
+        )
         .with_for_update(skip_locked=True)
         .limit(1)
     )
