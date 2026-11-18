@@ -779,7 +779,7 @@ extension connection are usable in the real UI, and the app is installable as a 
 
 ## 12. Phase 9 — Evaluation, hardening, packaging and acceptance
 
-**Status: agent checks complete, human gate open (2026-11-18).** The labelled set is
+**Status: complete, accepted 2026-11-18.** The labelled set is
 repaired (25 unique cases, all verdicts and flags), the offline/live runner is in place and
 the recorded baseline is committed. Schemathesis passes 159/159 read-only checks; the new
 upload/SSRF tests pass; Caddy serves the SPA, API and SSE over HTTPS and blocks
@@ -787,7 +787,8 @@ upload/SSRF tests pass; Caddy serves the SPA, API and SSE over HTTPS and blocks
 `make clean-start-test` completes the wizard and first check on empty volumes. Two pipeline
 bugs found by the evaluation were fixed: the document-level source-quality override is now
 honoured and verification output is compacted to stay below the provider's output cap. The
-final `[human]` acceptance is open. See
+final `[human]` acceptance was recorded on 2026-11-18; the real-browser extension test
+remains deferred until the extension exists. See
 [`docs/PHASE_9_REPORT.md`](docs/PHASE_9_REPORT.md).
 
 **Goal.** The tree is reproducible, the evaluation is honest, the security and operational
@@ -843,9 +844,9 @@ requirements are tested, and the delivered stack can be started by someone else.
   no claim content or secrets.
 - `[agent]` **Done.** This report and `docs/PHASE_9_REPORT.md` list every check, the exact
   commands, the evaluation numbers, the spend and known limitations.
-- `[human]` **final acceptance**: compare the delivered behaviour and UI with `PURPOSE.md`,
-  run the extension test when the extension exists, approve the release. The agent stops
-  here.
+- `[human]` **Accepted 2026-11-18.** The human reviewed the delivered behaviour and UI
+  against `PURPOSE.md` and approved the release. The real-browser extension test remains
+  deferred until the extension exists.
 
 ---
 
@@ -885,7 +886,7 @@ requirements are tested, and the delivered stack can be started by someone else.
 | Docling install/parse is heavy or fails on ARM | pin and test early in Phase 4; fall back only with a human-approved scope change | Phase 4 |
 | Fast target 15 s cannot be met with remote models | reduce calls, use a cheaper model, cache; never drop the audit/gate; report measured latency | Phase 3 |
 | Batch cost estimates are inaccurate | measure actual tokens/pages; tune estimator; never start over budget; report deviation | Phase 4 |
-| Duplicated/garbled carried-over eval sets | repair ids and rows first; re-label against the fixture corpus; coverage check | Phase 9 |
+| Duplicated/garbled carried-over eval sets | repaired in Phase 9: 25 unique cases, re-labelled against the fixture corpus, coverage check in CI | Phase 9 (done) |
 | Brand colour/logo absent | propose a calm accent and simple mark during the design system; human approves | Phase 7 |
 | Live model spend | cap, cheap models, local embeddings, report per phase; stop at the cap | all |
 

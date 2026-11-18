@@ -1,6 +1,7 @@
 # Phase 9 report — evaluation, hardening, packaging and acceptance
 
-Date: 2026-11-18. All Phase 9 agent checks ran. The final human acceptance is open.
+Date: 2026-11-18. All Phase 9 agent checks ran. The final human acceptance was recorded on
+2026-11-18; the real-browser extension test remains deferred until the extension exists.
 
 ## Evaluation
 
@@ -110,5 +111,6 @@ Two pipeline issues surfaced during the evaluation and were fixed before the bas
 
 ## Human gate
 
-Final acceptance: compare the delivered behaviour and UI with `PURPOSE.md`, run the
-extension test when the extension exists and approve the release. The agent stops here.
+**Accepted 2026-11-18.** The human reviewed the delivered behaviour and UI against
+`PURPOSE.md` and approved the release. The real-browser extension test remains deferred
+until the extension exists; it is the only acceptance item not run.

@@ -8,7 +8,7 @@ frames it, and returns a structured verdict with citations. The defining case is
 
 ## Status
 
-**Phases 1–8 complete; Phase 9 agent checks complete (2026-11-18), final acceptance open.** The stack runs end to end:
+**Phases 1–9 complete; final acceptance recorded 2026-11-18 (extension test deferred until the extension exists).** The stack runs end to end:
 check, report, archive, chat, editorial review, batch submission, operator settings, PWA
 and the device-token connect flow. `make verify` is green and the Playwright suite passed
 27 tests against the live stack (2 optional skips). Live evidence and spend are in the
@@ -22,11 +22,12 @@ phase reports:
 - [`docs/PHASE_6_REPORT.md`](docs/PHASE_6_REPORT.md) — registry, roles, budgets, overrides
 - [`docs/PHASE_7_REPORT.md`](docs/PHASE_7_REPORT.md) — SPA, i18n, screenshots
 - [`docs/PHASE_8_REPORT.md`](docs/PHASE_8_REPORT.md) — editorial, batch UI, settings, PWA
+- [`docs/PHASE_9_REPORT.md`](docs/PHASE_9_REPORT.md) — evaluation, hardening, edge, acceptance
 
 The specification is frozen in [`PURPOSE.md`](PURPOSE.md), [`PROTOCOL.md`](PROTOCOL.md) and
 [`PERSONAS.md`](PERSONAS.md); [`IMPLEMENT.md`](IMPLEMENT.md) is the approved phase plan and
 [`DECISIONS.md`](DECISIONS.md) records non-obvious choices. Phase 9 covers the evaluation,
-security hardening, Caddy edge, backups and the final acceptance.
+security hardening, Caddy edge, backups and the recorded acceptance.
 
 ## Quick start
 

@@ -23,7 +23,7 @@ Three kinds of request share one API:
 
 ## Status
 
-**Phases 1–8 complete; Phase 9 agent checks complete (2026-11-18), final acceptance open.** The order of work is:
+**Phases 1–9 complete; final acceptance recorded 2026-11-18 (extension test deferred until the extension exists).** The order of work is:
 
 1. ~~Revise `PURPOSE.md`, `PROTOCOL.md` and `PERSONAS.md` per §11 of
    `docs/REDESIGN_NOTES_DE.md`.~~ Done 2026-11-16.
@@ -65,11 +65,12 @@ Three kinds of request share one API:
    zero-volume setup-wizard browser run moves into the Phase 9 clean-start acceptance.
    API-key management and the retention/four-eyes/backup settings are deferred because
    their backend surface does not exist yet. See `docs/PHASE_8_REPORT.md`.
-   Phase 9's agent checks are complete: the 25-case labelled set and committed
+   Phase 9 is complete: the 25-case labelled set and committed
    predictions, the offline/live evaluation runner, Schemathesis 159/159 on read-only /v1,
    the new upload/SSRF tests, the Caddy edge, backup-test and clean-start-test. Two bugs
    the evaluation exposed (ignored document-level source quality, oversized verification
-   output) were fixed. Final human acceptance is open. See `docs/PHASE_9_REPORT.md`.
+   output) were fixed. Final human acceptance was recorded on 2026-11-18; the real-browser
+   extension test remains deferred until the extension exists. See `docs/PHASE_9_REPORT.md`.
 
 The planning gate was satisfied before code was written. At every `[human]` check, stop
 and ask; do not continue on your own.
@@ -85,7 +86,7 @@ and ask; do not continue on your own.
 | `IMPLEMENT.md` | Approved phase plan and "Done when" checks. Phase 1 is complete. |
 | `DECISIONS.md` | One short entry per non-obvious decision: what, why, alternatives rejected. Decisions, not bug diaries. |
 | `methodology/` | Publisher grades, confounder checklists, argument patterns. Content that changes conclusions. |
-| `tests/eval/`, `tests/fixtures/corpus/` | Labelled evaluation sets and the synthetic CI corpus. The carried-over claim set needs repair and re-labelling (IMPLEMENT Phase 9). |
+| `tests/eval/`, `tests/fixtures/corpus/` | Labelled evaluation sets and the synthetic CI corpus. The 25-case claim set and the 30-case moderation set are the Phase 9 baseline. |
 
 The spec revision is complete. If you find a contradiction that the revised specs and the
 redesign notes do not settle, ask before implementing.
