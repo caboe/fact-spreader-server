@@ -69,18 +69,8 @@
       {/each}
     </ul>
     <a class="button" href="/">{tr('totp.done')}</a>
-  {:else if $session && !$session.totp_setup_required}
-    <p>{tr('totp.enabled')}</p>
-    <a class="button" href="/">{tr('totp.done')}</a>
-  {:else}
-    <p>{tr('totp.intro')}</p>
-
-    {#if !secret}
-      <button class="button" type="button" onclick={begin} disabled={busy}>
-        {tr('totp.start')}
-      </button>
-    {:else}
-      <dl>
+  {:else if secret}
+    <dl>
         <dt>{tr('totp.secret')}</dt>
         <dd><code class="secret">{secret}</code></dd>
         <dt>{tr('totp.uri')}</dt>
@@ -101,7 +91,18 @@
           {tr('totp.confirm')}
         </button>
       </form>
-    {/if}
+  {:else if $session && !$session.totp_setup_required}
+    <p>{tr('totp.enabled')}</p>
+    <p class="hint">{tr('totp.re_enrol_hint')}</p>
+    <button class="button" type="button" onclick={begin} disabled={busy}>
+      {tr('totp.re_enrol')}
+    </button>
+    <a class="button secondary" href="/">{tr('totp.done')}</a>
+  {:else}
+    <p>{tr('totp.intro')}</p>
+    <button class="button" type="button" onclick={begin} disabled={busy}>
+      {tr('totp.start')}
+    </button>
   {/if}
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -186,5 +187,13 @@
   }
   .error {
     color: var(--fs-false);
+  }
+  .hint {
+    color: var(--fs-muted);
+    font-size: 0.88rem;
+  }
+  .button.secondary {
+    background: var(--fs-accent-soft);
+    color: var(--fs-accent);
   }
 </style>
