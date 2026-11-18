@@ -6,6 +6,7 @@
   import { getSession, logout } from '$lib/api';
   import { session } from '$lib/session';
   import { LANGS, initialLang, lang, setLang, t, type Lang } from '$lib/i18n';
+  import { applyTheme, initialTheme, type Theme } from '$lib/theme';
   import '../app.css';
   const tr = $derived($t);
 
@@ -16,6 +17,7 @@
     userChoice: Promise<{ outcome: string }>;
   }
 
+  let theme = $state<Theme>('auto');
   let installPrompt = $state<InstallPrompt | null>(null);
   let iosHint = $state(false);
   let installDismissed = $state(false);
@@ -41,6 +43,8 @@
     iosHint = ios && !standalone;
 
     setLang(initialLang());
+    theme = initialTheme();
+    applyTheme(theme);
     try {
       session.set(await getSession());
     } catch {
@@ -69,6 +73,11 @@
       session.set(null);
       goto('/login');
     }
+  }
+
+  function chooseTheme(next: Theme): void {
+    theme = next;
+    applyTheme(next);
   }
 
   function chooseLanguage(event: Event): void {
@@ -107,6 +116,17 @@
     {/if}
   </nav>
   <div class="account">
+    <div class="theme-switch" role="group" aria-label={tr('theme.label')}>
+      {#each [['auto', tr('theme.auto')], ['light', tr('theme.light')], ['dark', tr('theme.dark')]] as [value, label]}
+        <button
+          type="button"
+          aria-pressed={theme === value}
+          onclick={() => chooseTheme(value as Theme)}
+        >
+          {label}
+        </button>
+      {/each}
+    </div>
     <label class="language">
       <span>{tr('nav.language')}</span>
       <select value={$lang} onchange={chooseLanguage}>
@@ -206,6 +226,28 @@
     gap: 0.75rem;
     align-items: center;
     font-size: 0.9rem;
+  }
+  .theme-switch {
+    display: flex;
+    gap: 0.1rem;
+    padding: 0.15rem;
+    border-radius: 999px;
+    background: var(--fs-bg);
+  }
+  .theme-switch button {
+    border: none;
+    background: none;
+    color: var(--fs-muted);
+    font: inherit;
+    font-size: 0.76rem;
+    padding: 0.22rem 0.5rem;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .theme-switch button[aria-pressed='true'] {
+    background: var(--fs-accent-soft);
+    color: var(--fs-accent);
+    font-weight: 700;
   }
   .language {
     display: flex;

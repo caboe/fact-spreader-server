@@ -19,8 +19,14 @@
   --fs-radius: 0.9rem;
 }
 
+/* Explicit data-theme wins; without it the system preference applies. */
+:root {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
+    color-scheme: dark;
     --fs-bg: #0b1220;
     --fs-surface: #111a2b;
     --fs-text: #e2e8f0;
@@ -37,6 +43,29 @@
     --fs-contested: #d8b4fe;
     --fs-insufficient: #cbd5e1;
   }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --fs-bg: #0b1220;
+  --fs-surface: #111a2b;
+  --fs-text: #e2e8f0;
+  --fs-muted: #94a3b8;
+  --fs-border: #334155;
+  --fs-accent: #5eead4;
+  --fs-accent-contrast: #062522;
+  --fs-accent-soft: #123b36;
+  --fs-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+  --fs-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.28);
+  --fs-true: #86efac;
+  --fs-misleading: #fcd34d;
+  --fs-false: #fca5a5;
+  --fs-contested: #d8b4fe;
+  --fs-insufficient: #cbd5e1;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 html {

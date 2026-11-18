@@ -7,6 +7,16 @@
     <meta name="theme-color" content="#0f6f64" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" />
+    <script>
+      try {
+        const stored = localStorage.getItem('fs-theme');
+        if (stored === 'light' || stored === 'dark') {
+          document.documentElement.dataset.theme = stored;
+        }
+      } catch (error) {
+        /* no local storage: the system preference still applies */
+      }
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

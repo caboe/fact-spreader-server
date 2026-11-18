@@ -432,6 +432,11 @@ const en: Catalog = {
   'setup.finish': 'Complete setup',
   'setup.all_steps_done': 'All steps are done. Complete the setup to open the app.',
   'setup.complete': 'Setup complete. The app is ready.',
+  'theme.label': 'Theme',
+  'theme.auto': 'Auto',
+  'theme.light': 'Light',
+  'theme.dark': 'Dark',
+
 };
 
 const de: Catalog = {
@@ -861,6 +866,11 @@ const de: Catalog = {
   'setup.finish': 'Einrichtung abschließen',
   'setup.all_steps_done': 'Alle Schritte sind erledigt. Einrichtung abschließen, um die App zu öffnen.',
   'setup.complete': 'Einrichtung abgeschlossen. Die App ist bereit.',
+  'theme.label': 'Design',
+  'theme.auto': 'Automatisch',
+  'theme.light': 'Hell',
+  'theme.dark': 'Dunkel',
+
 };
 
 const fr: Catalog = {
@@ -1290,6 +1300,11 @@ const fr: Catalog = {
   'setup.finish': 'Terminer la configuration',
   'setup.all_steps_done': 'Toutes les étapes sont faites. Terminez la configuration pour ouvrir l’application.',
   'setup.complete': 'Configuration terminée. L’application est prête.',
+  'theme.label': 'Thème',
+  'theme.auto': 'Auto',
+  'theme.light': 'Clair',
+  'theme.dark': 'Sombre',
+
 };
 
 const es: Catalog = {
@@ -1719,6 +1734,11 @@ const es: Catalog = {
   'setup.finish': 'Completar configuración',
   'setup.all_steps_done': 'Todos los pasos están hechos. Completa la configuración para abrir la app.',
   'setup.complete': 'Configuración completa. La app está lista.',
+  'theme.label': 'Tema',
+  'theme.auto': 'Auto',
+  'theme.light': 'Claro',
+  'theme.dark': 'Oscuro',
+
 };
 
 const catalogs: Record<Lang, Catalog> = { en, de, fr, es };
