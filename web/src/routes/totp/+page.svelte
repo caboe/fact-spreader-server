@@ -92,17 +92,21 @@
         </button>
       </form>
   {:else if $session && !$session.totp_setup_required}
-    <p>{tr('totp.enabled')}</p>
+    <p class="status">{tr('totp.enabled')}</p>
     <p class="hint">{tr('totp.re_enrol_hint')}</p>
-    <button class="button" type="button" onclick={begin} disabled={busy}>
-      {tr('totp.re_enrol')}
-    </button>
-    <a class="button secondary" href="/">{tr('totp.done')}</a>
+    <div class="actions">
+      <button class="button" type="button" onclick={begin} disabled={busy}>
+        {tr('totp.re_enrol')}
+      </button>
+      <a class="button secondary" href="/">{tr('totp.done')}</a>
+    </div>
   {:else}
     <p>{tr('totp.intro')}</p>
-    <button class="button" type="button" onclick={begin} disabled={busy}>
-      {tr('totp.start')}
-    </button>
+    <div class="actions">
+      <button class="button" type="button" onclick={begin} disabled={busy}>
+        {tr('totp.start')}
+      </button>
+    </div>
   {/if}
 
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -110,12 +114,41 @@
 
 <style>
   .card {
-    max-width: 40rem;
-    margin: 2rem auto;
+    max-width: 38rem;
+    margin: 3rem auto;
     background: var(--fs-surface);
     border-radius: var(--fs-radius);
     box-shadow: var(--fs-shadow);
-    padding: 1.75rem;
+    padding: 2.5rem;
+    display: grid;
+    gap: 1.25rem;
+  }
+  .card h1 {
+    margin: 0;
+    font-size: 1.6rem;
+  }
+  .card p {
+    margin: 0;
+    line-height: 1.6;
+  }
+  .status {
+    font-weight: 600;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 0.4rem;
+  }
+  @media (max-width: 520px) {
+    .card {
+      margin: 1.5rem auto;
+      padding: 1.5rem;
+    }
+    .actions .button {
+      width: 100%;
+      text-align: center;
+    }
   }
   dl {
     display: grid;
@@ -159,7 +192,7 @@
   }
   .button {
     display: inline-block;
-    padding: 0.65rem 1.3rem;
+    padding: 0.7rem 1.35rem;
     border-radius: 0.6rem;
     border: none;
     background: var(--fs-accent);
@@ -190,7 +223,8 @@
   }
   .hint {
     color: var(--fs-muted);
-    font-size: 0.88rem;
+    font-size: 0.9rem;
+    line-height: 1.55;
   }
   .button.secondary {
     background: var(--fs-accent-soft);
