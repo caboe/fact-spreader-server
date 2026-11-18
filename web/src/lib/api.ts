@@ -244,11 +244,21 @@ export async function chatStream(
         const chunk = JSON.parse(payload) as {
           choices?: { delta?: { content?: string } }[];
           factcheck?: { job_id?: string };
+          error?: { code?: string; message?: string };
         };
+        if (chunk.error) {
+          await reader.cancel();
+          throw new ApiError(
+            502,
+            chunk.error.code ?? 'stream_error',
+            chunk.error.message ?? 'The check stream failed.',
+          );
+        }
         if (chunk.factcheck?.job_id) jobId = chunk.factcheck.job_id;
         const text = chunk.choices?.[0]?.delta?.content;
         if (text) onChunk(text);
-      } catch {
+      } catch (cause) {
+        if (cause instanceof ApiError) throw cause;
         /* keepalive or partial frame */
       }
     }
