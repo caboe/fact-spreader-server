@@ -211,7 +211,9 @@
   }
   nav {
     display: flex;
-    gap: 1rem;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    min-width: 0;
   }
   nav a {
     text-decoration: none;
@@ -223,9 +225,11 @@
   .account {
     margin-left: auto;
     display: flex;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
     align-items: center;
     font-size: 0.9rem;
+    min-width: 0;
   }
   .theme-switch {
     display: flex;

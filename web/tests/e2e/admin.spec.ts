@@ -38,11 +38,28 @@ const MODELS = [
     tested_capabilities: ['chat', 'structured_output'],
     context_window: 128000,
     embedding_dim: null,
-    multilingual: true,
+    multilingual: false,
     is_local: false,
     enabled: true,
     input_cost_per_mtok: 0.3,
     output_cost_per_mtok: 0.5,
+    created_at: '2026-11-17T00:00:00Z',
+  },
+  {
+    id: 'mdl_2',
+    provider_id: 'prv_1',
+    model_name: 'bge-m3',
+    gateway_alias: null,
+    source_model_id: null,
+    capabilities: ['embedding'],
+    tested_capabilities: ['embedding'],
+    context_window: 8192,
+    embedding_dim: 1024,
+    multilingual: true,
+    is_local: true,
+    enabled: true,
+    input_cost_per_mtok: 0,
+    output_cost_per_mtok: 0,
     created_at: '2026-11-17T00:00:00Z',
   },
 ];
@@ -55,9 +72,31 @@ const ROLES = [
     min_context: 8192,
     multilingual: false,
     embedding_dim: null,
+    model: MODELS[0],
+    suitable: true,
+    reasons: [],
+  },
+  {
+    alias: 'fs-audit',
+    label: 'audit',
+    required_capabilities: ['chat', 'structured_output'],
+    min_context: 8192,
+    multilingual: true,
+    embedding_dim: null,
+    model: MODELS[0],
+    suitable: false,
+    reasons: ['not_multilingual'],
+  },
+  {
+    alias: 'fs-embedding',
+    label: 'corpus embeddings',
+    required_capabilities: ['embedding'],
+    min_context: null,
+    multilingual: true,
+    embedding_dim: 1024,
     model: null,
     suitable: false,
-    reasons: ['capability_not_tested:chat'],
+    reasons: ['capability_not_tested:embedding'],
   },
 ];
 
@@ -159,10 +198,26 @@ test('providers, roles, users and usage render the operator data', async ({ page
   await expect(page.getByRole('cell', { name: 'deepseek-flash' })).toBeVisible();
 
   await page.goto('/admin/roles');
-  await expect(page.getByRole('heading', { name: 'fs-extract' })).toBeVisible();
-  await expect(page.getByText('capability_not_tested:chat')).toBeVisible();
-  await page.getByRole('button', { name: 'Assign' }).click();
-  await expect(page.getByRole('status')).toContainText('role assigned');
+  const extract = page.locator('article').filter({ has: page.getByRole('heading', { name: 'fs-extract' }) });
+  await expect(extract).toBeVisible();
+  await extract.getByRole('button', { name: 'Assign' }).click();
+  await expect(extract.getByRole('status')).toContainText('role assigned');
+
+  const audit = page.locator('article').filter({ has: page.getByRole('heading', { name: 'fs-audit' }) });
+  await expect(audit.getByText('The model is not marked multilingual.')).toBeVisible();
+  await expect(audit.getByRole('button', { name: 'Assign' })).toBeDisabled();
+  await expect(audit.getByText('No model has the required capabilities tested yet.')).toBeVisible();
+  await page.getByLabel('Show unsuitable models').check();
+  const auditOption = audit.locator('option', { hasText: 'not marked multilingual' });
+  await expect(auditOption).toBeDisabled();
+  await page.getByLabel('Show unsuitable models').uncheck();
+  await expect(auditOption).toHaveCount(0);
+
+  // The form used to preselect the first base model, so every card offered the chat
+  // model. The embedding card must preselect the tested embedding model instead.
+  const embedding = page.locator('article').filter({ has: page.getByRole('heading', { name: 'fs-embedding' }) });
+  await expect(embedding.locator('select')).toHaveValue('mdl_2');
+  await expect(embedding.getByRole('button', { name: 'Assign' })).toBeEnabled();
 
   await page.goto('/admin/users');
   await expect(page.getByText('operator@test.invalid').first()).toBeVisible();

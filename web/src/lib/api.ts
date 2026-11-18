@@ -31,10 +31,13 @@ export interface SessionInfo {
 export class ApiError extends Error {
   status: number;
   code: string;
-  constructor(status: number, code: string, detail: string) {
+  /** Structured rejection reasons, e.g. capability reasons on a role assignment. */
+  reasons: string[];
+  constructor(status: number, code: string, detail: string, reasons: string[] = []) {
     super(detail);
     this.status = status;
     this.code = code;
+    this.reasons = reasons;
   }
 }
 
@@ -56,15 +59,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     let code = 'http_error';
     let detail = response.statusText;
+    let reasons: string[] = [];
     try {
       const payload = (await response.json()) as Record<string, unknown>;
       const error = payload.error as Record<string, unknown> | undefined;
       code = String(error?.code ?? payload.code ?? code);
       detail = String(error?.message ?? payload.detail ?? detail);
+      const raw = error?.reasons ?? payload.reasons;
+      if (Array.isArray(raw)) reasons = raw.map(String);
     } catch {
       /* HTML error page or empty body */
     }
-    throw new ApiError(response.status, code, detail);
+    throw new ApiError(response.status, code, detail, reasons);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
