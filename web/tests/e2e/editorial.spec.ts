@@ -74,14 +74,19 @@ const PRESELECTED_DOC = document({
   title: 'Vacancy rates in Berlin',
   publisher: 'Test Office',
   state: 'ready',
+  source_quality: 'C',
   warnings: [],
   approval_preselected: true,
   submitted_by: 'usr_other',
 });
 
-async function mockApi(page: Page): Promise<{ approvals: string[]; patched: string[] }> {
+async function mockApi(
+  page: Page,
+  queueDocs: Record<string, unknown>[] = [WARNING_DOC, PRESELECTED_DOC],
+): Promise<{ approvals: string[]; patched: string[]; qualities: string[] }> {
   const approvals: string[] = [];
   const patched: string[] = [];
+  const qualities: string[] = [];
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESSION) }),
   );
@@ -90,7 +95,7 @@ async function mockApi(page: Page): Promise<{ approvals: string[]; patched: stri
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        data: [WARNING_DOC, PRESELECTED_DOC],
+        data: queueDocs,
         counts: { ready: 1, warnings: 1, duplicates: 0, approved: 0, indexed: 1 },
         summary: { total: 2, returned: 2 },
       }),
@@ -163,13 +168,42 @@ async function mockApi(page: Page): Promise<{ approvals: string[]; patched: stri
   await page.route(/\/v1\/documents\/doc_2\/content$/, (route) =>
     route.fulfill({ status: 200, contentType: 'text/markdown', body: '# Vacancy report' }),
   );
-  await page.route(/\/v1\/documents\/doc_\d+$/, (route) =>
-    route.fulfill({
+  await page.route(/\/v1\/documents\/doc_\d+$/, async (route) => {
+    const base = route.request().url().endsWith('doc_2') ? PRESELECTED_DOC : WARNING_DOC;
+    if (route.request().method() === 'PATCH') {
+      const body = JSON.parse(route.request().postData() ?? '{}') as { source_quality?: string };
+      qualities.push(route.request().postData() ?? '');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...base, source_quality: body.source_quality ?? base.source_quality }),
+      });
+      return;
+    }
+    await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(route.request().url().endsWith('doc_2') ? PRESELECTED_DOC : WARNING_DOC),
-    }),
-  );
+      body: JSON.stringify(base),
+    });
+  });
+  await page.route(/\/v1\/documents\/quality$/, async (route) => {
+    const body = JSON.parse(route.request().postData() ?? '{}') as {
+      document_ids?: string[];
+      source_quality?: string;
+    };
+    qualities.push(route.request().postData() ?? '');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        results: (body.document_ids ?? []).map((document_id) => ({
+          document_id,
+          state: 'approved',
+          source_quality: body.source_quality,
+        })),
+      }),
+    });
+  });
   await page.route(/\/v1\/documents\/doc_\d+\/approve$/, async (route) => {
     approvals.push(route.request().postData() ?? '');
     const id = route.request().url().includes('doc_2') ? 'doc_2' : 'doc_1';
@@ -194,7 +228,7 @@ async function mockApi(page: Page): Promise<{ approvals: string[]; patched: stri
       }),
     }),
   );
-  return { approvals, patched };
+  return { approvals, patched, qualities };
 }
 
 test('an editor reviews, corrects and approves documents', async ({ page }) => {
@@ -213,9 +247,13 @@ test('an editor reviews, corrects and approves documents', async ({ page }) => {
   await expect(page.getByRole('status').filter({ hasText: 'Figure description saved.' })).toBeVisible();
 
   await page.getByRole('checkbox', { name: /I confirm the licence/ }).check();
+  const detailQuality = page.locator('.detail').getByLabel('Source quality');
+  await expect(page.getByRole('button', { name: 'Approve', exact: true })).toBeDisabled();
+  await detailQuality.selectOption('B');
   await page.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Approved. Indexing started.' })).toBeVisible();
   expect(calls.approvals[0]).toContain('"license_confirmed":true');
+  expect(calls.approvals[0]).toContain('"source_quality":"B"');
 
   await page.getByRole('tab', { name: /Contradictions/ }).click();
   await expect(page.getByText('Rents doubled between 2015 and 2025.')).toBeVisible();
@@ -234,17 +272,43 @@ test('an editor reviews, corrects and approves documents', async ({ page }) => {
   expect(serious, JSON.stringify(serious.map((item) => item.id))).toEqual([]);
 });
 
-test('an editor approves all preselected documents in one pass', async ({ page }) => {
+test('an editor selects all documents and applies a mixed source quality', async ({ page }) => {
+  const calls = await mockApi(page, [
+    { ...WARNING_DOC, state: 'approved' },
+    { ...PRESELECTED_DOC, state: 'approved' },
+  ]);
+  await page.goto('/editorial');
+  await expect(page.getByText('Vacancy rates in Berlin')).toBeVisible();
+
+  await page.getByLabel('Select all').check();
+  await expect(page.locator('.list-head select')).toHaveValue('mixed');
+  await expect(page.locator('.list-head select')).toContainText('Mixed');
+
+  await page.locator('.list-head select').selectOption('B');
+  await page.getByRole('button', { name: 'Apply quality' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Source quality updated: 2 changed, 0 skipped.' }),
+  ).toBeVisible();
+  expect(calls.qualities).toHaveLength(1);
+  expect(calls.qualities[0]).toContain('"source_quality":"B"');
+
+  await page.locator('.list li select').first().selectOption('A');
+  await expect(page.getByText('Source quality updated.', { exact: true })).toBeVisible();
+  expect(calls.qualities.at(-1)).toContain('"source_quality":"A"');
+});
+
+test('an editor approves all selected documents with one source quality', async ({ page }) => {
   const calls = await mockApi(page);
   await page.goto('/editorial');
   await expect(page.getByText('Vacancy rates in Berlin')).toBeVisible();
-  await page.getByRole('button', { name: 'Select all preselected' }).click();
-  await expect(page.getByRole('button', { name: /Approve selected \(1\)/ })).toBeVisible();
+  await page.getByLabel('Select all').check();
   await page.getByRole('checkbox', { name: /I confirm the licence/ }).check();
+  const batchQuality = page.locator('.approve-controls').getByLabel('Source quality');
+  await batchQuality.selectOption('B');
   await page.getByRole('button', { name: /Approve selected/ }).click();
-  await expect(page.getByRole('status').filter({ hasText: '1 documents approved.' })).toBeVisible();
-  expect(calls.approvals).toHaveLength(1);
-  expect(calls.approvals[0]).toContain('"license_confirmed":true');
+  await expect(page.getByRole('status').filter({ hasText: '2 documents approved.' })).toBeVisible();
+  expect(calls.approvals).toHaveLength(2);
+  expect(calls.approvals[0]).toContain('"source_quality":"B"');
 });
 
 test('the editorial queue has wide, dark and narrow captures', async ({ page }) => {

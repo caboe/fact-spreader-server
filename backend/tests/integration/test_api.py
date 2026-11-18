@@ -734,16 +734,25 @@ async def test_documents_are_submitted_reviewed_indexed_withdrawn_and_deduplicat
     assert "Rents rose" in content.text
     assert content.headers["content-type"].startswith("text/markdown")
 
+    missing_quality = await client.post(
+        f"/v1/documents/{document_id}/approve",
+        json={"license_confirmed": True, "redistribution": "full_text"},
+    )
+    assert missing_quality.status_code == 422
+
     approved = await client.post(
         f"/v1/documents/{document_id}/approve",
         json={
             "license_confirmed": True,
             "redistribution": "full_text",
+            "source_quality": "B",
             "note": "Checked",
         },
     )
     assert approved.status_code == 200, approved.text
     assert approved.json()["state"] == "approved"
+    assert approved.json()["source_quality"] == "B"
+    assert approved.json()["source_quality_basis"]["source"] == "document_override"
     assert approved.json()["approval"]["approved_by"]
 
     fake_lightrag = FakeLightRAG(document_id=document_id, passage="unused")
@@ -771,6 +780,41 @@ async def test_documents_are_submitted_reviewed_indexed_withdrawn_and_deduplicat
     assert fake_lightrag.inserted[0]["file_source"] == f"{document_id}@v1"
     indexed = await client.get(f"/v1/documents/{document_id}")
     assert indexed.json()["state"] == "indexed"
+
+    async with app.state.db.session_factory() as session:
+        check_jobs_before = int(
+            (
+                await session.execute(select(func.count(JobRow.id)).where(JobRow.kind == "check"))
+            ).scalar_one()
+        )
+    changed = await client.patch(
+        f"/v1/documents/{document_id}",
+        json={"source_quality": "C", "note": "Publisher reassessed"},
+    )
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["source_quality"] == "C"
+    async with app.state.db.session_factory() as session:
+        check_jobs_after = int(
+            (
+                await session.execute(select(func.count(JobRow.id)).where(JobRow.kind == "check"))
+            ).scalar_one()
+        )
+    assert check_jobs_after == check_jobs_before
+
+    bulk = await client.post(
+        "/v1/documents/quality",
+        json={"document_ids": [document_id, "doc_missing"], "source_quality": "B"},
+    )
+    assert bulk.status_code == 200, bulk.text
+    assert bulk.json()["results"][0]["source_quality"] == "B"
+    assert bulk.json()["results"][1]["error"] == "not_found"
+
+    filtered = await client.get(
+        "/v1/review/queue",
+        params={"state": "all", "source_quality": "B", "q": "Housing"},
+    )
+    assert filtered.status_code == 200, filtered.text
+    assert any(item["id"] == document_id for item in filtered.json()["data"])
 
     duplicate = await client.post("/v1/documents", json=body)
     assert duplicate.status_code == 202
@@ -836,7 +880,11 @@ async def test_four_eyes_and_the_daily_recheck_budget_are_enforced(
     document_id = submitted.json()["document"]["id"]
     blocked = await client.post(
         f"/v1/documents/{document_id}/approve",
-        json={"license_confirmed": True, "redistribution": "full_text"},
+        json={
+            "license_confirmed": True,
+            "redistribution": "full_text",
+            "source_quality": "B",
+        },
     )
     assert blocked.status_code == 403
     assert blocked.json()["code"] == "four_eyes_required"
@@ -845,7 +893,11 @@ async def test_four_eyes_and_the_daily_recheck_budget_are_enforced(
     settings.recheck_daily_budget = 0
     approved = await client.post(
         f"/v1/documents/{document_id}/approve",
-        json={"license_confirmed": True, "redistribution": "full_text"},
+        json={
+            "license_confirmed": True,
+            "redistribution": "full_text",
+            "source_quality": "B",
+        },
     )
     assert approved.status_code == 200, approved.text
     fake_lightrag = FakeLightRAG(document_id=document_id, passage="unused")
@@ -920,6 +972,30 @@ async def test_batch_upload_sanitises_zip_and_reports_per_file_states(
     detail = await client.get(f"/v1/documents/batches/{batch['id']}")
     assert detail.status_code == 200
     assert detail.json()["batch"]["counts"]["total"] == 3
+
+    ready_id = next(item["document_id"] for item in batch["files"] if item["state"] == "ready")
+    missing_quality = await client.post(
+        f"/v1/documents/batches/{batch['id']}/approve",
+        json={
+            "document_ids": [ready_id],
+            "license_confirmed": True,
+            "redistribution": "full_text",
+        },
+    )
+    assert missing_quality.status_code == 422
+    approved = await client.post(
+        f"/v1/documents/batches/{batch['id']}/approve",
+        json={
+            "document_ids": [ready_id],
+            "license_confirmed": True,
+            "redistribution": "full_text",
+            "source_quality": "B",
+        },
+    )
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["results"][0]["state"] == "approved"
+    approved_document = await client.get(f"/v1/documents/{ready_id}")
+    assert approved_document.json()["source_quality"] == "B"
 
 
 @pytest.mark.asyncio

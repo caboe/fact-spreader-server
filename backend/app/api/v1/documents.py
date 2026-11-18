@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import UploadFile
 
@@ -19,8 +20,10 @@ from app.contracts.api import (
     BatchResponse,
     BatchRetryRequest,
     BatchSubmitRequest,
+    BulkQualityRequest,
     DocumentInfo,
     DocumentMetadata,
+    DocumentQualityRequest,
     DocumentSubmitRequest,
     DocumentSubmitResponse,
     DocumentWarning,
@@ -49,6 +52,7 @@ from app.services.batches import (
 )
 from app.services.documents import (
     _record_recheck_summary,
+    apply_source_quality,
     create_document,
     document_to_api,
     enqueue_rechecks_for_document,
@@ -285,6 +289,104 @@ async def get_document(
     return await _api(session, document, principal)
 
 
+@router.patch("/documents/{document_id}", response_model=DocumentInfo)
+async def update_document_quality(
+    document_id: str,
+    body: DocumentQualityRequest,
+    request: Request,
+    principal: Review,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> DocumentInfo:
+    document = await _load(session, document_id)
+    if document.state not in {"approved", "indexing", "indexed"}:
+        raise AppError(
+            409,
+            "invalid_state",
+            "Only an approved or indexed document can change its source quality.",
+        )
+    previous = apply_source_quality(
+        document,
+        body.source_quality,
+        actor_id=principal.user_id,
+        list_version=request.app.state.publishers.version,
+    )
+    session.add(
+        AuditLog(
+            id=new_id("aud"),
+            actor_id=principal.user_id,
+            actor_type="user",
+            action="document_quality_changed",
+            object_type="document",
+            object_id=document.id,
+            detail={
+                "source_quality": body.source_quality,
+                "previous_source_quality": previous,
+                "note": body.note,
+            },
+            created_at=utcnow(),
+        )
+    )
+    instance = (await session.execute(select(Instance).limit(1))).scalar_one_or_none()
+    if instance is not None:
+        await update_corpus_version(session, instance)
+    await session.commit()
+    return await _api(session, document, principal)
+
+
+@router.post("/documents/quality")
+async def update_documents_quality(
+    body: BulkQualityRequest,
+    request: Request,
+    principal: Review,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, Any]:
+    results: list[dict[str, Any]] = []
+    for document_id in dict.fromkeys(body.document_ids):
+        document = await session.get(Document, document_id)
+        if document is None or document.deleted:
+            results.append({"document_id": document_id, "error": "not_found"})
+            continue
+        if document.state not in {"approved", "indexing", "indexed"}:
+            results.append({"document_id": document_id, "error": "invalid_state"})
+            continue
+        previous = apply_source_quality(
+            document,
+            body.source_quality,
+            actor_id=principal.user_id,
+            list_version=request.app.state.publishers.version,
+        )
+        session.add(
+            AuditLog(
+                id=new_id("aud"),
+                actor_id=principal.user_id,
+                actor_type="user",
+                action="document_quality_changed",
+                object_type="document",
+                object_id=document.id,
+                detail={
+                    "source_quality": body.source_quality,
+                    "previous_source_quality": previous,
+                    "note": body.note,
+                    "batch": True,
+                },
+                created_at=utcnow(),
+            )
+        )
+        results.append(
+            {
+                "document_id": document.id,
+                "state": document.state,
+                "source_quality": body.source_quality,
+                "previous_source_quality": previous,
+            }
+        )
+    instance = (await session.execute(select(Instance).limit(1))).scalar_one_or_none()
+    if instance is not None:
+        await update_corpus_version(session, instance)
+    await session.commit()
+    return {"results": results}
+
+
 @router.get(
     "/documents/{document_id}/content",
     responses={200: {"content": {"text/markdown": {}}}},
@@ -337,6 +439,12 @@ async def approve_document(
     if request.app.state.settings.four_eyes_enabled and document.submitted_by == principal.user_id:
         raise AppError(403, "four_eyes_required", "A second reviewer must approve this document.")
     now = utcnow()
+    previous_quality = apply_source_quality(
+        document,
+        body.source_quality,
+        actor_id=principal.user_id,
+        list_version=request.app.state.publishers.version,
+    )
     document.state = "approved"
     document.approved_by = principal.user_id
     document.approved_at = now
@@ -361,7 +469,12 @@ async def approve_document(
             action="document_approved",
             object_type="document",
             object_id=document.id,
-            detail={"redistribution": body.redistribution, "note": body.note},
+            detail={
+                "redistribution": body.redistribution,
+                "source_quality": body.source_quality,
+                "previous_source_quality": previous_quality,
+                "note": body.note,
+            },
             created_at=now,
         )
     )
@@ -465,13 +578,45 @@ async def review_queue(
     principal: Review,
     session: Annotated[AsyncSession, Depends(get_session)],
     state: str | None = None,
-    limit: int = Query(default=50, ge=1, le=200),
+    q: str | None = None,
+    source_quality: str | None = None,
+    publisher: str | None = None,
+    language: str | None = None,
+    published_from: date | None = None,
+    published_to: date | None = None,
+    limit: int = Query(default=100, ge=1, le=200),
 ) -> ReviewQueueResponse:
     statement = select(Document).where(Document.deleted.is_(False))
-    if state:
+    if state == "all":
+        pass
+    elif state:
         statement = statement.where(Document.state == state)
     else:
         statement = statement.where(Document.state.in_(["ready", "warning", "parsed", "duplicate"]))
+    if q:
+        needle = f"%{q.strip()}%"
+        statement = statement.where(
+            or_(
+                Document.title.ilike(needle),
+                Document.publisher.ilike(needle),
+                Document.url.ilike(needle),
+            )
+        )
+    if source_quality:
+        grade = source_quality.upper()
+        if grade not in {"A", "B", "C", "D"}:
+            raise AppError(
+                422, "invalid_source_quality", "The source quality must be A, B, C or D."
+            )
+        statement = statement.where(Document.source_quality == grade)
+    if publisher:
+        statement = statement.where(Document.publisher.ilike(f"%{publisher.strip()}%"))
+    if language:
+        statement = statement.where(Document.language == language)
+    if published_from:
+        statement = statement.where(Document.publication_date >= published_from)
+    if published_to:
+        statement = statement.where(Document.publication_date <= published_to)
     rows = (
         (await session.execute(statement.order_by(Document.created_at).limit(limit)))
         .scalars()
@@ -797,6 +942,12 @@ async def approve_batch(
             results.append({"document_id": document_id, "error": "four_eyes_required"})
             continue
         now = utcnow()
+        previous_quality = apply_source_quality(
+            document,
+            body.source_quality,
+            actor_id=principal.user_id,
+            list_version=request.app.state.publishers.version,
+        )
         document.state = "approved"
         document.approved_by = principal.user_id
         document.approved_at = now
@@ -811,6 +962,24 @@ async def approve_batch(
                 payload={"document_id": document.id, "version": document.version},
                 progress=0.0,
                 user_id=principal.user_id,
+                created_at=now,
+            )
+        )
+        session.add(
+            AuditLog(
+                id=new_id("aud"),
+                actor_id=principal.user_id,
+                actor_type="user",
+                action="document_approved",
+                object_type="document",
+                object_id=document.id,
+                detail={
+                    "redistribution": body.redistribution,
+                    "source_quality": body.source_quality,
+                    "previous_source_quality": previous_quality,
+                    "note": body.note,
+                    "batch": True,
+                },
                 created_at=now,
             )
         )

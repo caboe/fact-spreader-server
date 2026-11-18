@@ -189,6 +189,7 @@ test('live: a mixed batch completes, retries and approves', async ({ page }) => 
   });
   await page.getByRole('checkbox', { name: new RegExp(filename) }).check();
   await page.getByRole('checkbox', { name: /I confirm the licence/ }).check();
+  await page.getByLabel('Source quality').selectOption('B');
   await page.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: '1 documents approved.' })).toBeVisible();
 

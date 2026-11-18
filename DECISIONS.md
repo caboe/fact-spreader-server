@@ -974,3 +974,19 @@ and uploaded originals, while the vector store is reproducible.
 **Rejected:** a separate nginx/web container (another origin to configure), backing up the
 LightRAG volume (large, derived, inconsistent with the approved corpus after a restore),
 enabling the proxy access log (content and query leakage).
+
+## D62 — Source quality is an explicit editorial decision; changes do not re-check
+
+**What:** approval requires an explicit `A`/`B`/`C`/`D` source grade, starting empty in the
+editorial UI. An `approved`/`indexing`/`indexed` document can later change its grade through
+`PATCH /v1/documents/{id}` or a bulk selection; the change is audited, updates the stored
+basis, and does not enqueue re-checks.
+
+**Why:** dpa-factchecking.com has no entry in the shipped publisher list, so all 18 imported
+documents graded `D` and could not satisfy the `B` gate even when their text matched. A
+silent default would repeat that failure. The human explicitly chose no automatic re-checks:
+the stored results keep their original basis and a new check uses the new grade.
+
+**Rejected:** accepting the computed grade by default, approving without a grade, automatic
+re-checks of every affected claim after a bulk change (surprise spend and new result
+versions), re-indexing for a metadata-only change.

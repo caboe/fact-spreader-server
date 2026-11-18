@@ -1281,23 +1281,31 @@ over the configured cap returns `413` with a note; v1 does not expose snapshots.
 
 ### 8.4 `PATCH /v1/documents/{document_id}`
 
-Reviewer or owner before approval. Corrections to title, publisher, authors, date, URL,
-DOI, dataset, license, redistribution, domain tags, language, source-quality override and
-notes. Every change is audited. After approval, only non-content metadata corrections are
-allowed and audited; a content change means withdrawing the document and submitting a new
-one. There is no in-place content edit and no public versions endpoint in v1.
+Change the source quality of an `approved`, `indexing` or `indexed` document:
+
+```json
+{"source_quality": "A|B|C|D", "note": "why the grade changed"}
+```
+
+`documents:review` is required. The change is audited with the previous grade and does not
+re-index the document or enqueue re-checks; a later approval of a new version or a corpus
+re-index is the normal way to revisit verdicts. Content changes still require withdrawal
+and a new version; v1 has no in-place content edit and no public versions endpoint.
 
 ### 8.5 Approval and lifecycle
 
 | Endpoint | Permission | Body | Effect |
 | --- | --- | --- | --- |
-| `POST /v1/documents/{id}/approve` | `documents:review` | `{"license_confirmed": true, "redistribution": "full_text|excerpts_only|metadata_only", "note": null}` | state `approved`; enqueues indexing; records approver |
+| `POST /v1/documents/{id}/approve` | `documents:review` | `{"license_confirmed": true, "redistribution": "full_text|excerpts_only|metadata_only", "source_quality": "A|B|C|D", "note": null}` | state `approved`; sets the source grade; enqueues indexing; records approver |
 | `POST /v1/documents/{id}/reject` | `documents:review` | `{"reason": "…"}` | state `rejected`; never indexed |
 | `POST /v1/documents/{id}/withdraw` | `documents:review` | `{"reason": "…"}` | removes from LightRAG, marks withdrawn, triggers re-checks for affected claims |
 | `PUT /v1/documents/{id}/figures/{figure_id}` | `documents:review` | `{"description": "…"}` | editor correction; `editor_checked = true` |
 
 - `license_confirmed` must be `true`; missing license is a warning, not a hard block, but
   the editor must explicitly confirm the metadata is correct.
+- `source_quality` is required and must be `A`, `B`, `C` or `D`; a missing grade is
+  `422 validation_error`. The UI starts the choice empty so a grade cannot be accepted by
+  accident. Every approval records the previous grade and the basis `document_override`.
 - Approval of a document submitted by the same person is allowed unless the four-eyes
   setting is on; then it is `403 four_eyes_required`.
 - Approving an already approved document returns `409 invalid_state`.
@@ -1309,10 +1317,11 @@ one. There is no in-place content edit and no public versions endpoint in v1.
 
 ### 8.6 Review queue
 
-`GET /v1/review/queue?state=…&warning=…&cursor&limit` (`documents:review`) returns
-`data: [Document]`, `counts: {"ready": 80, "warnings": 12, "duplicates": 5, "failed": 3}`
-and a summary. Documents without warnings are flagged `approval_preselected = true`;
-documents with warnings are not.
+`GET /v1/review/queue` (`documents:review`) returns `data: [Document]`, `counts` and a
+summary. Filters: `state` (default: pending; `all` for every state), `q` (title, publisher
+or URL), `source_quality` (`A`–`D`), `publisher`, `language`, `published_from`,
+`published_to`, `limit` (max 200). Documents without warnings are flagged
+`approval_preselected = true`; documents with warnings are not.
 
 ### 8.7 Batch upload
 
@@ -1355,15 +1364,29 @@ Response `202`:
   Pagination for `files` when > 100 (`?cursor`).
 - `POST /v1/documents/batches/{batch_id}/retry` `{"document_ids": […]}` retries failed
   files only.
-- `POST /v1/documents/batches/{batch_id}/approve` `{"document_ids": […], "license_confirmed": true, "redistribution": "…", "note": null}`.
+- `POST /v1/documents/batches/{batch_id}/approve` `{"document_ids": […], "license_confirmed": true, "redistribution": "…", "source_quality": "A|B|C|D", "note": null}`.
   The server validates each document state and four-eyes rule; per-file errors are returned
   in `results` and do not roll back successful approvals. Documents with warnings may be
-  approved explicitly; the UI does not preselect them.
+  approved explicitly; the UI does not preselect them. `source_quality` is required.
 - `POST /v1/documents/batches/{batch_id}/reject` `{"document_ids": […], "reason": "…"}`.
 - Batch processing continues in the worker when the browser closes. A batch is a bracket
   around independent documents, never one document.
 
-### 8.8 Duplicates and versions
+### 8.8 Bulk source quality
+
+`POST /v1/documents/quality` (`documents:review`):
+
+```json
+{"document_ids": ["doc_…", "doc_…"], "source_quality": "B", "note": "same publisher assessment"}
+```
+
+Up to 200 documents. Only `approved`, `indexing` and `indexed` documents are changed;
+invalid ids or states appear as per-document `error` entries and do not roll back the
+others. Every change is audited separately and no re-checks are enqueued. The endpoint is
+intended for the editorial list's select-all/quality header.
+
+### 8.9 Duplicates and versions
+
 
 - Duplicate key: `content_hash` first; then `(origin_instance_id, origin_document_id)`;
   then a normalized title/date/publisher heuristic marked as *suspected*.

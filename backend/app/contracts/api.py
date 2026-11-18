@@ -22,6 +22,8 @@ from app.contracts.enums import (
     Verdict,
 )
 
+SourceGrade = Literal["A", "B", "C", "D"]
+
 
 class ApiModel(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
@@ -977,6 +979,7 @@ class DocumentSubmitResponse(ApiModel):
 class ApprovalRequest(RequestModel):
     license_confirmed: bool = False
     redistribution: Literal["full_text", "excerpts_only", "metadata_only"]
+    source_quality: SourceGrade
     note: str | None = None
 
 
@@ -1082,6 +1085,18 @@ class BatchActionRequest(RequestModel):
     document_ids: list[str] = Field(default_factory=list)
     license_confirmed: bool = False
     redistribution: Literal["full_text", "excerpts_only", "metadata_only"] = "metadata_only"
+    source_quality: SourceGrade
+    note: str | None = None
+
+
+class DocumentQualityRequest(RequestModel):
+    source_quality: SourceGrade
+    note: str | None = None
+
+
+class BulkQualityRequest(RequestModel):
+    document_ids: list[str] = Field(min_length=1, max_length=200)
+    source_quality: SourceGrade
     note: str | None = None
 
 

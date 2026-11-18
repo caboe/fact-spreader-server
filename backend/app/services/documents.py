@@ -394,12 +394,51 @@ async def create_document(
     return document, version, warnings, duplicate_of, _estimate(content, figures or [])
 
 
+def apply_source_quality(
+    document: Document,
+    grade: str,
+    *,
+    actor_id: str,
+    list_version: str,
+) -> str:
+    """Set an editorial source grade and keep the stored warning list honest.
+
+    The grade is metadata, not corpus content: changing it does not re-index or enqueue
+    rechecks. The caller records the audit entry. The basis marks a document-level
+    override, so a later publisher-list release cannot silently replace it.
+    """
+    previous = document.source_quality
+    document.source_quality = grade
+    document.source_quality_basis = {
+        "source": "document_override",
+        "list_version": list_version,
+        "entry": f"editorial:{actor_id}",
+        "declared_grade": grade,
+    }
+    warnings = [
+        dict(item) for item in (document.warnings or []) if item.get("code") != "low_source_grade"
+    ]
+    if grade == "D":
+        warnings.append(
+            {
+                "code": "low_source_grade",
+                "message": "The publisher resolves to source grade D.",
+            }
+        )
+    document.warnings = warnings
+    document.updated_at = utcnow()
+    return previous
+
+
 async def update_corpus_version(session: AsyncSession, instance: Instance) -> None:
     docs = (
         await session.execute(
-            select(Document.id, Document.version, Document.content_hash).where(
-                Document.deleted.is_(False), Document.state == "indexed"
-            )
+            select(
+                Document.id,
+                Document.version,
+                Document.content_hash,
+                Document.source_quality,
+            ).where(Document.deleted.is_(False), Document.state == "indexed")
         )
     ).all()
     payload = json.dumps(sorted([list(row) for row in docs]), sort_keys=True)

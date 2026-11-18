@@ -415,9 +415,22 @@ export interface ReviewQueue {
   summary: Record<string, number>;
 }
 
-export async function listReviewQueue(state?: string): Promise<ReviewQueue> {
+export interface ReviewQueueFilters {
+  state?: string;
+  q?: string;
+  source_quality?: string;
+  publisher?: string;
+  language?: string;
+  published_from?: string;
+  published_to?: string;
+  limit?: number;
+}
+
+export async function listReviewQueue(filters: ReviewQueueFilters = {}): Promise<ReviewQueue> {
   const search = new URLSearchParams();
-  if (state) search.set('state', state);
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') search.set(key, String(value));
+  }
   return request(`/v1/review/queue${search.size ? `?${search.toString()}` : ''}`);
 }
 
@@ -435,10 +448,42 @@ export async function getDocumentContent(id: string): Promise<string> {
   return response.text();
 }
 
+export type SourceGrade = 'A' | 'B' | 'C' | 'D';
+
 export interface ApprovalInput {
   license_confirmed: boolean;
   redistribution: 'full_text' | 'excerpts_only' | 'metadata_only';
+  source_quality: SourceGrade;
   note?: string;
+}
+
+export async function updateDocumentQuality(
+  id: string,
+  body: { source_quality: SourceGrade; note?: string },
+): Promise<DocumentInfo> {
+  return request(`/v1/documents/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function bulkUpdateDocumentQuality(body: {
+  document_ids: string[];
+  source_quality: SourceGrade;
+  note?: string;
+}): Promise<{
+  results: {
+    document_id: string;
+    state?: string;
+    source_quality?: string;
+    previous_source_quality?: string;
+    error?: string;
+  }[];
+}> {
+  return request('/v1/documents/quality', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export async function approveDocument(id: string, body: ApprovalInput): Promise<DocumentInfo> {
@@ -606,7 +651,13 @@ export interface BatchActionResult {
 
 export async function approveBatch(
   id: string,
-  body: { document_ids?: string[]; license_confirmed: boolean; redistribution: string; note?: string },
+  body: {
+    document_ids?: string[];
+    license_confirmed: boolean;
+    redistribution: string;
+    source_quality: SourceGrade;
+    note?: string;
+  },
 ): Promise<{ results: BatchActionResult[] }> {
   return request(`/v1/documents/batches/${encodeURIComponent(id)}/approve`, {
     method: 'POST',

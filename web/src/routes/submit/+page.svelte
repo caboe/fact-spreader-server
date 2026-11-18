@@ -11,6 +11,7 @@
     retryBatch,
     submitBatch,
     type BatchActionResult,
+    type SourceGrade,
   } from '$lib/api';
   import { session } from '$lib/session';
   import { t } from '$lib/i18n';
@@ -34,6 +35,7 @@
   let selectedIds = $state<string[]>([]);
   let licenseConfirmed = $state(false);
   let redistribution = $state<'metadata_only' | 'excerpts_only' | 'full_text'>('metadata_only');
+  let approvalQuality = $state<SourceGrade | ''>('');
   let rejectReason = $state('');
   let error = $state('');
   let notice = $state('');
@@ -41,6 +43,7 @@
   let dragging = $state(false);
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  const GRADES: SourceGrade[] = ['A', 'B', 'C', 'D'];
   const countKeys = ['total', 'ready', 'warning', 'duplicate', 'failed'] as const;
   const canSubmit = $derived(Boolean($session?.user.permissions.includes('documents:submit')));
   const canReview = $derived(Boolean($session?.user.permissions.includes('documents:review')));
@@ -226,6 +229,10 @@
       error = tr('editorial.license_required');
       return;
     }
+    if (!approvalQuality) {
+      error = tr('editorial.quality_required');
+      return;
+    }
     busy = 'approve';
     error = '';
     notice = '';
@@ -234,11 +241,13 @@
         document_ids: selectedIds,
         license_confirmed: true,
         redistribution,
+        source_quality: approvalQuality,
       });
       const problems = resultProblems(result.results);
       if (problems) error = problems;
       else notice = tr('batch.approved_ok', { count: result.results.length });
       selectedIds = [];
+      approvalQuality = '';
       await loadBatch(batch.id);
     } catch (cause) {
       error = cause instanceof ApiError ? cause.message : tr('common.error');
@@ -400,11 +409,18 @@
             <option value="full_text">{tr('editorial.redistribution_full_text')}</option>
           </select>
         </label>
+        <label class="field">
+          <span>{tr('editorial.source_quality')}</span>
+          <select bind:value={approvalQuality} required>
+            <option value="">{tr('editorial.quality_choose')}</option>
+            {#each GRADES as grade}<option value={grade}>{grade}</option>{/each}
+          </select>
+        </label>
         <div class="row">
           <button
             type="button"
             onclick={approve}
-            disabled={selectedIds.length === 0 || busy === 'approve'}
+            disabled={selectedIds.length === 0 || !approvalQuality || busy === 'approve'}
             >{tr('editorial.approve')}</button
           >
           <label class="field">

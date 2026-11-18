@@ -944,6 +944,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/documents/quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Update Documents Quality */
+        post: operations["update_documents_quality_v1_documents_quality_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/documents/{document_id}": {
         parameters: {
             query?: never;
@@ -958,7 +975,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Document Quality */
+        patch: operations["update_document_quality_v1_documents__document_id__patch"];
         trace?: never;
     };
     "/v1/documents/{document_id}/approve": {
@@ -1379,6 +1397,11 @@ export interface components {
              * @enum {string}
              */
             redistribution: "full_text" | "excerpts_only" | "metadata_only";
+            /**
+             * Source Quality
+             * @enum {string}
+             */
+            source_quality: "A" | "B" | "C" | "D";
         };
         /** ArgumentIssue */
         ArgumentIssue: {
@@ -1408,6 +1431,11 @@ export interface components {
              * @enum {string}
              */
             redistribution: "full_text" | "excerpts_only" | "metadata_only";
+            /**
+             * Source Quality
+             * @enum {string}
+             */
+            source_quality: "A" | "B" | "C" | "D";
         };
         /** BatchCounts */
         BatchCounts: {
@@ -1520,6 +1548,18 @@ export interface components {
         BatchRetryRequest: {
             /** Document Ids */
             document_ids?: string[];
+        };
+        /** BulkQualityRequest */
+        BulkQualityRequest: {
+            /** Document Ids */
+            document_ids: string[];
+            /** Note */
+            note?: string | null;
+            /**
+             * Source Quality
+             * @enum {string}
+             */
+            source_quality: "A" | "B" | "C" | "D";
         };
         /** CapabilityProbeReport */
         CapabilityProbeReport: {
@@ -1851,6 +1891,16 @@ export interface components {
             version: number;
             /** Warnings */
             warnings?: components["schemas"]["DocumentWarning"][];
+        };
+        /** DocumentQualityRequest */
+        DocumentQualityRequest: {
+            /** Note */
+            note?: string | null;
+            /**
+             * Source Quality
+             * @enum {string}
+             */
+            source_quality: "A" | "B" | "C" | "D";
         };
         /** DocumentSubmitResponse */
         DocumentSubmitResponse: {
@@ -10391,6 +10441,122 @@ export interface operations {
             };
         };
     };
+    update_documents_quality_v1_documents_quality_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkQualityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Problem details */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     get_document_v1_documents__document_id__get: {
         parameters: {
             query?: never;
@@ -10401,6 +10567,122 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentInfo"];
+                };
+            };
+            /** @description Problem details */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    update_document_quality_v1_documents__document_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentQualityRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -12423,6 +12705,12 @@ export interface operations {
         parameters: {
             query?: {
                 state?: string | null;
+                q?: string | null;
+                source_quality?: string | null;
+                publisher?: string | null;
+                language?: string | null;
+                published_from?: string | null;
+                published_to?: string | null;
                 limit?: number;
             };
             header?: never;

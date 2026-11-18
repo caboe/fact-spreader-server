@@ -6,6 +6,7 @@
     type EditorContradiction,
     type EditorGap,
     approveDocument,
+    bulkUpdateDocumentQuality,
     getDocument,
     getDocumentContent,
     listContradictions,
@@ -14,9 +15,11 @@
     rejectDocument,
     recheckGap,
     updateContradiction,
+    updateDocumentQuality,
     updateFigure,
     updateGap,
     withdrawDocument,
+    type SourceGrade,
   } from '$lib/api';
   import { session } from '$lib/session';
   import { t } from '$lib/i18n';
@@ -27,7 +30,7 @@
   let tab = $state<Tab>('queue');
   let queue = $state<DocumentInfo[]>([]);
   let counts = $state<Record<string, number>>({});
-  let stateFilter = $state('');
+  let filters = $state({ state: '', q: '', source_quality: '', publisher: '', language: '' });
   let selectedIds = $state<string[]>([]);
   let detail = $state<DocumentInfo | null>(null);
   let content = $state('');
@@ -40,14 +43,36 @@
 
   let licenseConfirmed = $state(false);
   let redistribution = $state<'metadata_only' | 'excerpts_only' | 'full_text'>('metadata_only');
+  let approvalQuality = $state<SourceGrade | ''>('');
+  let batchQuality = $state<SourceGrade | ''>('');
+  let headerQuality = $state<SourceGrade | 'mixed' | ''>('');
   let note = $state('');
   let rejectReason = $state('');
   let withdrawReason = $state('');
 
+  const GRADES: SourceGrade[] = ['A', 'B', 'C', 'D'];
   const canReview = $derived(
     Boolean($session?.user.permissions.includes('documents:review')),
   );
-  const preselected = $derived(queue.filter((document) => document.approval_preselected));
+  const allVisibleSelected = $derived(
+    queue.length > 0 && queue.every((document) => selectedIds.includes(document.id)),
+  );
+  const selectedDocuments = $derived(queue.filter((document) => selectedIds.includes(document.id)));
+  const qualityEligible = $derived(
+    selectedDocuments.length > 0 &&
+      selectedDocuments.every((document) =>
+        ['approved', 'indexing', 'indexed'].includes(document.state),
+      ),
+  );
+  const canApplyQuality = $derived(
+    qualityEligible && ['A', 'B', 'C', 'D'].includes(headerQuality),
+  );
+  const approvableSelected = $derived(
+    selectedDocuments.length > 0 &&
+      selectedDocuments.every((document) =>
+        ['ready', 'warning', 'parsed'].includes(document.state),
+      ),
+  );
 
   onMount(async () => {
     await Promise.all([loadQueue(), loadContradictions(), loadGaps()]);
@@ -56,9 +81,11 @@
   async function loadQueue(): Promise<void> {
     error = '';
     try {
-      const result = await listReviewQueue(stateFilter || undefined);
+      const result = await listReviewQueue({ ...filters, limit: 200 });
       queue = result.data;
       counts = result.counts;
+      selectedIds = [];
+      syncHeaderQuality();
       if (!detail && queue.length > 0) await selectDocument(queue[0]!);
     } catch (cause) {
       error = cause instanceof ApiError ? cause.message : tr('common.error');
@@ -88,6 +115,7 @@
       (document.figures ?? []).map((figure) => [figure.id, figure.description ?? '']),
     );
     licenseConfirmed = false;
+    approvalQuality = '';
     note = '';
     rejectReason = '';
     withdrawReason = '';
@@ -111,20 +139,34 @@
     queue = queue.map((item) => (item.id === fresh.id ? fresh : item));
   }
 
+  function syncHeaderQuality(): void {
+    const values = new Set(selectedDocuments.map((document) => document.source_quality));
+    headerQuality =
+      selectedDocuments.length === 0
+        ? ''
+        : values.size === 1
+          ? ([...values][0] as SourceGrade)
+          : 'mixed';
+  }
+
   function toggle(document: DocumentInfo): void {
     selectedIds = selectedIds.includes(document.id)
       ? selectedIds.filter((id) => id !== document.id)
       : [...selectedIds, document.id];
+    syncHeaderQuality();
   }
 
-  function selectPreselected(): void {
-    selectedIds = preselected.map((document) => document.id);
+  function toggleAll(event: Event): void {
+    const checked = (event.currentTarget as HTMLInputElement).checked;
+    selectedIds = checked ? queue.map((document) => document.id) : [];
+    syncHeaderQuality();
   }
 
-  async function approveOne(id: string): Promise<void> {
+  async function approveOne(id: string, quality: SourceGrade): Promise<void> {
     await approveDocument(id, {
       license_confirmed: true,
       redistribution,
+      source_quality: quality,
       note: note || undefined,
     });
   }
@@ -135,6 +177,10 @@
       error = tr('editorial.license_required');
       return;
     }
+    if (!approvalQuality) {
+      error = tr('editorial.quality_required');
+      return;
+    }
     busy = 'approve';
     error = '';
     notice = '';
@@ -142,9 +188,11 @@
       detail = await approveDocument(detail.id, {
         license_confirmed: true,
         redistribution,
+        source_quality: approvalQuality,
         note: note || undefined,
       });
       notice = tr('editorial.approved_ok');
+      approvalQuality = '';
       await loadQueue();
     } catch (cause) {
       error = cause instanceof ApiError ? cause.message : tr('common.error');
@@ -158,6 +206,10 @@
       error = tr('editorial.license_required');
       return;
     }
+    if (!batchQuality) {
+      error = tr('editorial.quality_required');
+      return;
+    }
     busy = 'batch';
     error = '';
     notice = '';
@@ -165,14 +217,62 @@
       let approved = 0;
       for (const id of selectedIds) {
         try {
-          await approveOne(id);
+          await approveOne(id, batchQuality);
           approved += 1;
         } catch (cause) {
           error = cause instanceof ApiError ? cause.message : tr('common.error');
         }
       }
       selectedIds = [];
+      batchQuality = '';
+      syncHeaderQuality();
       notice = tr('editorial.approved_count', { count: approved });
+      await loadQueue();
+    } finally {
+      busy = '';
+    }
+  }
+
+  async function applyHeaderQuality(): Promise<void> {
+    if (!canApplyQuality || headerQuality === '' || headerQuality === 'mixed') return;
+    const quality = headerQuality;
+    busy = 'quality-bulk';
+    error = '';
+    notice = '';
+    try {
+      const result = await bulkUpdateDocumentQuality({
+        document_ids: selectedIds,
+        source_quality: quality,
+        note: 'Editorial quality change',
+      });
+      const updated = result.results.filter((item) => !item.error).length;
+      const skipped = result.results.filter((item) => item.error).length;
+      notice = tr('editorial.quality_updated', { count: updated, skipped });
+      selectedIds = [];
+      syncHeaderQuality();
+      await loadQueue();
+    } catch (cause) {
+      error = cause instanceof ApiError ? cause.message : tr('common.error');
+    } finally {
+      busy = '';
+    }
+  }
+
+  async function saveRowQuality(document: DocumentInfo, grade: SourceGrade): Promise<void> {
+    busy = document.id;
+    error = '';
+    notice = '';
+    try {
+      const updated = await updateDocumentQuality(document.id, {
+        source_quality: grade,
+        note: 'Editorial quality change',
+      });
+      queue = queue.map((item) => (item.id === updated.id ? updated : item));
+      if (detail?.id === updated.id) detail = updated;
+      syncHeaderQuality();
+      notice = tr('editorial.quality_saved');
+    } catch (cause) {
+      error = cause instanceof ApiError ? cause.message : tr('common.error');
       await loadQueue();
     } finally {
       busy = '';
@@ -314,46 +414,107 @@
       {/each}
     </section>
 
-    <label class="filter">
-      <span>{tr('editorial.filter')}</span>
-      <select bind:value={stateFilter} onchange={loadQueue}>
-        <option value="">{tr('editorial.filter_pending')}</option>
-        <option value="approved">{tr('editorial.filter_approved')}</option>
-        <option value="indexed">{tr('editorial.filter_indexed')}</option>
-        <option value="rejected">{tr('editorial.filter_rejected')}</option>
-        <option value="withdrawn">{tr('editorial.filter_withdrawn')}</option>
-      </select>
-    </label>
+    <form
+      class="filters"
+      onsubmit={(event) => {
+        event.preventDefault();
+        loadQueue();
+      }}
+    >
+      <label>
+        <span>{tr('editorial.search')}</span>
+        <input type="search" bind:value={filters.q} placeholder={tr('editorial.search_placeholder')} />
+      </label>
+      <label>
+        <span>{tr('editorial.filter')}</span>
+        <select bind:value={filters.state} onchange={loadQueue}>
+          <option value="">{tr('editorial.filter_pending')}</option>
+          <option value="all">{tr('editorial.filter_all')}</option>
+          <option value="approved">{tr('editorial.filter_approved')}</option>
+          <option value="indexed">{tr('editorial.filter_indexed')}</option>
+          <option value="rejected">{tr('editorial.filter_rejected')}</option>
+          <option value="withdrawn">{tr('editorial.filter_withdrawn')}</option>
+        </select>
+      </label>
+      <label>
+        <span>{tr('editorial.source_quality')}</span>
+        <select bind:value={filters.source_quality} onchange={loadQueue}>
+          <option value="">{tr('editorial.filter_any')}</option>
+          {#each GRADES as grade}<option value={grade}>{grade}</option>{/each}
+        </select>
+      </label>
+      <label>
+        <span>{tr('editorial.publisher')}</span>
+        <input type="text" bind:value={filters.publisher} />
+      </label>
+      <label>
+        <span>{tr('editorial.language')}</span>
+        <select bind:value={filters.language} onchange={loadQueue}>
+          <option value="">{tr('editorial.filter_any')}</option>
+          {#each ['en', 'de', 'fr', 'es'] as code}<option value={code}>{code}</option>{/each}
+        </select>
+      </label>
+      <button type="submit" class="ghost">{tr('editorial.search')}</button>
+    </form>
 
     <div class="split">
       <section class="list" aria-label={tr('editorial.queue')}>
-        <div class="list-tools">
-          <button
-            type="button"
-            class="ghost"
-            onclick={selectPreselected}
-            disabled={preselected.length === 0}
-            >{tr('editorial.select_all')}</button
-          >
+        <div class="list-head">
+          <label class="select-all">
+            <input type="checkbox" checked={allVisibleSelected} onchange={toggleAll} />
+            <span>{tr('editorial.select_all')}</span>
+          </label>
+          <span class="selected-count">{selectedIds.length} {tr('editorial.selected')}</span>
+          <div class="bulk-quality">
+            <label>
+              <span>{tr('editorial.source_quality')}</span>
+              <select bind:value={headerQuality} disabled={selectedIds.length === 0}>
+                <option value="">—</option>
+                {#if headerQuality === 'mixed'}
+                  <option value="mixed" disabled>{tr('editorial.quality_mixed')}</option>
+                {/if}
+                {#each GRADES as grade}<option value={grade}>{grade}</option>{/each}
+              </select>
+            </label>
+            <button
+              type="button"
+              class="ghost"
+              onclick={applyHeaderQuality}
+              disabled={!canApplyQuality || busy === 'quality-bulk'}
+              >{tr('editorial.quality_apply')}</button
+            >
+          </div>
+        </div>
+        {#if selectedIds.length > 0 && !qualityEligible}
+          <p class="muted small">{tr('editorial.quality_only_approved')}</p>
+        {/if}
+        <div class="approve-controls">
+          <label class="confirm">
+            <input type="checkbox" bind:checked={licenseConfirmed} />
+            <span>{tr('editorial.license_confirm')}</span>
+          </label>
+          <label class="redistribution">
+            <span>{tr('editorial.redistribution')}</span>
+            <select bind:value={redistribution}>
+              <option value="metadata_only">{tr('editorial.redistribution_metadata')}</option>
+              <option value="excerpts_only">{tr('editorial.redistribution_excerpts')}</option>
+              <option value="full_text">{tr('editorial.redistribution_full_text')}</option>
+            </select>
+          </label>
+          <label class="approval-quality">
+            <span>{tr('editorial.source_quality')}</span>
+            <select bind:value={batchQuality}>
+              <option value="">{tr('editorial.quality_choose')}</option>
+              {#each GRADES as grade}<option value={grade}>{grade}</option>{/each}
+            </select>
+          </label>
           <button
             type="button"
             onclick={approveSelected}
-            disabled={selectedIds.length === 0 || busy === 'batch'}
+            disabled={!approvableSelected || !batchQuality || busy === 'batch'}
             >{tr('editorial.approve_selected')} ({selectedIds.length})</button
           >
         </div>
-        <label class="confirm">
-          <input type="checkbox" bind:checked={licenseConfirmed} />
-          <span>{tr('editorial.license_confirm')}</span>
-        </label>
-        <label class="redistribution">
-          <span>{tr('editorial.redistribution')}</span>
-          <select bind:value={redistribution}>
-            <option value="metadata_only">{tr('editorial.redistribution_metadata')}</option>
-            <option value="excerpts_only">{tr('editorial.redistribution_excerpts')}</option>
-            <option value="full_text">{tr('editorial.redistribution_full_text')}</option>
-          </select>
-        </label>
         {#if queue.length === 0}
           <p class="muted">{tr('editorial.empty')}</p>
         {/if}
@@ -378,6 +539,21 @@
                   {/if}
                 </span>
               </button>
+              {#if ['approved', 'indexing', 'indexed'].includes(document.state)}
+                <select
+                  class="row-quality"
+                  value={document.source_quality}
+                  aria-label={`${tr('editorial.source_quality')} ${document.title}`}
+                  disabled={busy === document.id}
+                  onchange={(event) => saveRowQuality(document, event.currentTarget.value as SourceGrade)}
+                >
+                  {#each GRADES as grade}<option value={grade}>{grade}</option>{/each}
+                </select>
+              {:else}
+                <span class="quality-readonly" title={tr('editorial.quality_at_approval')}
+                  >{document.source_quality}</span
+                >
+              {/if}
             </li>
           {/each}
         </ul>
@@ -449,10 +625,21 @@
           {#if ['ready', 'warning', 'parsed'].includes(detail.state)}
             <div class="actions">
               <label>
+                <span>{tr('editorial.source_quality')}</span>
+                <select bind:value={approvalQuality} required>
+                  <option value="">{tr('editorial.quality_choose')}</option>
+                  {#each GRADES as grade}<option value={grade}>{grade}</option>{/each}
+                </select>
+              </label>
+              <label>
                 <span>{tr('editorial.note')}</span>
                 <input type="text" bind:value={note} />
               </label>
-              <button type="button" onclick={approve} disabled={busy === 'approve' || !licenseConfirmed}>
+              <button
+                type="button"
+                onclick={approve}
+                disabled={busy === 'approve' || !licenseConfirmed || !approvalQuality}
+              >
                 {tr('editorial.approve')}
               </button>
             </div>
@@ -595,25 +782,39 @@
     font-weight: 700;
     color: var(--fs-text);
   }
-  .filter {
+  .filters {
     display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin-bottom: 0.8rem;
-    font-size: 0.9rem;
+    flex-wrap: wrap;
+    gap: 0.55rem 0.7rem;
+    align-items: end;
+    margin-bottom: 0.9rem;
+  }
+  .filters label {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 8rem;
+    font-size: 0.78rem;
     color: var(--fs-muted);
   }
-  .filter select {
-    padding: 0.4rem 0.6rem;
+  .filters input,
+  .filters select,
+  .list-head select,
+  .approve-controls select,
+  .actions select,
+  .row-quality {
+    padding: 0.42rem 0.55rem;
     font: inherit;
     border-radius: 0.4rem;
     border: 1px solid var(--fs-border);
     background: var(--fs-surface);
     color: var(--fs-text);
   }
+  .filters input[type='search'] {
+    min-width: 14rem;
+  }
   .split {
     display: grid;
-    grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+    grid-template-columns: minmax(24rem, 32rem) minmax(0, 1fr);
     gap: 1rem;
     align-items: start;
   }
@@ -629,11 +830,57 @@
     box-shadow: var(--fs-shadow-soft);
     padding: 1rem;
   }
-  .list-tools {
+  .list-head {
     display: flex;
-    gap: 0.5rem;
     flex-wrap: wrap;
-    margin-bottom: 0.7rem;
+    gap: 0.45rem 0.6rem;
+    align-items: end;
+    padding-bottom: 0.55rem;
+    margin-bottom: 0.55rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--fs-border) 45%, transparent);
+  }
+  .select-all {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .selected-count {
+    color: var(--fs-muted);
+    font-size: 0.78rem;
+  }
+  .bulk-quality {
+    display: flex;
+    gap: 0.4rem;
+    align-items: end;
+    margin-left: auto;
+  }
+  .bulk-quality label,
+  .approval-quality {
+    display: grid;
+    gap: 0.2rem;
+    font-size: 0.75rem;
+    color: var(--fs-muted);
+  }
+  .bulk-quality select {
+    min-width: 5.5rem;
+  }
+  .approve-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.6rem;
+    align-items: end;
+    padding-bottom: 0.6rem;
+    margin-bottom: 0.4rem;
+  }
+  .approve-controls .confirm,
+  .approve-controls .redistribution {
+    margin-bottom: 0;
+  }
+  .approve-controls .approval-quality select {
+    min-width: 7rem;
   }
   .list ul,
   .records {
@@ -644,9 +891,10 @@
     gap: 0.5rem;
   }
   .list li {
-    display: flex;
-    gap: 0.6rem;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    align-items: start;
     border-radius: 0.6rem;
     padding: 0.5rem;
   }
@@ -657,12 +905,31 @@
     background: none;
     border: none;
     padding: 0;
+    min-width: 0;
     text-align: left;
     font: inherit;
     color: var(--fs-text);
     cursor: pointer;
     display: grid;
     gap: 0.2rem;
+  }
+  .title,
+  .meta {
+    overflow-wrap: anywhere;
+  }
+  .row-quality {
+    width: 4.1rem;
+  }
+  .quality-readonly {
+    min-width: 2.2rem;
+    text-align: right;
+    color: var(--fs-muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  .small {
+    font-size: 0.8rem;
+    margin: 0 0 0.4rem;
   }
   .title {
     font-weight: 600;
@@ -736,6 +1003,7 @@
     margin-top: 0.9rem;
   }
   .actions input,
+  .actions select,
   .redistribution select {
     width: 100%;
     padding: 0.5rem;
@@ -749,7 +1017,8 @@
     font: inherit;
   }
   .actions button,
-  .list-tools button {
+  .list-head button,
+  .approve-controls button {
     justify-self: start;
     padding: 0.45rem 0.9rem;
     border-radius: 0.5rem;

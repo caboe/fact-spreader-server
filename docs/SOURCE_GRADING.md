@@ -75,6 +75,22 @@ graded by the same rules and normally land at `D`.
 * **Exchanging lists between instances** is explicitly a v2 candidate
   (PURPOSE §6) and is not implemented.
 
+## Editorial decisions
+
+The grade is part of the approval decision, not a silent default:
+
+* **Approval requires a grade.** The approval form starts with an empty `A`/`B`/`C`/`D`
+  choice and the API rejects a missing `source_quality`. The computed grade (often `D` for
+  a publisher with no list entry) is shown as a suggestion with its basis, but the editor
+  must select the grade deliberately.
+* **Later changes are explicit.** A reviewer can change the grade of an approved or indexed
+  document, or a filtered selection of them, from the editorial list. Every change is
+  audited with the previous grade. It does not re-index the document and, by explicit
+  product decision, does not enqueue re-checks; stored results keep their original basis.
+  A new check after the change uses the new grade.
+* **Bulk changes do not bypass review.** Select-all in the editorial list applies to the
+  current filter; the API accepts at most 200 ids and returns a per-document result.
+
 ## What the grade is not
 
 A high grade is not a guarantee about a specific number. Statistics get revised,
