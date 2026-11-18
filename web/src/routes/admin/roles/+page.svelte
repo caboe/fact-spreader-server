@@ -151,23 +151,30 @@
   form {
     display: flex;
     gap: 0.5rem;
-    align-items: end;
-    margin-top: 0.75rem;
+    align-items: flex-end;
+    margin-top: 1.1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid color-mix(in srgb, var(--fs-border) 45%, transparent);
     flex-wrap: wrap;
   }
   label {
     display: grid;
-    gap: 0.25rem;
+    gap: 0.4rem;
     font-size: 0.8rem;
     color: var(--fs-muted);
     flex: 1 1 14rem;
     min-width: 0;
   }
+  select,
+  button {
+    box-sizing: border-box;
+    height: 2.6rem;
+  }
   select {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    padding: 0.45rem 0.6rem;
+    padding: 0 0.65rem;
     border-radius: 0.5rem;
     border: 1px solid color-mix(in srgb, var(--fs-border) 60%, transparent);
     background: var(--fs-bg);
@@ -175,7 +182,10 @@
     font: inherit;
   }
   button {
-    padding: 0.45rem 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 1.05rem;
     border-radius: 0.5rem;
     border: none;
     background: var(--fs-accent);
@@ -183,6 +193,7 @@
     font: inherit;
     font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
   }
   button:disabled {
     opacity: 0.55;
