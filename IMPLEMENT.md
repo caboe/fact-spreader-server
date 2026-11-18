@@ -828,7 +828,7 @@ requirements are tested, and the delivered stack can be started by someone else.
 
 **Done when.**
 
-- `[agent]` **Done 2026-11-18.** `make verify` is green on the committed tree;
+- `[agent]` **Done 2026-11-18.** `make verify` is green on the committed tree and on a clean clone;
   `docker compose up` from empty volumes completes the wizard and the first check
   (`make clean-start-test`, verdict `insufficient_evidence`); `make backup-test` restores
   the database and check into a disposable project.

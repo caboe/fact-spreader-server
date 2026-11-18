@@ -84,6 +84,8 @@ Two pipeline issues surfaced during the evaluation and were fixed before the bas
 
 - `make verify` — format/lint/typecheck, unit tests (including the new eval and upload
   tests), integration tests, migration up/down/up, OpenAPI drift, compose guard, web check.
+- A clean checkout (`git clone` into `.local/clean-checkout`, `make install`,
+  `make verify`) — green.
 - `make eval-recorded` — metrics above, offline.
 - `make schemathesis` — 159 / 159.
 - `make backup`, `make backup-test` — both passed.
