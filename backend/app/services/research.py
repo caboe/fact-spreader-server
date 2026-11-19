@@ -36,8 +36,7 @@ from app.llm.aliases import FS_CHAT, FS_VERIFY
 from app.llm.client import LLMError, StructuredLLM
 from app.retrieval.lightrag import LightRAGClient, RetrievalChunk
 from app.services.publishers import grade_at_least
-
-_FILE_SOURCE_RE = re.compile(r"(doc_[A-Za-z0-9]+)@v(\d+)")
+from app.services.source_refs import parse_source
 
 
 @dataclass
@@ -290,16 +289,17 @@ class ResearchService:
     async def _document_for_chunk(
         self, chunk: RetrievalChunk
     ) -> tuple[Document, DocumentVersion] | None:
-        match = _FILE_SOURCE_RE.search(chunk.file_path or "")
-        if match is None:
+        source = parse_source(chunk.file_path)
+        if source is None:
             return None
+        document_id, version_number = source
         row = (
             await self.session.execute(
                 select(DocumentVersion, Document)
                 .join(Document, Document.id == DocumentVersion.document_id)
                 .where(
-                    DocumentVersion.document_id == match.group(1),
-                    DocumentVersion.version == int(match.group(2)),
+                    DocumentVersion.document_id == document_id,
+                    DocumentVersion.version == version_number,
                 )
             )
         ).first()

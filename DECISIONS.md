@@ -990,3 +990,22 @@ the stored results keep their original basis and a new check uses the new grade.
 **Rejected:** accepting the computed grade by default, approving without a grade, automatic
 re-checks of every affected claim after a bulk change (surprise spend and new result
 versions), re-indexing for a metadata-only change.
+
+## D63 — Raw retrieval is a separate, filtered LightRAG surface
+
+**What:** `POST /v1/retrieval` and the web page `/retrieval` call stock LightRAG's
+`/query/data` (never `/query`) and return matching chunks, entities and relationships
+without a verdict, gate, summary or archive hits. Every record is resolved through its
+`<document_id>@v<version>` source and returned only for a non-deleted `approved` or
+`indexed` document; stale records are counted but not exposed.
+
+**Why:** editors and users need to see what the retrieval layer actually returns when a
+check or research query looks empty. This is a diagnostic RAG surface, not a second
+fact-check path: LightRAG's answer generation is disabled by invariant 7, and an unfiltered
+raw dump would let a withdrawn document reappear during LightRAG's asynchronous deletion.
+The human chose raw retrieval and access for all authenticated users.
+
+**Rejected:** calling LightRAG's `/query` answer generation (would change invariant 7),
+returning the unfiltered LightRAG payload (withdrawn content), extending `/v1/search` with
+a raw flag (would mix the research and diagnostic contracts), recording corpus gaps from
+diagnostic queries.

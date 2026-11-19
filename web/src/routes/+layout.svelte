@@ -144,6 +144,13 @@
     <a href="/" aria-current={$page?.url?.pathname === '/' ? 'page' : undefined}>{tr('nav.check')}</a>
     <a href="/archive">{tr('nav.archive')}</a>
     <a href="/chat">{tr('nav.chat')}</a>
+    {#if $session?.user.permissions.includes('search:use')}
+      <a
+        href="/retrieval"
+        aria-current={$page?.url?.pathname.startsWith('/retrieval') ? 'page' : undefined}
+        >{tr('nav.retrieval')}</a
+      >
+    {/if}
     {#if $session?.user.permissions.includes('devices:manage')}
       <a href="/connect" aria-current={$page?.url?.pathname.startsWith('/connect') ? 'page' : undefined}
         >{tr('nav.connect')}</a

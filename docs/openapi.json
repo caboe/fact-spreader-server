@@ -3817,6 +3817,322 @@
         "title": "PublisherResolveResponse",
         "type": "object"
       },
+      "RawRetrievalChunk": {
+        "properties": {
+          "chunk_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "file_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Path"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "reference_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Id"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "RawRetrievalChunk",
+        "type": "object"
+      },
+      "RawRetrievalDocument": {
+        "properties": {
+          "chunks": {
+            "items": {
+              "$ref": "#/components/schemas/RawRetrievalChunk"
+            },
+            "title": "Chunks",
+            "type": "array"
+          },
+          "document": {
+            "$ref": "#/components/schemas/RawRetrievalDocumentSummary"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "title": "RawRetrievalDocument",
+        "type": "object"
+      },
+      "RawRetrievalDocumentSummary": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "language": {
+            "title": "Language",
+            "type": "string"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "publication_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publication Date"
+          },
+          "publisher": {
+            "title": "Publisher",
+            "type": "string"
+          },
+          "redistribution": {
+            "default": "metadata_only",
+            "title": "Redistribution",
+            "type": "string"
+          },
+          "source_quality": {
+            "title": "Source Quality",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "title",
+          "publisher",
+          "source_quality",
+          "language"
+        ],
+        "title": "RawRetrievalDocumentSummary",
+        "type": "object"
+      },
+      "RawRetrievalRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk_top_k": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Top K"
+          },
+          "include_graph": {
+            "default": true,
+            "title": "Include Graph",
+            "type": "boolean"
+          },
+          "mode": {
+            "default": "mix",
+            "enum": [
+              "mix",
+              "local",
+              "global",
+              "hybrid",
+              "naive"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "query": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "top_k": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top K"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "RawRetrievalRequest",
+        "type": "object"
+      },
+      "RawRetrievalResponse": {
+        "properties": {
+          "chunk_top_k": {
+            "title": "Chunk Top K",
+            "type": "integer"
+          },
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/RawRetrievalDocument"
+            },
+            "title": "Documents",
+            "type": "array"
+          },
+          "dropped_chunks": {
+            "default": 0,
+            "title": "Dropped Chunks",
+            "type": "integer"
+          },
+          "dropped_entities": {
+            "default": 0,
+            "title": "Dropped Entities",
+            "type": "integer"
+          },
+          "dropped_relationships": {
+            "default": 0,
+            "title": "Dropped Relationships",
+            "type": "integer"
+          },
+          "entities": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "mix",
+              "local",
+              "global",
+              "hybrid",
+              "naive"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "relationships": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Relationships",
+            "type": "array"
+          },
+          "returned_chunks": {
+            "default": 0,
+            "title": "Returned Chunks",
+            "type": "integer"
+          },
+          "returned_entities": {
+            "default": 0,
+            "title": "Returned Entities",
+            "type": "integer"
+          },
+          "returned_relationships": {
+            "default": 0,
+            "title": "Returned Relationships",
+            "type": "integer"
+          },
+          "took_ms": {
+            "default": 0,
+            "title": "Took Ms",
+            "type": "integer"
+          },
+          "top_k": {
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query",
+          "mode",
+          "top_k",
+          "chunk_top_k"
+        ],
+        "title": "RawRetrievalResponse",
+        "type": "object"
+      },
       "RecheckRequest": {
         "additionalProperties": false,
         "properties": {
@@ -16772,6 +17088,137 @@
         "summary": "Openai Models",
         "tags": [
           "openai"
+        ]
+      }
+    },
+    "/v1/retrieval": {
+      "post": {
+        "operationId": "retrieval_v1_retrieval_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RawRetrievalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RawRetrievalResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Problem details"
+          }
+        },
+        "summary": "Retrieval",
+        "tags": [
+          "retrieval"
         ]
       }
     },

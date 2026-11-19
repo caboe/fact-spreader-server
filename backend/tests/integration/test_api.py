@@ -12,6 +12,7 @@ from app.contracts.enums import JobState
 from app.core.ids import new_id, utcnow
 from app.db.models import Document, DocumentVersion, JobEvent
 from app.db.models import Job as JobRow
+from app.retrieval.lightrag import LightRAGError, RetrievalChunk, RetrievalResult
 from app.services.image_input import ImageExtraction
 from app.services.input_reader import FetchedDocument
 from app.services.research import ResearchService
@@ -474,6 +475,120 @@ async def test_research_withholds_a_summary_that_fails_the_consistency_check(
     assert body["summary"] is None
     assert [warning["code"] for warning in body["warnings"]] == ["summary_consistency_failed"]
     assert body["documents"]
+
+
+@pytest.mark.asyncio
+async def test_raw_retrieval_returns_only_live_documents_and_keeps_graph_data(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    live_id = await _seed_approved_document(app, None)
+    stale_id = await _seed_approved_document(app, None)
+    async with app.state.db.session_factory() as session:
+        stale = await session.get(Document, stale_id)
+        assert stale is not None
+        stale.state = "withdrawn"
+        await session.commit()
+
+    class RawFake:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict[str, Any]]] = []
+
+        async def query_data(self, query: str, **kwargs: Any) -> RetrievalResult:
+            self.calls.append((query, kwargs))
+            return RetrievalResult(
+                chunks=[
+                    RetrievalChunk(
+                        content="The live passage.",
+                        file_path=f"{live_id}@v1",
+                        chunk_id="chunk-live",
+                        raw={"reference_id": "1"},
+                    ),
+                    RetrievalChunk(
+                        content="The withdrawn passage.",
+                        file_path=f"{stale_id}@v1",
+                        chunk_id="chunk-stale",
+                        raw={"reference_id": "2"},
+                    ),
+                ],
+                entities=[
+                    {"entity_name": "Live entity", "file_path": f"{live_id}@v1"},
+                    {"entity_name": "Stale entity", "file_path": f"{stale_id}@v1"},
+                ],
+                relationships=[
+                    {"src_id": "Live entity", "file_path": f"{live_id}@v1"},
+                    {"src_id": "Stale entity", "file_path": f"{stale_id}@v1"},
+                ],
+            )
+
+    fake = RawFake()
+    app.state.lightrag = fake
+    response = await client.post(
+        "/v1/retrieval",
+        json={
+            "query": "housing costs",
+            "mode": "hybrid",
+            "top_k": 12,
+            "chunk_top_k": 7,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["mode"] == "hybrid"
+    assert body["top_k"] == 12
+    assert body["chunk_top_k"] == 7
+    assert [document["document"]["id"] for document in body["documents"]] == [live_id]
+    assert body["documents"][0]["chunks"][0]["content"] == "The live passage."
+    assert body["documents"][0]["chunks"][0]["reference_id"] == "1"
+    assert body["returned_chunks"] == 1
+    assert body["dropped_chunks"] == 1
+    assert [entity["entity_name"] for entity in body["entities"]] == ["Live entity"]
+    assert [relationship["src_id"] for relationship in body["relationships"]] == ["Live entity"]
+    assert body["dropped_entities"] == 1
+    assert body["dropped_relationships"] == 1
+    assert "withdrawn passage" not in response.text
+    assert fake.calls == [
+        (
+            "housing costs",
+            {"mode": "hybrid", "top_k": 12, "chunk_top_k": 7},
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_raw_retrieval_can_omit_graph_data_and_rejects_an_unknown_mode(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    live_id = await _seed_approved_document(app, None)
+    app.state.lightrag = FakeLightRAG(document_id=live_id, passage="A live passage.")
+    response = await client.post(
+        "/v1/retrieval",
+        json={"query": "fixture", "include_graph": False},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["entities"] == []
+    assert body["relationships"] == []
+    assert body["documents"][0]["document"]["id"] == live_id
+
+    invalid = await client.post(
+        "/v1/retrieval",
+        json={"query": "fixture", "mode": "semantic"},
+    )
+    assert invalid.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_raw_retrieval_reports_an_unavailable_lightrag(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    class Failing:
+        async def query_data(self, query: str, **kwargs: Any) -> RetrievalResult:
+            raise LightRAGError("unreachable")
+
+    app.state.lightrag = Failing()
+    response = await client.post("/v1/retrieval", json={"query": "fixture"})
+    assert response.status_code == 503
+    assert response.json()["code"] == "retrieval_unavailable"
 
 
 @pytest.mark.asyncio

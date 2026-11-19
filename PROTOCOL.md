@@ -69,6 +69,7 @@ carries a subset of its owner's permissions and never more.
 | Check | `POST /v1/factcheck`, `GET /v1/factcheck/{job_id}`, `GET /v1/factcheck/{job_id}/events` | bearer/session | `claims:submit` |
 | OpenAI-compatible | `GET /v1/models`, `POST /v1/chat/completions` | bearer | `claims:submit` / `search:use` |
 | Research | `POST /v1/search` | bearer/session | `search:use` |
+| Raw retrieval | `POST /v1/retrieval` | bearer/session | `search:use` |
 | Archive | `GET /v1/claims…`, `POST /v1/claims/{id}/feedback` | bearer/session | authenticated |
 | Archive re-check/delete | `POST /v1/claims/{id}/recheck`, `DELETE /v1/claims/{id}` | bearer/session | `claims:recheck` / `quality:read` |
 | Documents | `/v1/documents…`, `/v1/documents/batches…` | bearer/session | `documents:submit` / `documents:review` by action |
@@ -1006,6 +1007,84 @@ The summary is generated from the retrieved passages only and checked before rel
 On failure the endpoint returns `summary = null`, the lists, and the warning
 `summary_consistency_failed`. There is no retry that removes citations; a second failure is
 final for the request.
+
+### 5.3 `POST /v1/retrieval` — raw retrieval
+
+This is **not a fact check**. It calls stock LightRAG's retrieval endpoint (`/query/data`)
+and returns the matching passages and graph records. It never calls LightRAG's answer
+generation (`/query`), and it returns no verdict, gate, summary or archive hits. It does
+not write a corpus gap or any other editorial record.
+
+```json
+{
+  "query": "housing costs",
+  "mode": "mix",
+  "top_k": 40,
+  "chunk_top_k": 20,
+  "include_graph": true
+}
+```
+
+- `query` max 2,000 chars. `mode` is one of `mix`, `local`, `global`, `hybrid`, `naive`
+  (default `mix`). `top_k` and `chunk_top_k` are 1–100 and default to the deployment
+  retrieval values. `include_graph` defaults to `true`.
+- Response `200` is a `RawRetrievalResponse`:
+
+```json
+{
+  "query": "housing costs",
+  "mode": "mix",
+  "top_k": 40,
+  "chunk_top_k": 20,
+  "documents": [
+    {
+      "document": {
+        "id": "doc_...",
+        "version": 1,
+        "title": "Housing report",
+        "publisher": "Example Institute",
+        "publication_date": "2026-01-02",
+        "source_quality": "B",
+        "language": "en",
+        "url": "https://example.org/report",
+        "license": "CC BY 4.0",
+        "redistribution": "full_text"
+      },
+      "chunks": [
+        {
+          "chunk_id": "doc-...-chunk-001",
+          "reference_id": "1",
+          "content": "Rent prices rose faster than incomes.",
+          "file_path": "doc_...@v1",
+          "score": null,
+          "order": 0
+        }
+      ]
+    }
+  ],
+  "entities": [],
+  "relationships": [],
+  "returned_chunks": 1,
+  "dropped_chunks": 0,
+  "returned_entities": 0,
+  "dropped_entities": 0,
+  "returned_relationships": 0,
+  "dropped_relationships": 0,
+  "took_ms": 42
+}
+```
+
+- Every chunk, entity and relationship carries a LightRAG `file_path` of the form
+  `<document_id>@v<version>`. It is returned only if that version exists and the document
+  is not deleted and is `approved` or `indexed`. Other records are counted in `dropped_*`
+  and never returned. This closes the window in which LightRAG still serves a withdrawn
+  document before its asynchronous deletion finishes.
+- `include_graph = false` returns empty `entities` and `relationships` arrays and zero
+  graph counts; passage retrieval still runs.
+- Permission is `search:use`. An invalid mode or query is `422`; an unavailable LightRAG
+  is `503` with `retrieval_unavailable`. The endpoint has no generated answer, so it adds
+  no summarization cost; LightRAG's own keyword and embedding calls still go through the
+  gateway and its budget rules.
 
 ---
 

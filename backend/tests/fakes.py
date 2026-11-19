@@ -169,6 +169,9 @@ class FakeLightRAG:
         self.passage = passage
         self.second_passage = second_passage
         self.queries: list[str] = []
+        self.query_calls: list[dict[str, Any]] = []
+        self.entities: list[dict[str, Any]] = []
+        self.relationships: list[dict[str, Any]] = []
         self.inserted: list[dict[str, str]] = []
         self.deleted: list[str] = []
 
@@ -212,6 +215,7 @@ class FakeLightRAG:
 
     async def query_data(self, query: str, **kwargs: Any) -> RetrievalResult:
         self.queries.append(query)
+        self.query_calls.append(kwargs)
         content = (
             self.passage
             if len(self.queries) == 1 or self.second_passage is None
@@ -225,8 +229,11 @@ class FakeLightRAG:
                     chunk_id=f"chunk-{len(self.queries)}",
                     score=0.9,
                     order=len(self.queries) - 1,
+                    raw={"reference_id": str(len(self.queries))},
                 )
-            ]
+            ],
+            entities=self.entities,
+            relationships=self.relationships,
         )
 
 

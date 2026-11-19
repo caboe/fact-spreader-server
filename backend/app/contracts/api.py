@@ -23,6 +23,7 @@ from app.contracts.enums import (
 )
 
 SourceGrade = Literal["A", "B", "C", "D"]
+RawRetrievalMode = Literal["mix", "local", "global", "hybrid", "naive"]
 
 
 class ApiModel(BaseModel):
@@ -877,6 +878,58 @@ class ResearchResponse(ApiModel):
     warnings: list[WarningInfo] = Field(default_factory=list)
     took_ms: int = 0
     gaps_recorded: bool = False
+
+
+class RawRetrievalRequest(RequestModel):
+    query: str = Field(min_length=1, max_length=2000)
+    mode: RawRetrievalMode = "mix"
+    top_k: int | None = Field(default=None, ge=1, le=100)
+    chunk_top_k: int | None = Field(default=None, ge=1, le=100)
+    include_graph: bool = True
+
+
+class RawRetrievalChunk(ApiModel):
+    chunk_id: str | None = None
+    reference_id: str | None = None
+    content: str
+    file_path: str | None = None
+    score: float | None = None
+    order: int | None = None
+
+
+class RawRetrievalDocumentSummary(ApiModel):
+    id: str
+    version: int
+    title: str
+    publisher: str
+    publication_date: date | None = None
+    source_quality: str
+    language: str
+    url: str | None = None
+    license: str | None = None
+    redistribution: str = "metadata_only"
+
+
+class RawRetrievalDocument(ApiModel):
+    document: RawRetrievalDocumentSummary
+    chunks: list[RawRetrievalChunk] = Field(default_factory=list)
+
+
+class RawRetrievalResponse(ApiModel):
+    query: str
+    mode: RawRetrievalMode
+    top_k: int
+    chunk_top_k: int
+    documents: list[RawRetrievalDocument] = Field(default_factory=list)
+    entities: list[dict[str, Any]] = Field(default_factory=list)
+    relationships: list[dict[str, Any]] = Field(default_factory=list)
+    returned_chunks: int = 0
+    dropped_chunks: int = 0
+    returned_entities: int = 0
+    dropped_entities: int = 0
+    returned_relationships: int = 0
+    dropped_relationships: int = 0
+    took_ms: int = 0
 
 
 class DocumentWarning(ApiModel):

@@ -1,0 +1,107 @@
+import { expect, test } from '@playwright/test';
+
+const SESSION = {
+  user: {
+    id: 'usr_researcher',
+    email: 'researcher@test.invalid',
+    display_name: 'Researcher',
+    permissions: ['search:use'],
+  },
+  csrf_token: 'csrf-test',
+  totp_setup_required: false,
+};
+
+const RESPONSE = {
+  query: 'housing costs',
+  mode: 'hybrid',
+  top_k: 12,
+  chunk_top_k: 7,
+  documents: [
+    {
+      document: {
+        id: 'doc_1',
+        version: 1,
+        title: 'Housing report',
+        publisher: 'Test Institute',
+        publication_date: '2026-01-02',
+        source_quality: 'B',
+        language: 'en',
+        url: 'https://example.com/report',
+        license: 'CC BY 4.0',
+        redistribution: 'full_text',
+      },
+      chunks: [
+        {
+          chunk_id: 'chunk-1',
+          reference_id: '1',
+          content: 'Rent prices rose faster than incomes.',
+          file_path: 'doc_1@v1',
+          score: 0.91,
+          order: 0,
+        },
+      ],
+    },
+  ],
+  entities: [{ entity_name: 'Rent', file_path: 'doc_1@v1' }],
+  relationships: [{ src_id: 'Rent', file_path: 'doc_1@v1' }],
+  returned_chunks: 1,
+  dropped_chunks: 2,
+  returned_entities: 1,
+  dropped_entities: 1,
+  returned_relationships: 1,
+  dropped_relationships: 0,
+  took_ms: 12,
+};
+
+test('raw retrieval shows passages and graph data without a check', async ({ page }) => {
+  let requestBody: unknown = null;
+  await page.route('**/api/auth/session', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(SESSION),
+    }),
+  );
+  await page.route('**/v1/retrieval', async (route) => {
+    requestBody = JSON.parse(route.request().postData() ?? '{}');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(RESPONSE),
+    });
+  });
+
+  await page.goto('/retrieval');
+
+  await expect(page.getByRole('heading', { name: 'Raw retrieval' })).toBeVisible();
+  await expect(page.getByRole('note')).toContainText('not a fact check');
+  await expect(
+    page.locator('header').getByRole('link', { name: 'Raw retrieval' }),
+  ).toBeVisible();
+
+  await page.getByLabel('Query').fill('housing costs');
+  await page.getByLabel('Retrieval mode').selectOption('hybrid');
+  await page.getByLabel('Graph candidates').fill('12');
+  await page.getByLabel('Passages').fill('7');
+  await page.getByRole('button', { name: 'Retrieve' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Housing report' })).toBeVisible();
+  await expect(page.locator('.chunk p').first()).toContainText(
+    'Rent prices rose faster than incomes.',
+  );
+  await expect(page.getByText(/Documents: 1 · Passages: 1 · 12 ms/)).toBeVisible();
+  await expect(page.getByText(/Filtered out: passages 2/)).toBeVisible();
+  await expect(page.getByText(/Source quality B/)).toBeVisible();
+
+  await page.locator('details.graph summary').click();
+  await expect(page.getByText(/Graph data: 1 entities, 1 relationships/)).toBeVisible();
+  await page.locator('details.json summary').click();
+
+  expect(requestBody).toEqual({
+    query: 'housing costs',
+    mode: 'hybrid',
+    top_k: 12,
+    chunk_top_k: 7,
+    include_graph: true,
+  });
+});

@@ -261,6 +261,11 @@ response language follows the query and is overridable. A query without hits is 
 in the corpus-gap list. The documentation graph in LightRAG may be used for navigation;
 graph descriptions are model text and are never evidence `[E §4a]`.
 
+Raw retrieval is a separate surface, not a third check mode: `POST /v1/retrieval` returns
+the matching LightRAG passages and graph records without archive hits, summary, verdict or
+corpus-gap write. It is explicitly labelled as not a fact check, and its sources are still
+filtered to approved or indexed documents (PROTOCOL §5.3).
+
 The user chooses the mode explicitly (segmented control "Check | Research" in the UI, the
 endpoint in the API, or `factcheck:research` in the OpenAI-compatible API). There is no
 automatic mode detection `[E §4a]`.
@@ -577,7 +582,7 @@ The extension is the main client `[E §9]`.
 ### 3.12 Check and research surfaces
 
 - **Native:** `POST /v1/factcheck` and job/status/event endpoints; `POST /v1/search` for
-  research. Exact shapes in PROTOCOL §4 and §5.
+  research and `POST /v1/retrieval` for raw retrieval. Exact shapes in PROTOCOL §4 and §5.
 - **OpenAI-compatible:** `GET /v1/models` lists the default persona, the enabled personas,
   `factcheck:none` and `factcheck:research`; `POST /v1/chat/completions` is stateless and
   maps the last user message to the current check. It carries the structured report in a

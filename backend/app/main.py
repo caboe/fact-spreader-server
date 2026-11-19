@@ -28,6 +28,7 @@ from app.api.v1.instance import router as instance_router
 from app.api.v1.openai import OpenAIAuthError
 from app.api.v1.openai import router as openai_router
 from app.api.v1.research import router as research_router
+from app.api.v1.retrieval import router as retrieval_router
 from app.api.v1.usage import router as usage_router
 from app.api.v1.users import router as users_router
 from app.api.web.auth import router as auth_router
@@ -172,6 +173,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(users_router)
     app.include_router(openai_router)
     app.include_router(research_router)
+    app.include_router(retrieval_router)
     app.include_router(usage_router)
     app.include_router(auth_router)
     app.include_router(setup_router)

@@ -21,6 +21,9 @@ export type CheckResponse = components['schemas']['CheckResponse'];
 export type FactCheckResult = components['schemas']['FactCheckResult'];
 export type JobEnvelope = components['schemas']['JobEnvelope'];
 export type Job = components['schemas']['Job'];
+export type RawRetrievalRequest = components['schemas']['RawRetrievalRequest'];
+export type RawRetrievalResponse = components['schemas']['RawRetrievalResponse'];
+export type RetrievalMode = RawRetrievalRequest['mode'];
 
 export interface SessionInfo {
   user: { id: string; email: string; display_name: string; permissions: string[] };
@@ -190,6 +193,15 @@ export async function listPersonas(): Promise<
         .join(' '),
       output_formats: ['substance', 'persona'],
     }));
+}
+
+export async function rawRetrieval(
+  body: RawRetrievalRequest,
+): Promise<RawRetrievalResponse> {
+  return request<RawRetrievalResponse>('/v1/retrieval', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 async function errorFrom(response: Response): Promise<ApiError> {

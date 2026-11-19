@@ -1235,6 +1235,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/retrieval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retrieval */
+        post: operations["retrieval_v1_retrieval_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/queue": {
         parameters: {
             query?: never;
@@ -2785,6 +2802,132 @@ export interface components {
             effective_version: string;
             /** Grade */
             grade: string;
+        };
+        /** RawRetrievalChunk */
+        RawRetrievalChunk: {
+            /** Chunk Id */
+            chunk_id?: string | null;
+            /** Content */
+            content: string;
+            /** File Path */
+            file_path?: string | null;
+            /** Order */
+            order?: number | null;
+            /** Reference Id */
+            reference_id?: string | null;
+            /** Score */
+            score?: number | null;
+        };
+        /** RawRetrievalDocument */
+        RawRetrievalDocument: {
+            /** Chunks */
+            chunks?: components["schemas"]["RawRetrievalChunk"][];
+            document: components["schemas"]["RawRetrievalDocumentSummary"];
+        };
+        /** RawRetrievalDocumentSummary */
+        RawRetrievalDocumentSummary: {
+            /** Id */
+            id: string;
+            /** Language */
+            language: string;
+            /** License */
+            license?: string | null;
+            /** Publication Date */
+            publication_date?: string | null;
+            /** Publisher */
+            publisher: string;
+            /**
+             * Redistribution
+             * @default metadata_only
+             */
+            redistribution: string;
+            /** Source Quality */
+            source_quality: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+            /** Version */
+            version: number;
+        };
+        /** RawRetrievalRequest */
+        RawRetrievalRequest: {
+            /** Chunk Top K */
+            chunk_top_k?: number | null;
+            /**
+             * Include Graph
+             * @default true
+             */
+            include_graph: boolean;
+            /**
+             * Mode
+             * @default mix
+             * @enum {string}
+             */
+            mode: "mix" | "local" | "global" | "hybrid" | "naive";
+            /** Query */
+            query: string;
+            /** Top K */
+            top_k?: number | null;
+        };
+        /** RawRetrievalResponse */
+        RawRetrievalResponse: {
+            /** Chunk Top K */
+            chunk_top_k: number;
+            /** Documents */
+            documents?: components["schemas"]["RawRetrievalDocument"][];
+            /**
+             * Dropped Chunks
+             * @default 0
+             */
+            dropped_chunks: number;
+            /**
+             * Dropped Entities
+             * @default 0
+             */
+            dropped_entities: number;
+            /**
+             * Dropped Relationships
+             * @default 0
+             */
+            dropped_relationships: number;
+            /** Entities */
+            entities?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "mix" | "local" | "global" | "hybrid" | "naive";
+            /** Query */
+            query: string;
+            /** Relationships */
+            relationships?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Returned Chunks
+             * @default 0
+             */
+            returned_chunks: number;
+            /**
+             * Returned Entities
+             * @default 0
+             */
+            returned_entities: number;
+            /**
+             * Returned Relationships
+             * @default 0
+             */
+            returned_relationships: number;
+            /**
+             * Took Ms
+             * @default 0
+             */
+            took_ms: number;
+            /** Top K */
+            top_k: number;
         };
         /** RecheckRequest */
         RecheckRequest: {
@@ -12607,6 +12750,120 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Problem details */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Problem details */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    retrieval_v1_retrieval_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RawRetrievalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RawRetrievalResponse"];
                 };
             };
             /** @description Problem details */
