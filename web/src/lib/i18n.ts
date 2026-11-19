@@ -2,6 +2,13 @@ import { derived, writable } from 'svelte/store';
 
 export type Lang = 'en' | 'de' | 'fr' | 'es';
 export const LANGS: Lang[] = ['en', 'de', 'fr', 'es'];
+/** Language names stay in their own language, so a reader can find theirs. */
+export const LANG_LABELS: Record<Lang, string> = {
+  en: 'English',
+  de: 'Deutsch',
+  fr: 'Français',
+  es: 'Español',
+};
 
 type Catalog = Record<string, string>;
 
@@ -12,6 +19,7 @@ const en: Catalog = {
   'nav.login': 'Sign in',
   'nav.logout': 'Sign out',
   'nav.language': 'Language',
+  'nav.settings': 'Settings',
   'check.title': 'Check a claim',
   'check.intro': 'Paste text, a URL, a file or an image. The report is checked against the approved corpus only.',
   'check.text': 'Text',
@@ -477,6 +485,7 @@ const de: Catalog = {
   'nav.login': 'Anmelden',
   'nav.logout': 'Abmelden',
   'nav.language': 'Sprache',
+  'nav.settings': 'Einstellungen',
   'check.title': 'Aussage prüfen',
   'check.intro': 'Text, URL, Datei oder Bild einfügen. Geprüft wird nur gegen den freigegebenen Korpus.',
   'check.text': 'Text',
@@ -942,6 +951,7 @@ const fr: Catalog = {
   'nav.login': 'Se connecter',
   'nav.logout': 'Se déconnecter',
   'nav.language': 'Langue',
+  'nav.settings': 'Paramètres',
   'check.title': 'Vérifier une affirmation',
   'check.intro': 'Collez un texte, une URL, un fichier ou une image. La vérification ne porte que sur le corpus approuvé.',
   'check.text': 'Texte',
@@ -1407,6 +1417,7 @@ const es: Catalog = {
   'nav.login': 'Iniciar sesión',
   'nav.logout': 'Cerrar sesión',
   'nav.language': 'Idioma',
+  'nav.settings': 'Ajustes',
   'check.title': 'Comprobar una afirmación',
   'check.intro': 'Pega texto, una URL, un archivo o una imagen. Solo se comprueba contra el corpus aprobado.',
   'check.text': 'Texto',

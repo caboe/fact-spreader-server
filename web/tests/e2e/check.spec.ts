@@ -14,13 +14,18 @@ test('the check screen is accessible, localized and fits a narrow viewport', asy
   );
   expect(serious, JSON.stringify(serious.map((item) => item.id))).toEqual([]);
 
-  await page.locator('.language select').selectOption('de');
-  await expect(page.getByRole('heading', { name: 'Aussage prüfen' })).toBeVisible();
-  await page.locator('.language select').selectOption('fr');
-  await expect(page.getByRole('heading', { name: 'Vérifier une affirmation' })).toBeVisible();
-  await page.locator('.language select').selectOption('es');
-  await expect(page.getByRole('heading', { name: 'Comprobar una afirmación' })).toBeVisible();
-  await page.locator('.language select').selectOption('en');
+  // The selector lives in the account menu and is covered there. Here the stored
+  // locale drives the localized copy.
+  for (const [code, heading] of [
+    ['de', 'Aussage prüfen'],
+    ['fr', 'Vérifier une affirmation'],
+    ['es', 'Comprobar una afirmación'],
+    ['en', 'Check a claim'],
+  ] as const) {
+    await page.evaluate((lang) => localStorage.setItem('fs-lang', lang), code);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+  }
 
   await page.setViewportSize({ width: 360, height: 800 });
   const overflow = await page.evaluate(
