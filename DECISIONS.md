@@ -1009,3 +1009,28 @@ The human chose raw retrieval and access for all authenticated users.
 returning the unfiltered LightRAG payload (withdrawn content), extending `/v1/search` with
 a raw flag (would mix the research and diagnostic contracts), recording corpus gaps from
 diagnostic queries.
+
+## D64 — The retrieval index is searched with hnsw.ef_search=200, not pgvector's default 40
+
+**What:** the `lightrag` database is initialised with `hnsw.ef_search = 200`; an existing
+volume gets the same two statements once by hand (`docs/OPERATING.md`, Retrieval). Nothing
+in the application code changes.
+
+**Why:** `/retrieval` returned 12 of 18 documents for `Köln Familien`, and the breakdown
+showed two separate causes. This decision fixes the one that can silently lose evidence:
+at pgvector's default the HNSW scan reached only 17 of the 28 indexed chunks, independent
+of the query (random query vectors with an open threshold: 10–26 of 28). A chunk outside
+the beam can never become a candidate, so an approved document was invisible to checks as
+well as to the diagnostic page. At 200 the scan returns all 28 with an unchanged top-10
+order; 100 was already enough here, 200 keeps headroom while the corpus grows.
+
+**Not changed:** the relevance floor stays at LightRAG's default `COSINE_THRESHOLD=0.2`, so
+`/retrieval` still returns almost the whole corpus — all 28 chunks score 0.24–0.55 for
+`Köln Familien`, and an unrelated query still matched 16 chunks. Raising the floor changes
+check and research evidence and needs a calibration run against the evaluation set.
+
+**Rejected:** dropping the HNSW index (exact, but a sequential scan as the corpus grows);
+`hnsw.iterative_scan` (no measured difference once `ef_search` is high, and relaxed ordering
+can reorder neighbours); rebuilding the index with a higher `m`/`ef_construction` (an index
+rebuild for no measured gain); raising `top_k`/`chunk_top_k` instead (a top-k is a cut, not
+a recall setting — at k=40 the same 17 chunks came back).

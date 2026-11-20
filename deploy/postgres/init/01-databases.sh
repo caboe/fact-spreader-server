@@ -23,6 +23,18 @@ SQL
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$LIGHTRAG_DB_NAME" <<-SQL
     CREATE EXTENSION IF NOT EXISTS vector;
     CREATE EXTENSION IF NOT EXISTS age;
+
+    -- pgvector's HNSW scan visits a bounded candidate set (hnsw.ef_search, default 40)
+    -- and returns fewer rows than LIMIT when the graph search runs dry. Measured on the
+    -- fixture corpus: 17 of 28 chunks were reachable at 40 and all 28 at 200, with an
+    -- unchanged top-10 order. Below that, retrieval silently loses chunks, so a relevant
+    -- document can never become evidence. LOAD registers the GUC so ALTER DATABASE can
+    -- validate the name; the stored value is a placeholder that pgvector picks up when
+    -- it loads in a session. Existing volumes need the same two statements once by hand
+    -- (DECISIONS.md D64).
+    LOAD 'vector';
+    ALTER DATABASE ${LIGHTRAG_DB_NAME} SET hnsw.ef_search = 200;
+
     LOAD 'age';
     SET search_path = ag_catalog, "\$user", public;
     SELECT create_graph('lightrag');

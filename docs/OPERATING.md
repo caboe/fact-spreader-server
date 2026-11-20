@@ -67,6 +67,26 @@ confirmed re-index (`/admin/reindex` or `POST /v1/config/reindex`). The worker r
 LightRAG from approved documents. Re-index after a restore if the LightRAG volume was not
 backed up. During a re-index, checks keep reading the current corpus.
 
+## Retrieval
+
+`/retrieval` shows exactly what stock LightRAG returns and applies no relevance cut, so on a
+small corpus it returns almost everything. Two settings decide what the index can see.
+
+`hnsw.ef_search = 200` is set on the `lightrag` database at init. pgvector's default of 40
+let the HNSW scan reach only part of the index (measured: 17 of 28 chunks), so a relevant
+passage could be missing from checks. A volume created before this setting needs it once,
+followed by a LightRAG restart so the connection pool opens fresh sessions:
+
+```bash
+docker compose exec -T postgres psql -U factspreader -d lightrag \
+  -c "LOAD 'vector';" -c "ALTER DATABASE lightrag SET hnsw.ef_search = 200;"
+docker compose restart lightrag
+```
+
+Use `POSTGRES_USER` and `LIGHTRAG_DB_NAME` from `.env` if you changed them. `LOAD 'vector'`
+is required in that session: without the extension loaded, PostgreSQL does not know the
+parameter and rejects the `ALTER`.
+
 ## Retention and budgets
 
 ```bash
