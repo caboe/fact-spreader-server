@@ -578,6 +578,42 @@ async def test_raw_retrieval_can_omit_graph_data_and_rejects_an_unknown_mode(
 
 
 @pytest.mark.asyncio
+async def test_raw_retrieval_uses_the_diagnostic_graph_breadth_not_the_check_default(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    """Prevents the diagnostic page from inheriting the check pipeline's graph breadth.
+
+    Graph candidates and passages share LightRAG's context budget: at top_k=40 the Cologne
+    query returned 16 passages, at top_k=10 the full 20 and three more documents
+    (DECISIONS.md D65).
+    """
+
+    class Recording:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        async def query_data(self, query: str, **kwargs: Any) -> RetrievalResult:
+            self.calls.append(kwargs)
+            return RetrievalResult(chunks=[])
+
+    fake = Recording()
+    app.state.lightrag = fake
+    response = await client.post("/v1/retrieval", json={"query": "Köln Familien"})
+    assert response.status_code == 200, response.text
+
+    settings = app.state.settings
+    assert fake.calls == [
+        {
+            "mode": "mix",
+            "top_k": settings.lightrag_raw_top_k,
+            "chunk_top_k": settings.lightrag_raw_chunk_top_k,
+        }
+    ]
+    assert (settings.lightrag_raw_top_k, settings.lightrag_raw_chunk_top_k) == (10, 20)
+    assert settings.lightrag_raw_top_k != settings.lightrag_top_k
+
+
+@pytest.mark.asyncio
 async def test_raw_retrieval_reports_an_unavailable_lightrag(
     app: Any, client: httpx.AsyncClient
 ) -> None:

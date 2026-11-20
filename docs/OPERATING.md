@@ -87,6 +87,12 @@ Use `POSTGRES_USER` and `LIGHTRAG_DB_NAME` from `.env` if you changed them. `LOA
 is required in that session: without the extension loaded, PostgreSQL does not know the
 parameter and rejects the `ALTER`.
 
+The page and `POST /v1/retrieval` default to `LIGHTRAG_RAW_TOP_K=10` and
+`LIGHTRAG_RAW_CHUNK_TOP_K=20`, separate from the check pipeline's `LIGHTRAG_TOP_K=40`.
+Keep the diagnostic graph breadth lower: entities and relations are charged against the
+same context budget as the passages, so a wider graph removes passages from the response
+(measured: 16 passages at 40, 20 at 10).
+
 ## Retention and budgets
 
 ```bash

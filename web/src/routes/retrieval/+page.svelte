@@ -23,7 +23,9 @@
 
   let query = $state('');
   let mode = $state<RetrievalMode>('mix');
-  let topK = $state(40);
+  // The diagnostic default is deliberately lower than the check pipeline's graph breadth:
+  // graph candidates share LightRAG's context budget with the passages they crowd out.
+  let topK = $state(10);
   let chunkTopK = $state(20);
   let includeGraph = $state(true);
   let result = $state<RawRetrievalResponse | null>(null);
@@ -101,11 +103,16 @@
     <div class="options">
       <label>
         <span>{tr('raw.mode')}</span>
-        <select bind:value={mode}>
-          {#each MODES as item}
-            <option value={item}>{MODE_LABELS[item]}</option>
-          {/each}
-        </select>
+        <span class="select-control">
+          <select bind:value={mode}>
+            {#each MODES as item}
+              <option value={item}>{MODE_LABELS[item]}</option>
+            {/each}
+          </select>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 6l4 4 4-4" />
+          </svg>
+        </span>
       </label>
       <label>
         <span>{tr('raw.top_k')}</span>
@@ -241,6 +248,9 @@
     box-shadow: var(--fs-shadow-soft);
   }
   .panel {
+    /* One control height keeps selects, number inputs and the submit button on the
+       same line, independent of the browser's intrinsic select metrics. */
+    --control-height: 2.75rem;
     display: grid;
     gap: 0.9rem;
     padding: 1.1rem 1.25rem;
@@ -264,6 +274,33 @@
     font: inherit;
     font-size: 0.9rem;
   }
+  select,
+  input[type='number'] {
+    height: var(--control-height);
+  }
+  select {
+    appearance: none;
+    /* Room for the chevron below, which replaces the browser's edge-hugging arrow. */
+    padding: 0 2.25rem 0 0.65rem;
+  }
+  .select-control {
+    position: relative;
+    display: block;
+  }
+  .select-control svg {
+    position: absolute;
+    top: 50%;
+    right: 0.9rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    transform: translateY(-50%);
+    fill: none;
+    stroke: var(--fs-muted);
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
   textarea {
     resize: vertical;
   }
@@ -285,7 +322,8 @@
   }
   button {
     justify-self: start;
-    padding: 0.55rem 1rem;
+    height: var(--control-height);
+    padding: 0 1rem;
     border: none;
     border-radius: 0.5rem;
     background: var(--fs-accent);

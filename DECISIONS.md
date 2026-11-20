@@ -1034,3 +1034,24 @@ check and research evidence and needs a calibration run against the evaluation s
 can reorder neighbours); rebuilding the index with a higher `m`/`ef_construction` (an index
 rebuild for no measured gain); raising `top_k`/`chunk_top_k` instead (a top-k is a cut, not
 a recall setting — at k=40 the same 17 chunks came back).
+
+## D65 — The diagnostic /retrieval surface has its own, smaller graph breadth
+
+**What:** `POST /v1/retrieval` and the page `/retrieval` default to `LIGHTRAG_RAW_TOP_K=10`
+and `LIGHTRAG_RAW_CHUNK_TOP_K=20`; checks and research keep `LIGHTRAG_TOP_K=40`. The form
+defaults on the page follow the same values.
+
+**Why:** in `mix` mode LightRAG merges graph context and passages into one 30k-token context,
+so every entity and relation retrieved is charged against the passages. Measured on the
+fixture corpus with `Köln Familien`: at `top_k=40` the response carried 81 entities and 175
+relations but only 16 passages from 12 documents; at `top_k=10`, 24 entities and 36 relations
+and the full 20 passages from 16 documents; at `top_k=5`, 20 passages from 15 documents. A
+wider graph therefore made the diagnostic page show *fewer* documents, which is the opposite
+of what a surface for inspecting retrieval should do.
+
+**Not changed:** the check pipeline keeps `top_k=40`. Whether it loses the same passages to
+the budget has to be measured on the evaluation set, not assumed from the diagnostic surface.
+
+**Rejected:** lowering the shared `LIGHTRAG_TOP_K` (it moves verdicts and needs the
+evaluation set), a second retrieval endpoint (the contract stays one raw surface), keeping
+40 and only documenting the effect (the default is what people run).

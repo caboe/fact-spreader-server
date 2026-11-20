@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     lightrag_timeout_seconds: float = 180.0
     lightrag_top_k: int = 40
     lightrag_chunk_top_k: int = 20
+    # The diagnostic /retrieval surface must not inherit the check pipeline's graph
+    # breadth: every entity and relation it asks for is charged against LightRAG's shared
+    # context budget, so top_k=40 returned fewer passages than top_k=10 (DECISIONS.md D65).
+    lightrag_raw_top_k: int = 10
+    lightrag_raw_chunk_top_k: int = 20
 
     # --- internal LLM gateway ---------------------------------------------------
     internal_llm_key: SecretStr = SecretStr("")
