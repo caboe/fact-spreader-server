@@ -439,6 +439,9 @@ geklärt werden muss
   unterstützt, wenn es Substanz-Vorlagen, Sprachvarianten der Persona-Checks und eine
   Freigabe durch die Methodik gibt. Zum Start: en, de, fr, es (wie die Oberfläche).
 - **[E]** Die interne Pipeline (Extraktion, Verifikation, Audit) arbeitet auf Englisch.
+  Nachtrag 2026-11-20: Die nutzersichtbaren Erklärungsfelder der Verifikation
+  (Begründung, Was-stimmt/Was-fehlt/nicht-prüfbar, Argumentmuster) werden in der
+  Antwortsprache ausgegeben, damit der Bericht nicht gemischtsprachig ist.
   Suchbegriffe entstehen mehrsprachig, nur die Ausgabe ist lokalisiert.
 - **[E]** Die deterministische Substanz kommt aus übersetzten Vorlagen, nicht vom LLM
   (Invariante 3). Personas rendern in der Zielsprache, und der Judge prüft in der

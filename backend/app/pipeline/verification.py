@@ -19,10 +19,17 @@ from app.contracts.enums import Verdict
 from app.llm.aliases import FS_VERIFY
 from app.llm.client import LLMOutputError, StructuredLLM
 from app.services.methodology import Confounder, Methodology
+from app.services.templates import no_matching_rationale
 
 logger = logging.getLogger(__name__)
 
-VERIFICATION_PROMPT_VERSION = "1"
+VERIFICATION_PROMPT_VERSION = "2"
+_LANGUAGE_NAMES = {
+    "en": "English",
+    "de": "German",
+    "fr": "French",
+    "es": "Spanish",
+}
 _UNVERIFIABLE_REASONS = {
     "no_disaggregated_data",
     "stale_evidence",
@@ -129,6 +136,10 @@ under 120 words, and no repeated passages. Return JSON with these fields:
 - "audit_complete": true only if every material confounder was actually addressed by the
   evidence. If a confounder is not addressed, say so in what_is_missing or
   what_is_unverifiable and set audit_complete false.
+- Write "rationale", every "what_is_true", "what_is_missing" and "what_is_unverifiable"
+  point, and every "argument_issues" explanation in the response language supplied in the
+  user message. The statement and the passages may be in another language; do not mirror
+  their language for your explanatory text.
 
 Hard rules:
 - Use only evidence ids that appear in the supplied candidate passages. Never invent an id,
@@ -158,6 +169,7 @@ async def verify_statement(
     *,
     statement_text: str,
     statement_scope: Scope,
+    language: str,
     topics: list[str],
     candidates: list[Evidence],
     confounders: list[Confounder],
@@ -168,7 +180,7 @@ async def verify_statement(
     if not candidates:
         return VerificationProposal(
             verdict=Verdict.INSUFFICIENT_EVIDENCE,
-            rationale="No approved passage matched this statement.",
+            rationale=no_matching_rationale(language),
             links=[],
             what_is_true=[],
             what_is_missing=[],
@@ -196,6 +208,7 @@ async def verify_statement(
             "content": (
                 f"Statement: {statement_text}\n"
                 f"Scope: {scope_json}\n"
+                f"Response language: {language} ({_LANGUAGE_NAMES.get(language, language)})\n"
                 f"Topics: {topics}\n"
                 f"Staleness threshold: {staleness_days} days\n"
                 f"Confounders to check:\n{confounder_text}\n"

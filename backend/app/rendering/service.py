@@ -29,6 +29,7 @@ from app.services.personas import PersonaConfig, PersonaRegistry
 from app.services.templates import (
     confounder_label,
     fallback_heading,
+    fallback_warning,
     verdict_label,
 )
 
@@ -341,12 +342,11 @@ class RenderingService:
         output_moderation: ModerationInfo | None = None,
     ) -> RenderOutcome:
         text = _template_text(result, language)
+        logger.warning("rendering fallback", extra={"reason": reason})
         warnings = [
             WarningInfo(
                 code="consistency_fallback",
-                message=(
-                    f"The persona narrative was replaced by the deterministic template: {reason}."
-                ),
+                message=fallback_warning("consistency_fallback", language),
             )
         ]
         info = output_moderation
@@ -354,7 +354,7 @@ class RenderingService:
             warnings.append(
                 WarningInfo(
                     code="output_moderation_replaced",
-                    message="Output moderation replaced the persona narrative.",
+                    message=fallback_warning("output_moderation_replaced", language),
                 )
             )
         return RenderOutcome(

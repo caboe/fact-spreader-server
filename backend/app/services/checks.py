@@ -42,6 +42,7 @@ from app.services.methodology import Methodology
 from app.services.moderation import ModerationService
 from app.services.personas import PersonaConfigError, PersonaRegistry
 from app.services.publishers import PublisherRegistry
+from app.services.templates import fallback_warning
 
 
 async def get_instance(session: AsyncSession) -> Instance:
@@ -365,11 +366,11 @@ async def run_check_job(
                 result.moderation.output_moderation = OutputModeration.model_validate(
                     render_outcome.output_moderation
                 )
-        except (PersonaConfigError, KeyError, ValueError) as exc:
+        except (PersonaConfigError, KeyError, ValueError):
             result.warnings.append(
                 WarningInfo(
                     code="consistency_fallback",
-                    message=f"The persona rendering could not be produced: {type(exc).__name__}.",
+                    message=fallback_warning("consistency_fallback", result.response_language),
                 )
             )
     session.add(result_to_row(result, user_id=job_row.user_id, renderings=renderings))

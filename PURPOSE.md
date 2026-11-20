@@ -520,9 +520,10 @@ variants of persona checks and an editorial approval exist.
   with a visible notice.
 - **A corpus document in an unsupported language** produces a warning for the reviewer.
   They may still approve it; it enters the corpus.
-- **Internal pipeline** (extraction, verification, audit) works in English; retrieval
-  keywords are produced in the claim's language and English, and usually in German for a
-  German scope.
+- **Internal pipeline** reasons in English where that helps, but the user-visible
+  verification fields (rationale, what-is-true/missing/unverifiable, argument explanations)
+  are written in the response language. Retrieval keywords are produced in the claim's
+  language and English, and usually in German for a German scope.
 - **Deterministic substance** comes from translated templates, not from an LLM. Personas
   render in the target language and the judge checks in the target language `[I3]`.
 - **Language-dependent persona checks** need language variants. `no_second_person` must

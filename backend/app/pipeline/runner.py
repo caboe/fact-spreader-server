@@ -54,13 +54,19 @@ from app.pipeline.compact import build_compact
 from app.pipeline.extraction import ExtractionResult, extract_statements
 from app.pipeline.gate import GateConfig, gate_statement, overall_verdict
 from app.pipeline.translation import translate_evidence
-from app.pipeline.verification import VerificationProposal, verify_statement
+from app.pipeline.verification import (
+    VERIFICATION_PROMPT_VERSION,
+    VerificationProposal,
+    verify_statement,
+)
 from app.retrieval.lightrag import LightRAGClient, LightRAGError, RetrievalChunk
 from app.retrieval.relevance import Embedder, build_retriever
 from app.services.language import LanguageService
 from app.services.methodology import Confounder, Methodology
 from app.services.publishers import PublisherRegistry
 from app.services.templates import (
+    gate_fallback_text,
+    no_matching_rationale,
     overall_explanation,
     refusal_text,
     unsupported_language_notice,
@@ -249,6 +255,7 @@ class CheckPipeline:
                     self.llm,
                     statement_text=located.text,
                     statement_scope=located.scope,
+                    language=decision.response,
                     topics=topics,
                     candidates=candidates,
                     confounders=confounders,
@@ -266,6 +273,7 @@ class CheckPipeline:
                             self.llm,
                             statement_text=located.text,
                             statement_scope=located.scope,
+                            language=decision.response,
                             topics=topics,
                             candidates=candidates,
                             confounders=confounders,
@@ -276,7 +284,7 @@ class CheckPipeline:
             else:
                 proposal = VerificationProposal(
                     verdict=Verdict.INSUFFICIENT_EVIDENCE,
-                    rationale="No approved passage matched this statement.",
+                    rationale=no_matching_rationale(decision.response),
                     links=[],
                     what_is_true=[],
                     what_is_missing=[],
@@ -288,7 +296,7 @@ class CheckPipeline:
                 warnings.append(
                     WarningInfo(
                         code="no_matching_document",
-                        message="No approved document matched a statement.",
+                        message=no_matching_rationale(decision.response),
                         statement_id=statement_id,
                     )
                 )
@@ -315,6 +323,7 @@ class CheckPipeline:
                 statement_id=statement_id,
                 located=located,
                 language=decision.detected,
+                response_language=decision.response,
                 proposal=proposal,
                 gate=decision_gate,
                 warnings=statement_warnings,
@@ -374,7 +383,7 @@ class CheckPipeline:
             warnings.append(
                 WarningInfo(
                     code="no_matching_document",
-                    message="No approved document matched this input.",
+                    message=no_matching_rationale(decision.response),
                 )
             )
         if source_image:
@@ -465,6 +474,7 @@ class CheckPipeline:
         statement_id: str,
         located: Any,
         language: str,
+        response_language: str,
         proposal: VerificationProposal,
         gate: Any,
         warnings: list[WarningInfo],
@@ -504,7 +514,7 @@ class CheckPipeline:
             missing_items = []
             unverifiable.append(
                 WhatIsUnverifiable(
-                    text="A source was found, but it did not meet the evidence gate.",
+                    text=gate_fallback_text(response_language),
                     reason="other",
                 )
             )
@@ -733,7 +743,11 @@ class CheckPipeline:
                 "audit": FS_AUDIT,
                 "moderation": FS_MODERATION,
             },
-            prompt_versions={"extract": "1", "verify": "1", "moderation": "1"},
+            prompt_versions={
+                "extract": "1",
+                "verify": VERIFICATION_PROMPT_VERSION,
+                "moderation": "1",
+            },
         )
 
 

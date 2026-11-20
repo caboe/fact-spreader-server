@@ -192,3 +192,62 @@ def fallback_heading(key: str, language: str) -> str:
     return _FALLBACK_HEADINGS.get(language, _FALLBACK_HEADINGS["en"]).get(
         key, _FALLBACK_HEADINGS["en"][key]
     )
+
+
+_FALLBACK_WARNINGS: dict[str, dict[str, str]] = {
+    "en": {
+        "consistency_fallback": ("The persona narrative was replaced by the deterministic report."),
+        "output_moderation_replaced": ("Output moderation replaced the persona narrative."),
+    },
+    "de": {
+        "consistency_fallback": (
+            "Die Persona-Erzählung wurde durch den deterministischen Bericht ersetzt."
+        ),
+        "output_moderation_replaced": ("Die Ausgabemoderation hat die Persona-Erzählung ersetzt."),
+    },
+    "fr": {
+        "consistency_fallback": (
+            "Le récit de la persona a été remplacé par le rapport déterministe."
+        ),
+        "output_moderation_replaced": (
+            "La modération de la sortie a remplacé le récit de la persona."
+        ),
+    },
+    "es": {
+        "consistency_fallback": (
+            "La narración de la persona se sustituyó por el informe determinista."
+        ),
+        "output_moderation_replaced": (
+            "La moderación de la salida sustituyó la narración de la persona."
+        ),
+    },
+}
+
+
+def fallback_warning(key: str, language: str) -> str:
+    return _FALLBACK_WARNINGS.get(language, _FALLBACK_WARNINGS["en"]).get(
+        key, _FALLBACK_WARNINGS["en"].get(key, key)
+    )
+
+
+_NO_MATCHING_RATIONALE: dict[str, str] = {
+    "en": "No approved passage matched this statement.",
+    "de": "Kein freigegebener Beleg passt zu dieser Aussage.",
+    "fr": "Aucun passage approuvé ne correspond à cette affirmation.",
+    "es": "Ningún pasaje aprobado coincide con esta afirmación.",
+}
+
+_GATE_FALLBACK: dict[str, str] = {
+    "en": "A source was found, but it did not meet the evidence gate.",
+    "de": "Es wurde eine Quelle gefunden, aber sie erfüllt die Evidenzanforderung nicht.",
+    "fr": "Une source a été trouvée, mais elle ne satisfait pas au seuil de preuve.",
+    "es": "Se encontró una fuente, pero no cumple el umbral de evidencia.",
+}
+
+
+def no_matching_rationale(language: str) -> str:
+    return _NO_MATCHING_RATIONALE.get(language, _NO_MATCHING_RATIONALE["en"])
+
+
+def gate_fallback_text(language: str) -> str:
+    return _GATE_FALLBACK.get(language, _GATE_FALLBACK["en"])

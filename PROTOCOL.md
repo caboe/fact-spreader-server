@@ -853,7 +853,9 @@ Both lists are visible to `documents:review`; contradictions additionally to
 - `output_format`: `substance` (default), `persona`, `compact`. `persona` requires a
   `persona_id`; `compact` is deterministic and needs no persona.
 - `response_language`: one of the supported codes, or `null` for the input language;
-  unsupported requested language → `422 unsupported_response_language`.
+  unsupported requested language → `422 unsupported_response_language`. The verification
+  rationale and substance points are written in this language; evidence passages stay in
+  their original language.
 - `include_passages`: when `false`, evidence passages are shortened to 300 chars and
   translations are omitted from the response (the gate still uses full passages).
 - `domain_hint`: advisory domain tags; never a wall.

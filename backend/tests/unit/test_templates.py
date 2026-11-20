@@ -5,6 +5,9 @@ from __future__ import annotations
 from app.contracts.enums import Verdict
 from app.services.templates import (
     confounder_label,
+    fallback_warning,
+    gate_fallback_text,
+    no_matching_rationale,
     overall_explanation,
     refusal_text,
     unsupported_language_notice,
@@ -36,3 +39,15 @@ def test_refusal_and_notice_are_localized() -> None:
 def test_confounder_labels_have_a_graceful_fallback() -> None:
     assert confounder_label("age", "de") == "Altersstruktur"
     assert confounder_label("not_a_confounder", "en") == "not a confounder"
+
+
+def test_fallback_warnings_are_localized() -> None:
+    assert "deterministischen" in fallback_warning("consistency_fallback", "de")
+    assert "Output moderation" in fallback_warning("output_moderation_replaced", "en")
+    assert fallback_warning("unknown_warning", "de") == "unknown_warning"
+
+
+def test_deterministic_analysis_fallbacks_are_localized() -> None:
+    assert "Kein freigegebener" in no_matching_rationale("de")
+    assert "Quelle" in gate_fallback_text("de")
+    assert "Aucun passage" in no_matching_rationale("fr")

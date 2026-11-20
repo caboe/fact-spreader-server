@@ -1197,3 +1197,19 @@ prompt cannot guarantee an invariant); treating any `supports` plus `refutes` pa
 contested regardless of time scope (rule 7 keeps developments over time apart); letting the
 rule upgrade an `insufficient_evidence` proposal to `true` or `false` (only the
 contradiction is computed by code, nothing else).
+
+## D70 — Verification explanations follow the response language
+
+**What:** `verify_statement` receives the resolved response language and is instructed to
+write its rationale, what-is-true/missing/unverifiable points and argument explanations in
+that language. The deterministic fallback warnings from rendering, the no-match
+rationale and the gate fallback point are localized too.
+
+**Why:** a German claim produced German headings and statement text with English analysis
+because the verification prompt had no language instruction, while the response language
+already defaulted to the detected input language. The report mixed languages even though
+the spec promises a response in the claim's language.
+
+**Rejected:** translating verification output after the fact (another model call and another
+chance to alter evidence), keeping the internal pipeline's English in user-visible fields,
+and letting the UI translate backend prose (it has no reliable per-field language signal).

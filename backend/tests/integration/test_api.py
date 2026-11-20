@@ -257,6 +257,55 @@ async def test_worker_persists_the_job_state_and_the_result(
 
 
 @pytest.mark.asyncio
+async def test_verification_prompt_uses_the_response_language(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document_id = await _seed_approved_document(app, settings)
+    async with app.state.db.session_factory() as session:
+        document = await session.get(Document, document_id)
+        assert document is not None
+        document.language = "de"
+        await session.commit()
+    fake_llm = FakeLLM()
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    response = await client.post(
+        "/v1/factcheck",
+        json={
+            "input": {
+                "type": "text",
+                "text": "Samstag können in Köln keine Familien mehr in die Schwimmbäder gehen.",
+            }
+        },
+    )
+    assert response.status_code == 202
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=FakeLightRAG(  # type: ignore[arg-type]
+                document_id=document_id,
+                passage="The approved passage is in English.",
+            ),
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+
+    prompts = [
+        messages for purpose, messages in fake_llm.structured_messages if purpose == "verification"
+    ]
+    assert prompts
+    assert "Response language: de (German)" in prompts[0][-1]["content"]
+    assert "response language supplied" in prompts[0][0]["content"]
+
+
+@pytest.mark.asyncio
 async def test_url_input_is_fetched_and_kept_out_of_the_corpus(
     app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

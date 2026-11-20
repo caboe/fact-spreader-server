@@ -48,6 +48,7 @@ class FakeLLM:
         self.passage_similarity = passage_similarity
         self.verify_calls = 0
         self.calls: list[str] = []
+        self.structured_messages: list[tuple[str, list[dict[str, str]]]] = []
 
     async def chat_text(
         self,
@@ -102,6 +103,7 @@ class FakeLLM:
         max_tokens: int = 2048,
     ) -> tuple[T, LLMUsage]:
         self.calls.append(alias)
+        self.structured_messages.append((purpose, messages))
         if self.unavailable:
             raise LLMError(503, "moderation_unavailable", "fake moderation outage")
         if alias == FS_MODERATION:
