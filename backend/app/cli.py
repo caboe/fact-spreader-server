@@ -53,6 +53,7 @@ from app.services.auth import all_permissions, create_api_key
 from app.services.providers import upsert_model, upsert_provider
 from app.services.publishers import PublisherMatch, PublisherRegistry
 from app.services.retention import run_retention
+from app.services.text_cleanup import strip_publisher_footer
 
 DEFAULT_FIXTURES = (
     "crime-raw-suspect-rates",
@@ -390,7 +391,9 @@ async def seed_fixtures(settings: Settings, *, approve: bool) -> int:
                 await session.flush()
                 file_source = f"{document.id}@v{document.version}"
                 await lightrag.insert_text(
-                    content=body, file_source=file_source, title=document.title
+                    content=strip_publisher_footer(body),
+                    file_source=file_source,
+                    title=document.title,
                 )
                 document.state = "indexing"
                 document.updated_at = utcnow()

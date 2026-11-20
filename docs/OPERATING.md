@@ -87,6 +87,10 @@ Use `POSTGRES_USER` and `LIGHTRAG_DB_NAME` from `.env` if you changed them. `LOA
 is required in that session: without the extension loaded, PostgreSQL does not know the
 parameter and rejects the `ALTER`.
 
+`COSINE_THRESHOLD` (LightRAG environment, default 0.2) is the relevance floor. It is
+deliberately not raised: changing it moves check and research evidence, so it needs the
+evaluation set rather than a guess.
+
 The page and `POST /v1/retrieval` default to `LIGHTRAG_RAW_TOP_K=10` and
 `LIGHTRAG_RAW_CHUNK_TOP_K=20`, separate from the check pipeline's `LIGHTRAG_TOP_K=40`.
 Keep the diagnostic graph breadth lower: entities and relations are charged against the

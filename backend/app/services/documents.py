@@ -38,6 +38,7 @@ from app.services.input_reader import UrlFetchError, read_file_bytes
 from app.services.methodology import Methodology
 from app.services.methodology_overrides import effective_methodology_for
 from app.services.publishers import PublisherRegistry
+from app.services.text_cleanup import strip_publisher_footer
 
 logger = logging.getLogger(__name__)
 
@@ -465,7 +466,9 @@ async def run_document_index_job(
     await session.commit()
     file_source = f"{document.id}@v{document.version}"
     await lightrag.insert_text(
-        content=version.content_md, file_source=file_source, title=document.title
+        content=strip_publisher_footer(version.content_md),
+        file_source=file_source,
+        title=document.title,
     )
     if not await lightrag.wait_until_idle(timeout_seconds=900):
         raise LightRAGError("LightRAG did not finish indexing the document")

@@ -63,6 +63,15 @@ fails or if the prediction file misses a case. The cost share comes from the
 Offline mode requires no network and no model. It refuses an empty predictions file or a
 missing case instead of silently scoring a subset.
 
+## Baseline
+
+`tests/eval/predictions.baseline.jsonl` was recorded on 2026-11-18 against a stack seeded
+with `tests/fixtures/corpus`. The claims quote and paraphrase those fixture documents by
+name and content, so a live run on a stack that does not hold them — for example one with
+only the imported dpa corpus — cannot reproduce the labelled verdicts, whatever the
+retrieval settings are. Compare a threshold or a model change only on a stack seeded with
+`make seed-fixtures`, and regenerate the baseline there.
+
 ## Metrics
 
 - accuracy over all cases;

@@ -1055,3 +1055,59 @@ the budget has to be measured on the evaluation set, not assumed from the diagno
 **Rejected:** lowering the shared `LIGHTRAG_TOP_K` (it moves verdicts and needs the
 evaluation set), a second retrieval endpoint (the contract stays one raw surface), keeping
 40 and only documenting the effect (the default is what people run).
+
+## D66 — The relevance floor stays at 0.2; the corpus is the problem, not the threshold
+
+**What:** `COSINE_THRESHOLD` stays at LightRAG's stock 0.2. The 0.35 experiment was measured
+and reverted; the tree carries no threshold change.
+
+**Why:** 0.35 looked convincing on eight hand-written queries — all eight targets scored
+0.547–0.695, the flat tail disappeared, `Köln Familien` dropped from 16 to 6 documents and
+`naive` returned nothing for an off-corpus topic. The live evaluation then collapsed from
+accuracy 0.640 to 0.280 with 21 of 25 claims becoming `insufficient_evidence`.
+
+**That run does not measure the threshold.** The 25-case set is labelled against
+`tests/fixtures/corpus`, and this instance holds the 18 imported dpa documents and no
+fixture document at all. The target documents do not exist, so no floor can produce the
+labelled verdicts. The 0.640 baseline was recorded on 2026-11-18 08:57; the dpa corpus was
+approved that day at 22:28.
+
+**What the run did expose:** 19 of the 28 indexed chunks (68 %) are the publisher footer
+(«Über dpa-Faktenchecks … powered by dpa-newslab»). They are near-identical across
+documents and sit in the 0.30–0.40 band for almost any query. The one evidence passage the
+0.35 run produced for claim-001 was such a footer from an unrelated document. A global
+cosine floor therefore keeps the generic tails and drops the specific passages, which score
+lower against a paraphrase. Raising the floor cannot fix that.
+
+**Rejected:** 0.35 as a default (keeps boilerplate, drops substance, unvalidated); 0.5
+(empties the graph — 0–2 of 543 entities survive); reading the 0.280 run as a regression
+(it is a corpus mismatch).
+
+**Follow-up:** remove the publisher footer before indexing and re-index, then re-run the
+evaluation on a stack seeded with the fixture corpus. The committed baseline no longer
+describes this corpus; `docs/EVALUATION.md` now says so.
+
+## D67 — The publisher footer leaves the index, and it did not change the ranking
+
+**What:** both indexing paths hand LightRAG `strip_publisher_footer(version.content_md)`; the
+stored text keeps the footer. Applying it was a re-index of the 18 approved documents.
+
+**Why:** 19 of 28 indexed chunks (68 %) carried the block «Über dpa-Faktenchecks … powered
+by dpa-newslab». It is the publisher's programme disclaimer and contact address, identical
+across documents, and it does not belong in evidence or in a citation.
+
+**What it did not do:** the similarity landscape barely moved. `Köln Familien` scores 0.540
+against the Cologne document (was 0.547) and 0.370 against the best unrelated chunk (was
+0.364); an off-corpus query still peaks at 0.333. The flat 0.30–0.40 band is what unrelated
+German fact checks score against a short query, not the shared footer — the footer sat in
+chunks that are mostly substance. `/retrieval` still returns 15 of 18 documents at the
+default floor of 0.2.
+
+**Consequence:** the threshold is the only lever for that band, and it cannot be calibrated
+on this instance (D66). The footer rule stays because indexed text should not carry the
+publisher's contact block, not because it improves retrieval.
+
+**Operational note:** the first re-index ran against a worker that `docker compose restart`
+had not recreated, so it indexed the old text; one document then stalled in `processing`
+after a LightRAG deletion error (`'set' object is not subscriptable`) and was repaired by
+deleting and re-inserting its source. Two passes were paid for; the second took effect.
