@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import {
     ApiError,
     type DocumentInfo,
@@ -29,7 +29,9 @@
 
   let tab = $state<Tab>('queue');
   let queue = $state<DocumentInfo[]>([]);
+  let indexingDocs = $state<DocumentInfo[]>([]);
   let counts = $state<Record<string, number>>({});
+  let progressTimer: ReturnType<typeof setInterval> | null = null;
   let filters = $state({ state: '', q: '', source_quality: '', publisher: '', language: '' });
   let selectedIds = $state<string[]>([]);
   let detail = $state<DocumentInfo | null>(null);
@@ -51,6 +53,13 @@
   let withdrawReason = $state('');
 
   const GRADES: SourceGrade[] = ['A', 'B', 'C', 'D'];
+  const COUNT_FILTERS: Record<string, string> = {
+    ready: 'ready',
+    warnings: 'warning',
+    duplicates: 'duplicate',
+    approved: 'approved',
+    indexed: 'indexed',
+  };
   const canReview = $derived(
     Boolean($session?.user.permissions.includes('documents:review')),
   );
@@ -73,10 +82,55 @@
         ['ready', 'warning', 'parsed'].includes(document.state),
       ),
   );
+  const approvedCohort = $derived(
+    (counts.approved ?? 0) + (counts.indexing ?? 0) + (counts.indexed ?? 0),
+  );
+  const indexingPending = $derived(
+    (counts.approved ?? 0) + (counts.indexing ?? 0),
+  );
+  const progressPercent = $derived(
+    approvedCohort > 0
+      ? Math.round(((counts.indexed ?? 0) / approvedCohort) * 100)
+      : 0,
+  );
+  const failedCount = $derived(counts.failed ?? 0);
 
   onMount(async () => {
     await Promise.all([loadQueue(), loadContradictions(), loadGaps()]);
+    await loadIndexing();
+    progressTimer = setInterval(() => {
+      if ((counts.approved ?? 0) + (counts.indexing ?? 0) > 0) void loadProgress();
+    }, 5000);
   });
+
+  onDestroy(() => {
+    if (progressTimer) clearInterval(progressTimer);
+  });
+
+  async function loadIndexing(): Promise<void> {
+    try {
+      indexingDocs = (await listReviewQueue({ state: 'indexing', limit: 5 })).data;
+    } catch {
+      /* keep the last visible progress */
+    }
+  }
+
+  async function loadProgress(): Promise<void> {
+    try {
+      const snapshot = await listReviewQueue({ state: 'all', limit: 1 });
+      counts = snapshot.counts;
+    } catch {
+      /* keep the last visible progress */
+    }
+    await loadIndexing();
+  }
+
+  async function applyCountFilter(key: string): Promise<void> {
+    const state = COUNT_FILTERS[key];
+    if (!state) return;
+    filters.state = state;
+    await loadQueue();
+  }
 
   async function loadQueue(): Promise<void> {
     error = '';
@@ -407,12 +461,79 @@
   {#if tab === 'queue'}
     <section class="counts" aria-label={tr('editorial.counts')}>
       {#each ['ready', 'warnings', 'duplicates', 'approved', 'indexed'] as key}
-        <div class="count-card">
+        <button
+          type="button"
+          class="count-card"
+          aria-pressed={filters.state === COUNT_FILTERS[key]}
+          onclick={() => applyCountFilter(key)}
+        >
           <span class="count-value">{counts[key] ?? 0}</span>
           <span>{tr(`editorial.count_${key}`)}</span>
-        </div>
+        </button>
       {/each}
     </section>
+
+    {#if approvedCohort > 0}
+      <section class="index-progress" aria-label={tr('editorial.progress_title')}>
+        <div class="progress-head">
+          <span>{tr('editorial.progress_title')}</span>
+          <strong>{progressPercent}%</strong>
+        </div>
+        <progress
+          value={counts.indexed ?? 0}
+          max={approvedCohort}
+          aria-label={tr('editorial.progress_title')}
+        ></progress>
+        {#if indexingPending > 0}
+          <p class="progress-summary">
+            {tr('editorial.progress_summary', {
+              indexed: counts.indexed ?? 0,
+              total: approvedCohort,
+              running: counts.indexing ?? 0,
+              waiting: counts.approved ?? 0,
+            })}
+          </p>
+        {:else}
+          <p class="progress-summary">
+            {tr('editorial.progress_complete', { total: approvedCohort })}
+          </p>
+        {/if}
+        {#if indexingDocs.length > 0}
+          <div class="indexing-now">
+            <span class="muted small">{tr('editorial.indexing_now')}</span>
+            <ul class="indexing-list">
+              {#each indexingDocs as document}
+                <li>
+                  <button type="button" class="link-button" onclick={() => selectDocument(document)}
+                    >{document.title}</button
+                  >
+                </li>
+              {/each}
+            </ul>
+            {#if (counts.indexing ?? 0) > indexingDocs.length}
+              <span class="muted small"
+                >{tr('editorial.indexing_more', {
+                  count: (counts.indexing ?? 0) - indexingDocs.length,
+                })}</span
+              >
+            {/if}
+          </div>
+        {/if}
+        {#if failedCount > 0}
+          <p class="warn small">
+            {tr('editorial.progress_failed', { count: failedCount })}
+            <button
+              type="button"
+              class="link-button"
+              onclick={() => {
+                filters.state = 'failed';
+                loadQueue();
+              }}>{tr('editorial.progress_show_failed')}</button
+            >
+          </p>
+        {/if}
+      </section>
+    {/if}
 
     <form
       class="filters"
@@ -421,7 +542,7 @@
         loadQueue();
       }}
     >
-      <label>
+      <label class="search">
         <span>{tr('editorial.search')}</span>
         <input type="search" bind:value={filters.q} placeholder={tr('editorial.search_placeholder')} />
       </label>
@@ -430,8 +551,13 @@
         <select bind:value={filters.state} onchange={loadQueue}>
           <option value="">{tr('editorial.filter_pending')}</option>
           <option value="all">{tr('editorial.filter_all')}</option>
+          <option value="ready">{tr('editorial.filter_ready')}</option>
+          <option value="warning">{tr('editorial.filter_warnings')}</option>
+          <option value="duplicate">{tr('editorial.filter_duplicates')}</option>
           <option value="approved">{tr('editorial.filter_approved')}</option>
+          <option value="indexing">{tr('editorial.filter_indexing')}</option>
           <option value="indexed">{tr('editorial.filter_indexed')}</option>
+          <option value="failed">{tr('editorial.filter_failed')}</option>
           <option value="rejected">{tr('editorial.filter_rejected')}</option>
           <option value="withdrawn">{tr('editorial.filter_withdrawn')}</option>
         </select>
@@ -768,19 +894,101 @@
     margin-bottom: 1rem;
   }
   .count-card {
+    appearance: none;
+    border: none;
     background: var(--fs-surface);
     border-radius: var(--fs-radius);
     box-shadow: var(--fs-shadow-soft);
     padding: 0.7rem 0.9rem;
     display: grid;
     gap: 0.15rem;
+    font: inherit;
     font-size: 0.85rem;
     color: var(--fs-muted);
+    text-align: left;
+    cursor: pointer;
+  }
+  .count-card:hover {
+    box-shadow: var(--fs-shadow);
+  }
+  .count-card[aria-pressed='true'] {
+    background: var(--fs-accent-soft);
+    color: var(--fs-accent);
+    outline: 2px solid var(--fs-accent);
+    outline-offset: 1px;
+  }
+  .count-card[aria-pressed='true'] .count-value {
+    color: var(--fs-accent);
   }
   .count-value {
     font-size: 1.3rem;
     font-weight: 700;
     color: var(--fs-text);
+  }
+  .index-progress {
+    display: grid;
+    gap: 0.35rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--fs-surface);
+    border-radius: var(--fs-radius);
+    box-shadow: var(--fs-shadow-soft);
+  }
+  .progress-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--fs-muted);
+    font-size: 0.85rem;
+  }
+  .progress-head strong {
+    color: var(--fs-text);
+  }
+  .index-progress progress {
+    appearance: none;
+    width: 100%;
+    height: 0.55rem;
+    border: none;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--fs-bg);
+  }
+  .index-progress progress::-webkit-progress-bar {
+    background: var(--fs-bg);
+  }
+  .index-progress progress::-webkit-progress-value {
+    background: var(--fs-accent);
+  }
+  .index-progress progress::-moz-progress-bar {
+    background: var(--fs-accent);
+  }
+  .progress-summary {
+    margin: 0;
+    color: var(--fs-muted);
+    font-size: 0.8rem;
+  }
+  .indexing-now {
+    display: grid;
+    gap: 0.2rem;
+  }
+  .indexing-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.15rem;
+    font-size: 0.8rem;
+  }
+  .link-button {
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--fs-accent);
+    font: inherit;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    cursor: pointer;
   }
   .filters {
     display: flex;
@@ -792,9 +1000,13 @@
   .filters label {
     display: grid;
     gap: 0.25rem;
+    flex: 1 1 9rem;
     min-width: 8rem;
     font-size: 0.78rem;
     color: var(--fs-muted);
+  }
+  .filters label.search {
+    flex: 2 1 16rem;
   }
   .filters input,
   .filters select,
@@ -809,8 +1021,25 @@
     background: var(--fs-surface);
     color: var(--fs-text);
   }
+  .filters input,
+  .filters select {
+    box-sizing: border-box;
+    width: 100%;
+    height: 2.4rem;
+    padding: 0 0.55rem;
+    font-size: 0.9rem;
+  }
   .filters input[type='search'] {
-    min-width: 14rem;
+    min-width: 0;
+  }
+  .filters button {
+    height: 2.4rem;
+    padding: 0 1rem;
+    border: none;
+    border-radius: 0.5rem;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
   }
   .split {
     display: grid;

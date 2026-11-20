@@ -1213,3 +1213,19 @@ the spec promises a response in the claim's language.
 **Rejected:** translating verification output after the fact (another model call and another
 chance to alter evidence), keeping the internal pipeline's English in user-visible fields,
 and letting the UI translate backend prose (it has no reliable per-field language signal).
+
+
+## D71 — Editorial counters are filters and indexing progress is derived from states
+
+**What:** the five editorial counters are buttons that set the `state` filter; `state=ready`
+includes `parsed` so the counter and the filtered list describe the same set. A progress
+bar and a five-second poll show `indexed / (approved + indexing + indexed)`, the current
+indexing documents, and failed jobs.
+
+**Why:** the counters looked actionable but were not, and the gap between approved and
+indexed was visible without saying whether work was running. The document states already
+carry that information; no new statistics endpoint is needed.
+
+**Rejected:** a separate counts/progress endpoint, per-job percentage (the indexing job has
+no granular progress), and treating the approved counter as the total cohort (it is the
+waiting subset).

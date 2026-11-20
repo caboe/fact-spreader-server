@@ -1230,6 +1230,26 @@ async def test_documents_are_submitted_reviewed_indexed_withdrawn_and_deduplicat
 
 
 @pytest.mark.asyncio
+async def test_review_queue_ready_filter_includes_parsed_documents(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    ready_id = await _seed_approved_document(app, None)
+    parsed_id = await _seed_approved_document(app, None)
+    async with app.state.db.session_factory() as session:
+        ready = await session.get(Document, ready_id)
+        parsed = await session.get(Document, parsed_id)
+        assert ready is not None and parsed is not None
+        ready.state = "ready"
+        parsed.state = "parsed"
+        await session.commit()
+
+    response = await client.get("/v1/review/queue", params={"state": "ready"})
+    assert response.status_code == 200, response.text
+    returned = {item["id"] for item in response.json()["data"]}
+    assert {ready_id, parsed_id} <= returned
+
+
+@pytest.mark.asyncio
 async def test_four_eyes_and_the_daily_recheck_budget_are_enforced(
     app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:

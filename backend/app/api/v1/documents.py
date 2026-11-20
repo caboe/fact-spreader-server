@@ -589,6 +589,10 @@ async def review_queue(
     statement = select(Document).where(Document.deleted.is_(False))
     if state == "all":
         pass
+    elif state == "ready":
+        # The Ready count also includes parsed documents, so the count card and the
+        # filter describe the same set.
+        statement = statement.where(Document.state.in_(["ready", "parsed"]))
     elif state:
         statement = statement.where(Document.state == state)
     else:

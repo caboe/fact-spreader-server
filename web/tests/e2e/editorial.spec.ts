@@ -80,27 +80,53 @@ const PRESELECTED_DOC = document({
   submitted_by: 'usr_other',
 });
 
+const INDEXING_DOC = document({
+  id: 'doc_3',
+  title: 'Indexing report',
+  publisher: 'Test Office',
+  state: 'indexing',
+  source_quality: 'B',
+  warnings: [],
+});
+
 async function mockApi(
   page: Page,
   queueDocs: Record<string, unknown>[] = [WARNING_DOC, PRESELECTED_DOC],
-): Promise<{ approvals: string[]; patched: string[]; qualities: string[] }> {
+): Promise<{
+  approvals: string[];
+  patched: string[];
+  qualities: string[];
+  queueStates: string[];
+}> {
   const approvals: string[] = [];
   const patched: string[] = [];
   const qualities: string[] = [];
+  const queueStates: string[] = [];
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESSION) }),
   );
-  await page.route('**/v1/review/queue**', (route) =>
-    route.fulfill({
+  await page.route('**/v1/review/queue**', (route) => {
+    const state = new URL(route.request().url()).searchParams.get('state') ?? '';
+    queueStates.push(state);
+    const data = state === 'indexing' ? [INDEXING_DOC] : queueDocs;
+    return route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        data: queueDocs,
-        counts: { ready: 1, warnings: 1, duplicates: 0, approved: 0, indexed: 1 },
-        summary: { total: 2, returned: 2 },
+        data,
+        counts: {
+          ready: 1,
+          warnings: 1,
+          duplicates: 0,
+          approved: 3,
+          indexing: 1,
+          indexed: 2,
+          failed: 1,
+        },
+        summary: { total: 2, returned: data.length },
       }),
-    }),
-  );
+    });
+  });
   await page.route('**/v1/editor/contradictions**', async (route) => {
     if (route.request().method() === 'PATCH') {
       patched.push(route.request().url());
@@ -228,7 +254,7 @@ async function mockApi(
       }),
     }),
   );
-  return { approvals, patched, qualities };
+  return { approvals, patched, qualities, queueStates };
 }
 
 test('an editor reviews, corrects and approves documents', async ({ page }) => {
@@ -295,6 +321,26 @@ test('an editor selects all documents and applies a mixed source quality', async
   await page.locator('.list li select').first().selectOption('A');
   await expect(page.getByText('Source quality updated.', { exact: true })).toBeVisible();
   expect(calls.qualities.at(-1)).toContain('"source_quality":"A"');
+});
+
+test('the count cards filter the queue and the indexing progress is visible', async ({ page }) => {
+  const calls = await mockApi(page);
+  await page.goto('/editorial');
+  await expect(page.getByText(/2 of 6 approved documents indexed/)).toBeVisible();
+  await expect(page.getByText('Indexing report')).toBeVisible();
+  await expect(page.getByText(/Failed documents: 1/)).toBeVisible();
+
+  const warnings = page.locator('.count-card').filter({ hasText: 'Warnings' });
+  await warnings.click();
+  await expect(page.getByLabel('Show')).toHaveValue('warning');
+  await expect(warnings).toHaveAttribute('aria-pressed', 'true');
+  expect(calls.queueStates).toContain('warning');
+
+  const ready = page.locator('.count-card').filter({ hasText: 'Ready' });
+  await ready.click();
+  await expect(page.getByLabel('Show')).toHaveValue('ready');
+  await expect(ready).toHaveAttribute('aria-pressed', 'true');
+  expect(calls.queueStates).toContain('ready');
 });
 
 test('an editor approves all selected documents with one source quality', async ({ page }) => {

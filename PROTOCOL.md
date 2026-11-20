@@ -1441,10 +1441,13 @@ and a new version; v1 has no in-place content edit and no public versions endpoi
 ### 8.6 Review queue
 
 `GET /v1/review/queue` (`documents:review`) returns `data: [Document]`, `counts` and a
-summary. Filters: `state` (default: pending; `all` for every state), `q` (title, publisher
-or URL), `source_quality` (`A`–`D`), `publisher`, `language`, `published_from`,
-`published_to`, `limit` (max 200). Documents without warnings are flagged
-`approval_preselected = true`; documents with warnings are not.
+summary. Filters: `state` (default: pending, which includes `ready`, `warning`, `parsed`
+and `duplicate`; `all` for every state), `q` (title, publisher or URL), `source_quality`
+(`A`–`D`), `publisher`, `language`, `published_from`, `published_to`, `limit` (max 200).
+`state=ready` returns both `ready` and `parsed`, matching the Ready counter. `counts`
+includes `indexing` and `failed`; indexing progress is `indexed / (approved + indexing +
+indexed)`. Documents without warnings are flagged `approval_preselected = true`; documents
+with warnings are not.
 
 ### 8.7 Batch upload
 
