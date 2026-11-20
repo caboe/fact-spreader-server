@@ -159,6 +159,78 @@ def test_same_period_support_and_refutation_is_contested() -> None:
     assert decision.contradiction.refuting_evidence == ["E2"]
 
 
+def test_an_insufficient_proposal_with_a_same_period_contradiction_is_contested() -> None:
+    """Prevents the model from deciding away a contradiction (AGENTS.md invariant 2, D69).
+
+    In the evaluation the verifier linked the 5,200 source as supporting and the 3,900
+    source as refuting, then proposed insufficient_evidence; the gate returned that
+    proposal before contradiction detection ran, so claim-044 lost `contested`.
+    """
+    evidence = {
+        "E1": make_evidence("E1", published=date(2024, 1, 1)),
+        "E2": make_evidence("E2", published=date(2024, 2, 1)),
+        "E3": make_evidence("E3", published=date(2024, 3, 1)),
+    }
+    decision = gate_statement(
+        proposal(
+            Verdict.INSUFFICIENT_EVIDENCE,
+            links=[("E1", "supports"), ("E2", "refutes"), ("E3", "context")],
+            audit_complete=False,
+        ),
+        evidence_by_id=evidence,
+        time_scope_start=date(2024, 1, 1),
+        time_scope_end=date(2024, 12, 31),
+        config=GateConfig(),
+    )
+    assert decision.verdict is Verdict.CONTESTED
+    assert decision.contradiction is not None
+    assert decision.contradiction.supporting_evidence == ["E1"]
+    assert decision.contradiction.refuting_evidence == ["E2"]
+    assert decision.gate.independent_sources == 3
+
+
+def test_an_insufficient_proposal_without_a_qualifying_contradiction_stays_insufficient() -> None:
+    """The rule only detects contradictions; it never upgrades to any other verdict."""
+    cases = [
+        # One side only.
+        ({"E1": make_evidence("E1")}, [("E1", "supports")]),
+        # The refuting source is below the minimum quality.
+        (
+            {"E1": make_evidence("E1"), "E2": make_evidence("E2", quality="D")},
+            [("E1", "supports"), ("E2", "refutes")],
+        ),
+        # Both stances from the same document are mixed, not a contradiction.
+        (
+            {"E1": make_evidence("E1", key="doi:same"), "E2": make_evidence("E2", key="doi:same")},
+            [("E1", "supports"), ("E2", "refutes")],
+        ),
+        # Only context links.
+        ({"E1": make_evidence("E1")}, [("E1", "context")]),
+    ]
+    for evidence, links in cases:
+        decision = gate_statement(
+            proposal(Verdict.INSUFFICIENT_EVIDENCE, links=links),
+            evidence_by_id=evidence,
+            time_scope_start=None,
+            time_scope_end=None,
+            config=GateConfig(),
+        )
+        assert decision.verdict is Verdict.INSUFFICIENT_EVIDENCE, links
+        assert decision.contradiction is None
+
+
+def test_a_not_checkable_proposal_is_never_contested() -> None:
+    evidence = {"E1": make_evidence("E1"), "E2": make_evidence("E2")}
+    decision = gate_statement(
+        proposal(Verdict.NOT_CHECKABLE, links=[("E1", "supports"), ("E2", "refutes")]),
+        evidence_by_id=evidence,
+        time_scope_start=None,
+        time_scope_end=None,
+        config=GateConfig(),
+    )
+    assert decision.verdict is Verdict.NOT_CHECKABLE
+
+
 def test_out_of_scope_refutation_is_a_development_not_a_contradiction() -> None:
     evidence = {
         "E1": make_evidence("E1", published=date(2024, 1, 1)),

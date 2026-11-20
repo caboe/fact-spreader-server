@@ -183,12 +183,17 @@ verification/audit call, never delegated to a model:
      No `contradictions` record is created.
    `contested` requires qualifying evidence on both sides. If one side is not qualifying,
    it cannot create a contradiction; the qualifying side decides.
+   The rule applies whatever verdict the model proposed, including
+   `insufficient_evidence`: a proposal that links qualifying `supports` and `refutes`
+   sources over overlapping or unknown time scopes becomes `contested`. Only
+   `not_checkable` proposals are exempt.
 8. **Recency.** For a statement with a present-time or unspecified claim scope, if all
    decisive sources are older than the topic's `staleness_days`, the verdict is capped at
    `insufficient_evidence` with `gate.reason = stale_evidence`; older figures remain in
    `what_is_true` as "true for <year>" context. A past-scoped statement is not capped.
 9. **Bypass.** `not_checkable` and `insufficient_evidence` statements do not require a
-   qualifying source. `insufficient_evidence` is also the target of every downgrade.
+   qualifying source; an `insufficient_evidence` proposal still passes the contradiction
+   rule (7). `insufficient_evidence` is also the target of every downgrade.
 
 Every downgrade records the original proposed verdict in the internal audit log; the
 public result shows only the final verdict, the gate block and the warning. The public

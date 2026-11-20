@@ -18,12 +18,11 @@ Implemented as candidate direction 2 (re-score in our layer) together with direc
 - cross-lingual claims (FR/NL/EN against German documents and back) keep their target
   first on both corpora — met;
 - `/retrieval`, checks and research share one `RelevantRetriever` — met;
-- accuracy on a valid run: 3 runs before 0.560/0.640/0.720 (mean 0.640), 3 runs after
-  0.600/0.600/0.680 (mean 0.627); no checkable statement lost all its passages —
-  **within noise, but not demonstrably at or above 0.640**. The one systematic loss is
-  `claim-044`, where the gate skips contradiction detection for an
-  `insufficient_evidence` proposal; changing that is a gate rule and awaits a human
-  decision (D68).
+- accuracy on a valid run: 3 runs before 0.560/0.640/0.720 (mean 0.640), 3 runs with the
+  cut alone 0.600/0.600/0.680 (mean 0.627), 3 runs with the cut and the human-confirmed
+  gate fix D69 0.600/0.800/0.640 (mean 0.680) — met on the mean. The cut alone lost
+  `claim-044` because the gate skipped contradiction detection for an
+  `insufficient_evidence` proposal; D69 fixes that and `claim-044` is `contested` 3/3.
 
 The sections below are the hand-off as written before the change.
 

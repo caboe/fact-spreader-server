@@ -1156,8 +1156,8 @@ runs the verifier linked the 5,200 source as `supports` and the 3,900 source as 
 but proposed `insufficient_evidence`, and `gate_statement` returns an
 `insufficient_evidence` proposal before it runs contradiction detection. With the
 relevance-ordered top six the verifier now sees more context passages and hedges more
-often. The gate behaviour is pre-existing and its fix is a gate-rule change, which needs
-human confirmation; it was not changed here. The committed baseline file is unchanged.
+often. The gate behaviour was pre-existing; D69 changes it with human confirmation. The
+committed baseline file is unchanged.
 
 **Rejected:** raising `COSINE_THRESHOLD` (one floor for chunks, entities and relations,
 D66); `naive` mode for checks (drops the graph leg's candidates instead of judging them);
@@ -1166,3 +1166,34 @@ from LightRAG's tables (not its documented API, invariant 7); failing open when 
 embedding is unavailable (silently restores the whole corpus as evidence); scoring
 against the LightRAG query with its LLM keywords (the keywords widen the candidate set
 but would move the cut with every extraction).
+
+## D69 — Contradiction detection also runs on an insufficient_evidence proposal
+
+**What:** `gate_statement` no longer returns an `insufficient_evidence` proposal before the
+contradiction rule. If the proposal links a qualifying `supports` and a qualifying
+`refutes` source from different documents over overlapping or unknown time scopes, the
+statement is `contested`; otherwise the proposal stands unchanged. The rule never upgrades
+to any other verdict, and `not_checkable` stays exempt (PROTOCOL §2.5 rules 7 and 9). The
+human confirmed this gate-rule change on 2026-11-20.
+
+**Why:** invariant 2 says a contradiction between approved documents is decided by code.
+The gate let the model decide it away: in two of three evaluation runs after D68 the
+verifier linked the 5,200 source of `claim-044` as `supports` and the 3,900 source as
+`refutes`, wrote "an unresolved conflict over the core number", and proposed
+`insufficient_evidence`, which the gate returned as is.
+
+**Measured** on the same fixture-seeded project and index as D68, three full runs with
+D68 and D69: 0.600 / 0.800 / 0.640 (mean 0.680; before D68 0.640, D68 alone 0.627).
+`claim-044` is `contested` in 3/3 runs again. The off-corpus insufficient-evidence cases
+(`claim-020`, `-021`, `-039`) stay 3/3. One run turned the normative `claim-023` into
+`insufficient_evidence` via `no_matching_document`: the extractor had marked it
+checkworthy, and with no passage above the floor the verifier no longer gets the chance
+to call it `not_checkable` — consistent with "no matching document yields
+`insufficient_evidence`", but it moves the burden of spotting a value judgement onto
+extraction.
+
+**Rejected:** telling the verifier to prefer a stance over `insufficient_evidence` (a
+prompt cannot guarantee an invariant); treating any `supports` plus `refutes` pair as
+contested regardless of time scope (rule 7 keeps developments over time apart); letting the
+rule upgrade an `insufficient_evidence` proposal to `true` or `false` (only the
+contradiction is computed by code, nothing else).

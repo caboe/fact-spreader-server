@@ -65,7 +65,29 @@ def gate_statement(
     warnings: list[WarningInfo] = []
     proposed = proposal.verdict
 
-    if proposed in {Verdict.NOT_CHECKABLE, Verdict.INSUFFICIENT_EVIDENCE}:
+    if proposed is Verdict.NOT_CHECKABLE:
+        return GateDecision(
+            verdict=proposed,
+            gate=gate,
+            warnings=warnings,
+            supporting_evidence=_ids_for(links, Stance.SUPPORTS),
+            refuting_evidence=_ids_for(links, Stance.REFUTES),
+        )
+
+    if proposed is Verdict.INSUFFICIENT_EVIDENCE:
+        # A contradiction is detected by code, not left to the model (AGENTS.md invariant 2):
+        # a model that links one qualifying source as supporting and another as refuting
+        # but then proposes "insufficient_evidence" has described a contradiction. Without
+        # one, the proposal stands; it is never upgraded to any other verdict (D69).
+        contested = _contested(
+            quality_links,
+            gate=gate,
+            evidence_by_id=evidence_by_id,
+            time_scope_start=time_scope_start,
+            time_scope_end=time_scope_end,
+        )
+        if contested is not None:
+            return contested
         return GateDecision(
             verdict=proposed,
             gate=gate,
@@ -86,28 +108,15 @@ def gate_statement(
 
     supporting = _ids_for(quality_links, Stance.SUPPORTS)
     refuting = _ids_for(quality_links, Stance.REFUTES)
-    contradiction = _contradiction(
-        supporting,
-        refuting,
+    contested = _contested(
+        quality_links,
+        gate=gate,
         evidence_by_id=evidence_by_id,
         time_scope_start=time_scope_start,
         time_scope_end=time_scope_end,
     )
-    if contradiction is not None and _both_sides_qualify(
-        contradiction, evidence_by_id=evidence_by_id
-    ):
-        gate.independent_sources = max(
-            gate.independent_sources,
-            _independent_count([evidence_by_id[eid] for eid in {*supporting, *refuting}]),
-        )
-        return GateDecision(
-            verdict=Verdict.CONTESTED,
-            gate=gate,
-            warnings=warnings,
-            contradiction=contradiction,
-            supporting_evidence=contradiction.supporting_evidence,
-            refuting_evidence=contradiction.refuting_evidence,
-        )
+    if contested is not None:
+        return contested
 
     if proposed is Verdict.TRUE:
         if not supporting:
@@ -175,7 +184,7 @@ def gate_statement(
             refuting,
         )
 
-    verdict = proposed
+    verdict: Verdict = proposed
     if verdict in {Verdict.TRUE, Verdict.TRUE_BUT_MISLEADING}:
         decisive = [
             evidence_by_id[evidence_id]
@@ -290,6 +299,42 @@ def _downgrade(
         warnings=[WarningInfo(code=warning, message=message)],
         supporting_evidence=supporting_evidence,
         refuting_evidence=refuting_evidence,
+    )
+
+
+def _contested(
+    quality_links: Sequence[object],
+    *,
+    gate: GateInfo,
+    evidence_by_id: dict[str, Evidence],
+    time_scope_start: date | None,
+    time_scope_end: date | None,
+) -> GateDecision | None:
+    """``contested`` when qualifying sources support and refute the same period, else None."""
+    supporting = _ids_for(quality_links, Stance.SUPPORTS)
+    refuting = _ids_for(quality_links, Stance.REFUTES)
+    contradiction = _contradiction(
+        supporting,
+        refuting,
+        evidence_by_id=evidence_by_id,
+        time_scope_start=time_scope_start,
+        time_scope_end=time_scope_end,
+    )
+    if contradiction is None or not _both_sides_qualify(
+        contradiction, evidence_by_id=evidence_by_id
+    ):
+        return None
+    gate.independent_sources = max(
+        gate.independent_sources,
+        _independent_count([evidence_by_id[eid] for eid in {*supporting, *refuting}]),
+    )
+    return GateDecision(
+        verdict=Verdict.CONTESTED,
+        gate=gate,
+        warnings=[],
+        contradiction=contradiction,
+        supporting_evidence=contradiction.supporting_evidence,
+        refuting_evidence=contradiction.refuting_evidence,
     )
 
 
