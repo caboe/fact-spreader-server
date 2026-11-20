@@ -11,7 +11,7 @@ import hashlib
 import json
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
@@ -24,6 +24,8 @@ from app.contracts.api import (
     DocumentInfo,
     DocumentMetadata,
     DocumentWarning,
+    IndexingStatusItem,
+    IndexingStatusResponse,
 )
 from app.contracts.enums import TurnType
 from app.core.config import Settings
@@ -41,6 +43,10 @@ from app.services.publishers import PublisherRegistry
 from app.services.text_cleanup import strip_publisher_footer
 
 logger = logging.getLogger(__name__)
+
+# A running index job older than this is treated as abandoned. The worker's LightRAG wait
+# is bounded at 900 seconds, so a job still "running" after 20 minutes cannot make progress.
+INDEX_JOB_STALE_AFTER = timedelta(minutes=20)
 
 
 def extract_pdf_tables(data: bytes, *, max_pages: int = 20, max_tables: int = 10) -> str:
@@ -465,6 +471,12 @@ async def run_document_index_job(
     document.updated_at = utcnow()
     await session.commit()
     file_source = f"{document.id}@v{document.version}"
+    if payload.get("clean_before_insert"):
+        # A restarted job may follow a partial insert. Remove the old source first and
+        # wait until LightRAG's asynchronous deletion has finished, so the insert cannot
+        # fail on a duplicate source or leave two versions of the document.
+        await lightrag.delete_by_file_source([file_source])
+        await lightrag.wait_until_sources_absent([file_source])
     await lightrag.insert_text(
         content=strip_publisher_footer(version.content_md),
         file_source=file_source,
@@ -522,6 +534,108 @@ async def queue_review_counts(session: AsyncSession) -> dict[str, int]:
         "rejected": counts.get("rejected", 0),
         "withdrawn": counts.get("withdrawn", 0),
     }
+
+
+def index_job_anchor(job: JobRow) -> datetime:
+    return job.locked_at or job.started_at or job.created_at
+
+
+def index_job_is_stale(job: JobRow, *, now: datetime | None = None) -> bool:
+    if job.state != "running":
+        return False
+    return (now or utcnow()) - index_job_anchor(job) > INDEX_JOB_STALE_AFTER
+
+
+def index_job_is_aborted(job: JobRow | None, *, now: datetime | None = None) -> bool:
+    if job is None:
+        return True
+    if job.state == "queued":
+        return False
+    if job.state == "running":
+        return index_job_is_stale(job, now=now)
+    return True
+
+
+async def latest_index_job(session: AsyncSession, document_id: str) -> JobRow | None:
+    return (
+        await session.execute(
+            select(JobRow)
+            .where(
+                JobRow.kind == "document_index",
+                JobRow.payload["document_id"].astext == document_id,
+            )
+            .order_by(JobRow.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def latest_index_jobs(session: AsyncSession, document_ids: set[str]) -> dict[str, JobRow]:
+    if not document_ids:
+        return {}
+    rows = (
+        (
+            await session.execute(
+                select(JobRow)
+                .where(
+                    JobRow.kind == "document_index",
+                    JobRow.payload["document_id"].astext.in_(list(document_ids)),
+                )
+                .order_by(JobRow.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    latest: dict[str, JobRow] = {}
+    for job in rows:
+        document_id = str((job.payload or {}).get("document_id") or "")
+        if document_id in document_ids and document_id not in latest:
+            latest[document_id] = job
+    return latest
+
+
+async def indexing_status(session: AsyncSession) -> IndexingStatusResponse:
+    """Split indexing documents into live and abandoned jobs for the editorial page."""
+    documents = (
+        (
+            await session.execute(
+                select(Document)
+                .where(Document.state == "indexing", Document.deleted.is_(False))
+                .order_by(Document.updated_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    jobs = await latest_index_jobs(session, {document.id for document in documents})
+    now = utcnow()
+    active: list[IndexingStatusItem] = []
+    aborted: list[IndexingStatusItem] = []
+    for document in documents:
+        job = jobs.get(document.id)
+        stale = bool(job is not None and index_job_is_stale(job, now=now))
+        item = IndexingStatusItem(
+            document_id=document.id,
+            title=document.title,
+            state=document.state,
+            job_id=job.id if job else None,
+            job_state=job.state if job else None,
+            attempts=int(job.attempts or 0) if job else 0,
+            error=dict(job.error) if job and job.error else None,
+            started_at=job.started_at if job else None,
+            updated_at=(
+                (job.finished_at or job.started_at or job.created_at)
+                if job
+                else document.updated_at
+            ),
+            stale=stale,
+        )
+        if index_job_is_aborted(job, now=now):
+            aborted.append(item)
+        else:
+            active.append(item)
+    return IndexingStatusResponse(active=active, aborted=aborted)
 
 
 def _record_recheck_summary(document: Document, summary: dict[str, int]) -> None:

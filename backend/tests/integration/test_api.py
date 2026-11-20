@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 import app.api.v1.checks as checks_route
@@ -1247,6 +1248,125 @@ async def test_review_queue_ready_filter_includes_parsed_documents(
     assert response.status_code == 200, response.text
     returned = {item["id"] for item in response.json()["data"]}
     assert {ready_id, parsed_id} <= returned
+
+
+@pytest.mark.asyncio
+async def test_an_aborted_indexing_job_is_visible_and_can_be_restarted(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    document_id = await _seed_approved_document(app, None)
+    now = utcnow()
+    async with app.state.db.session_factory() as session:
+        document = await session.get(Document, document_id)
+        assert document is not None
+        document.state = "indexing"
+        failed = JobRow(
+            id=new_id("job"),
+            kind="document_index",
+            state="failed",
+            payload={"document_id": document_id, "version": 1},
+            progress=0.0,
+            error={"code": "retrieval_unavailable", "message": "LightRAG timed out."},
+            attempts=3,
+            created_at=now,
+            finished_at=now,
+        )
+        session.add(failed)
+        await session.commit()
+
+    status = await client.get("/v1/review/indexing")
+    assert status.status_code == 200, status.text
+    body = status.json()
+    assert body["active"] == []
+    assert [item["document_id"] for item in body["aborted"]] == [document_id]
+    assert body["aborted"][0]["job_state"] == "failed"
+    assert body["aborted"][0]["error"]["code"] == "retrieval_unavailable"
+
+    restarted = await client.post(f"/v1/documents/{document_id}/restart-index")
+    assert restarted.status_code == 200, restarted.text
+    assert restarted.json()["state"] == "approved"
+
+    async with app.state.db.session_factory() as session:
+        job = (
+            (
+                await session.execute(
+                    select(JobRow)
+                    .where(
+                        JobRow.kind == "document_index",
+                        JobRow.payload["document_id"].astext == document_id,
+                    )
+                    .order_by(JobRow.created_at.desc())
+                )
+            )
+            .scalars()
+            .first()
+        )
+        assert job is not None
+        assert job.state == "queued"
+        assert job.payload["clean_before_insert"] is True
+        assert job.payload["restarted_from"] == failed.id
+
+    after = await client.get("/v1/review/indexing")
+    assert after.status_code == 200
+    assert after.json()["aborted"] == []
+
+
+@pytest.mark.asyncio
+async def test_a_running_indexing_job_cannot_be_restarted(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    document_id = await _seed_approved_document(app, None)
+    now = utcnow()
+    async with app.state.db.session_factory() as session:
+        document = await session.get(Document, document_id)
+        assert document is not None
+        document.state = "indexing"
+        session.add(
+            JobRow(
+                id=new_id("job"),
+                kind="document_index",
+                state="running",
+                payload={"document_id": document_id, "version": 1},
+                progress=0.0,
+                attempts=1,
+                locked_at=now - timedelta(seconds=30),
+                started_at=now - timedelta(seconds=30),
+                created_at=now,
+            )
+        )
+        await session.commit()
+
+    response = await client.post(f"/v1/documents/{document_id}/restart-index")
+    assert response.status_code == 409
+    assert response.json()["code"] == "index_job_active"
+
+
+@pytest.mark.asyncio
+async def test_a_stale_indexing_job_can_be_restarted(app: Any, client: httpx.AsyncClient) -> None:
+    document_id = await _seed_approved_document(app, None)
+    now = utcnow()
+    async with app.state.db.session_factory() as session:
+        document = await session.get(Document, document_id)
+        assert document is not None
+        document.state = "indexing"
+        session.add(
+            JobRow(
+                id=new_id("job"),
+                kind="document_index",
+                state="running",
+                payload={"document_id": document_id, "version": 1},
+                progress=0.0,
+                attempts=1,
+                locked_at=now - timedelta(minutes=30),
+                started_at=now - timedelta(minutes=30),
+                created_at=now - timedelta(minutes=30),
+            )
+        )
+        await session.commit()
+
+    response = await client.post(f"/v1/documents/{document_id}/restart-index")
+    assert response.status_code == 200, response.text
+    assert response.json()["state"] == "approved"
 
 
 @pytest.mark.asyncio

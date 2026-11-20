@@ -1229,3 +1229,20 @@ carry that information; no new statistics endpoint is needed.
 **Rejected:** a separate counts/progress endpoint, per-job percentage (the indexing job has
 no granular progress), and treating the approved counter as the total cohort (it is the
 waiting subset).
+
+
+## D72 — Abandoned index jobs are visible and manually restarted
+
+**What:** `GET /v1/review/indexing` splits indexing documents into active and abandoned
+jobs. The editorial page lists abandoned jobs with their error and a restart button.
+`POST /v1/documents/{id}/restart-index` queues a new job and sets the document back to
+`approved`; the worker removes the old LightRAG source before reinserting.
+
+**Why:** a failed or crashed indexing job left the document in `indexing` with no UI to
+recover it. The human asked to see and restart those documents. A 20-minute stale threshold
+sits beyond the worker's 15-minute LightRAG wait, so an apparently running job is only
+treated as abandoned when it cannot still be making progress.
+
+**Rejected:** restarting an active job (duplicate inserts), treating every indexing document
+as failed, and automatically reclaiming running jobs without a lease and a safe idempotent
+delete.

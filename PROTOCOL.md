@@ -74,6 +74,8 @@ carries a subset of its owner's permissions and never more.
 | Archive re-check/delete | `POST /v1/claims/{id}/recheck`, `DELETE /v1/claims/{id}` | bearer/session | `claims:recheck` / `quality:read` |
 | Documents | `/v1/documents…`, `/v1/documents/batches…` | bearer/session | `documents:submit` / `documents:review` by action |
 | Review queue | `GET /v1/review/queue` | bearer/session | `documents:review` |
+| Indexing status | `GET /v1/review/indexing` | bearer/session | `documents:review` |
+| Restart indexing | `POST /v1/documents/{id}/restart-index` | bearer/session | `documents:review` |
 | Editor lists | `GET /v1/editor/contradictions`, `GET /v1/editor/gaps` | bearer/session | `documents:review` (methodology also for contradictions) |
 | Usage | `/v1/usage…` | bearer/session | own / `usage:read` |
 | Devices | `/v1/devices…` | session preferred, bearer allowed | own |
@@ -1448,6 +1450,22 @@ and `duplicate`; `all` for every state), `q` (title, publisher or URL), `source_
 includes `indexing` and `failed`; indexing progress is `indexed / (approved + indexing +
 indexed)`. Documents without warnings are flagged `approval_preselected = true`; documents
 with warnings are not.
+
+#### Indexing status and restart
+
+`GET /v1/review/indexing` (`documents:review`) returns the documents currently in the
+`indexing` state, split into `active` and `aborted`. Each item carries the latest
+`document_index` job's id, state, attempts, error, start time and a `stale` flag. A job is
+aborted when it is failed, absent, or still `running` for more than 20 minutes (the worker's
+LightRAG wait is bounded at 15 minutes). A queued or fresh running job is active.
+
+`POST /v1/documents/{id}/restart-index` (`documents:review`) accepts only an `indexing`
+document whose latest job is aborted. An active job is `409 index_job_active`; a
+non-indexing document is `409 invalid_state`. A successful restart sets the document to
+`approved` and queues a new `document_index` job with `clean_before_insert: true`. The
+worker deletes the old `<doc>@v<version>` source and waits until LightRAG has finished
+removing it before inserting again, so a partial previous insert cannot duplicate the
+document.
 
 ### 8.7 Batch upload
 

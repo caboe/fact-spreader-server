@@ -1066,6 +1066,24 @@ class ReviewQueueResponse(ApiModel):
     summary: dict[str, Any] = Field(default_factory=dict)
 
 
+class IndexingStatusItem(ApiModel):
+    document_id: str
+    title: str
+    state: str
+    job_id: str | None = None
+    job_state: str | None = None
+    attempts: int = 0
+    error: dict[str, Any] | None = None
+    started_at: datetime | None = None
+    updated_at: datetime
+    stale: bool = False
+
+
+class IndexingStatusResponse(ApiModel):
+    active: list[IndexingStatusItem] = Field(default_factory=list)
+    aborted: list[IndexingStatusItem] = Field(default_factory=list)
+
+
 class EditorContradiction(ApiModel):
     id: str
     statement_text: str

@@ -28,6 +28,7 @@ from app.contracts.api import (
     DocumentSubmitResponse,
     DocumentWarning,
     FigureUpdateRequest,
+    IndexingStatusResponse,
     Job,
     RejectRequest,
     ReviewQueueResponse,
@@ -56,6 +57,9 @@ from app.services.documents import (
     create_document,
     document_to_api,
     enqueue_rechecks_for_document,
+    index_job_is_aborted,
+    indexing_status,
+    latest_index_job,
     latest_version,
     parse_pdf_assets,
     queue_review_counts,
@@ -569,6 +573,71 @@ async def update_figure(
         raise AppError(404, "not_found", "The figure does not exist.")
     document.figures = figures
     document.updated_at = utcnow()
+    await session.commit()
+    return await _api(session, document, principal)
+
+
+@router.get("/review/indexing", response_model=IndexingStatusResponse)
+async def review_indexing(
+    principal: Review,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> IndexingStatusResponse:
+    return await indexing_status(session)
+
+
+@router.post("/documents/{document_id}/restart-index", response_model=DocumentInfo)
+async def restart_document_index(
+    document_id: str,
+    principal: Review,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> DocumentInfo:
+    document = await _load(session, document_id)
+    if document.state != "indexing":
+        raise AppError(409, "invalid_state", "Only an indexing document can be restarted.")
+    previous = await latest_index_job(session, document.id)
+    now = utcnow()
+    if previous is not None and not index_job_is_aborted(previous, now=now):
+        raise AppError(
+            409,
+            "index_job_active",
+            "An indexing job is still active for this document.",
+        )
+    version = await latest_version(session, document)
+    if version is None:
+        raise AppError(409, "not_indexable", "The document has no stored version.")
+    document.state = "approved"
+    document.updated_at = now
+    session.add(
+        JobRow(
+            id=new_id("job"),
+            kind="document_index",
+            state="queued",
+            payload={
+                "document_id": document.id,
+                "version": version.version,
+                "clean_before_insert": True,
+                "restarted_from": previous.id if previous else None,
+            },
+            progress=0.0,
+            user_id=principal.user_id,
+            created_at=now,
+        )
+    )
+    session.add(
+        AuditLog(
+            id=new_id("aud"),
+            actor_id=principal.user_id,
+            actor_type="user",
+            action="document_index_restarted",
+            object_type="document",
+            object_id=document.id,
+            detail={
+                "previous_job_id": previous.id if previous else None,
+                "previous_job_state": previous.state if previous else None,
+            },
+            created_at=now,
+        )
+    )
     await session.commit()
     return await _api(session, document, principal)
 

@@ -89,6 +89,46 @@ const INDEXING_DOC = document({
   warnings: [],
 });
 
+const STALLED_DOC = document({
+  id: 'doc_4',
+  title: 'Stalled report',
+  publisher: 'Test Office',
+  state: 'indexing',
+  source_quality: 'B',
+  warnings: [],
+});
+
+const INDEXING_STATUS = {
+  active: [
+    {
+      document_id: 'doc_3',
+      title: 'Indexing report',
+      state: 'indexing',
+      job_id: 'job_3',
+      job_state: 'running',
+      attempts: 1,
+      error: null,
+      started_at: '2026-11-20T10:00:00Z',
+      updated_at: '2026-11-20T10:00:00Z',
+      stale: false,
+    },
+  ],
+  aborted: [
+    {
+      document_id: 'doc_4',
+      title: 'Stalled report',
+      state: 'indexing',
+      job_id: 'job_4',
+      job_state: 'failed',
+      attempts: 3,
+      error: { code: 'retrieval_unavailable', message: 'LightRAG timed out.' },
+      started_at: '2026-11-20T09:00:00Z',
+      updated_at: '2026-11-20T09:10:00Z',
+      stale: false,
+    },
+  ],
+};
+
 async function mockApi(
   page: Page,
   queueDocs: Record<string, unknown>[] = [WARNING_DOC, PRESELECTED_DOC],
@@ -97,14 +137,31 @@ async function mockApi(
   patched: string[];
   qualities: string[];
   queueStates: string[];
+  restarts: string[];
 }> {
   const approvals: string[] = [];
   const patched: string[] = [];
   const qualities: string[] = [];
   const queueStates: string[] = [];
+  const restarts: string[] = [];
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SESSION) }),
   );
+  await page.route('**/v1/review/indexing', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(INDEXING_STATUS),
+    }),
+  );
+  await page.route(/\/v1\/documents\/doc_4\/restart-index$/, async (route) => {
+    restarts.push(route.request().url());
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...STALLED_DOC, state: 'approved' }),
+    });
+  });
   await page.route('**/v1/review/queue**', (route) => {
     const state = new URL(route.request().url()).searchParams.get('state') ?? '';
     queueStates.push(state);
@@ -119,7 +176,7 @@ async function mockApi(
           warnings: 1,
           duplicates: 0,
           approved: 3,
-          indexing: 1,
+          indexing: 2,
           indexed: 2,
           failed: 1,
         },
@@ -254,7 +311,7 @@ async function mockApi(
       }),
     }),
   );
-  return { approvals, patched, qualities, queueStates };
+  return { approvals, patched, qualities, queueStates, restarts };
 }
 
 test('an editor reviews, corrects and approves documents', async ({ page }) => {
@@ -326,8 +383,9 @@ test('an editor selects all documents and applies a mixed source quality', async
 test('the count cards filter the queue and the indexing progress is visible', async ({ page }) => {
   const calls = await mockApi(page);
   await page.goto('/editorial');
-  await expect(page.getByText(/2 of 6 approved documents indexed/)).toBeVisible();
+  await expect(page.getByText(/2 of 7 approved documents indexed/)).toBeVisible();
   await expect(page.getByText('Indexing report')).toBeVisible();
+  await expect(page.getByText('Stalled report')).toBeVisible();
   await expect(page.getByText(/Failed documents: 1/)).toBeVisible();
 
   const warnings = page.locator('.count-card').filter({ hasText: 'Warnings' });
@@ -341,6 +399,12 @@ test('the count cards filter the queue and the indexing progress is visible', as
   await expect(page.getByLabel('Show')).toHaveValue('ready');
   await expect(ready).toHaveAttribute('aria-pressed', 'true');
   expect(calls.queueStates).toContain('ready');
+
+  await page.getByRole('button', { name: 'Restart indexing' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Indexing restarted.' }),
+  ).toBeVisible();
+  expect(calls.restarts).toHaveLength(1);
 });
 
 test('an editor approves all selected documents with one source quality', async ({ page }) => {

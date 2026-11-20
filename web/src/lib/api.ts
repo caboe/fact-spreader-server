@@ -24,6 +24,8 @@ export type Job = components['schemas']['Job'];
 export type RawRetrievalRequest = components['schemas']['RawRetrievalRequest'];
 export type RawRetrievalResponse = components['schemas']['RawRetrievalResponse'];
 export type RetrievalMode = RawRetrievalRequest['mode'];
+export type IndexingStatusResponse = components['schemas']['IndexingStatusResponse'];
+export type IndexingStatusItem = components['schemas']['IndexingStatusItem'];
 
 export interface SessionInfo {
   user: { id: string; email: string; display_name: string; permissions: string[] };
@@ -444,6 +446,16 @@ export async function listReviewQueue(filters: ReviewQueueFilters = {}): Promise
     if (value !== undefined && value !== null && value !== '') search.set(key, String(value));
   }
   return request(`/v1/review/queue${search.size ? `?${search.toString()}` : ''}`);
+}
+
+export async function getIndexingStatus(): Promise<IndexingStatusResponse> {
+  return request<IndexingStatusResponse>('/v1/review/indexing');
+}
+
+export async function restartDocumentIndex(id: string): Promise<DocumentInfo> {
+  return request<DocumentInfo>(`/v1/documents/${encodeURIComponent(id)}/restart-index`, {
+    method: 'POST',
+  });
 }
 
 export async function getDocument(id: string): Promise<DocumentInfo> {

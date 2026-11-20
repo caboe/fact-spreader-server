@@ -9,16 +9,20 @@
     bulkUpdateDocumentQuality,
     getDocument,
     getDocumentContent,
+    getIndexingStatus,
     listContradictions,
     listGaps,
     listReviewQueue,
     rejectDocument,
     recheckGap,
+    restartDocumentIndex,
     updateContradiction,
     updateDocumentQuality,
     updateFigure,
     updateGap,
     withdrawDocument,
+    type IndexingStatusItem,
+    type IndexingStatusResponse,
     type SourceGrade,
   } from '$lib/api';
   import { session } from '$lib/session';
@@ -29,7 +33,7 @@
 
   let tab = $state<Tab>('queue');
   let queue = $state<DocumentInfo[]>([]);
-  let indexingDocs = $state<DocumentInfo[]>([]);
+  let indexingStatus = $state<IndexingStatusResponse>({ active: [], aborted: [] });
   let counts = $state<Record<string, number>>({});
   let progressTimer: ReturnType<typeof setInterval> | null = null;
   let filters = $state({ state: '', q: '', source_quality: '', publisher: '', language: '' });
@@ -82,6 +86,8 @@
         ['ready', 'warning', 'parsed'].includes(document.state),
       ),
   );
+  const activeIndexing = $derived(indexingStatus.active ?? []);
+  const abortedIndexing = $derived(indexingStatus.aborted ?? []);
   const approvedCohort = $derived(
     (counts.approved ?? 0) + (counts.indexing ?? 0) + (counts.indexed ?? 0),
   );
@@ -109,7 +115,7 @@
 
   async function loadIndexing(): Promise<void> {
     try {
-      indexingDocs = (await listReviewQueue({ state: 'indexing', limit: 5 })).data;
+      indexingStatus = await getIndexingStatus();
     } catch {
       /* keep the last visible progress */
     }
@@ -123,6 +129,43 @@
       /* keep the last visible progress */
     }
     await loadIndexing();
+  }
+
+  async function openIndexDocument(item: IndexingStatusItem): Promise<void> {
+    try {
+      await selectDocument(await getDocument(item.document_id));
+    } catch (cause) {
+      error = cause instanceof ApiError ? cause.message : tr('common.error');
+    }
+  }
+
+  function indexJobReason(item: IndexingStatusItem): string {
+    if (!item.job_id) return tr('editorial.aborted_no_job');
+    if (item.stale) return tr('editorial.aborted_stale');
+    if (item.job_state === 'failed') return tr('editorial.aborted_failed');
+    return stateLabel(item.job_state ?? 'failed');
+  }
+
+  function indexJobError(item: IndexingStatusItem): string {
+    const message = item.error?.message;
+    return typeof message === 'string' ? message : '';
+  }
+
+  async function restartIndex(item: IndexingStatusItem): Promise<void> {
+    busy = `restart:${item.document_id}`;
+    error = '';
+    notice = '';
+    try {
+      const updated = await restartDocumentIndex(item.document_id);
+      if (detail?.id === updated.id) detail = updated;
+      notice = tr('editorial.restart_ok');
+      await loadQueue();
+      await loadProgress();
+    } catch (cause) {
+      error = cause instanceof ApiError ? cause.message : tr('common.error');
+    } finally {
+      busy = '';
+    }
   }
 
   async function applyCountFilter(key: string): Promise<void> {
@@ -489,7 +532,7 @@
             {tr('editorial.progress_summary', {
               indexed: counts.indexed ?? 0,
               total: approvedCohort,
-              running: counts.indexing ?? 0,
+              running: activeIndexing.length,
               waiting: counts.approved ?? 0,
             })}
           </p>
@@ -498,25 +541,52 @@
             {tr('editorial.progress_complete', { total: approvedCohort })}
           </p>
         {/if}
-        {#if indexingDocs.length > 0}
+        {#if activeIndexing.length > 0}
           <div class="indexing-now">
             <span class="muted small">{tr('editorial.indexing_now')}</span>
             <ul class="indexing-list">
-              {#each indexingDocs as document}
+              {#each activeIndexing as item}
                 <li>
-                  <button type="button" class="link-button" onclick={() => selectDocument(document)}
-                    >{document.title}</button
+                  <button type="button" class="link-button" onclick={() => openIndexDocument(item)}
+                    >{item.title}</button
                   >
                 </li>
               {/each}
             </ul>
-            {#if (counts.indexing ?? 0) > indexingDocs.length}
-              <span class="muted small"
-                >{tr('editorial.indexing_more', {
-                  count: (counts.indexing ?? 0) - indexingDocs.length,
-                })}</span
-              >
-            {/if}
+          </div>
+        {/if}
+        {#if abortedIndexing.length > 0}
+          <div class="aborted">
+            <span class="muted small"
+              >{tr('editorial.aborted_title')} ({abortedIndexing.length})</span
+            >
+            <ul class="indexing-list">
+              {#each abortedIndexing as item}
+                <li class="aborted-item">
+                  <div class="aborted-copy">
+                    <button type="button" class="link-button" onclick={() => openIndexDocument(item)}
+                      >{item.title}</button
+                    >
+                    <span class="muted small"
+                      >{indexJobReason(item)}{#if item.job_id}
+                        · {tr('editorial.index_attempts', { count: item.attempts })}{/if}</span
+                    >
+                    {#if indexJobError(item)}
+                      <span class="warn small">{indexJobError(item)}</span>
+                    {/if}
+                  </div>
+                  <button
+                    type="button"
+                    class="ghost restart-button"
+                    disabled={busy === `restart:${item.document_id}`}
+                    onclick={() => restartIndex(item)}
+                    >{busy === `restart:${item.document_id}`
+                      ? tr('editorial.restarting')
+                      : tr('editorial.restart_index')}</button
+                  >
+                </li>
+              {/each}
+            </ul>
           </div>
         {/if}
         {#if failedCount > 0}
@@ -978,6 +1048,36 @@
     display: grid;
     gap: 0.15rem;
     font-size: 0.8rem;
+  }
+  .aborted {
+    display: grid;
+    gap: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--fs-border);
+  }
+  .aborted .indexing-list {
+    max-height: 14rem;
+    overflow-y: auto;
+  }
+  .aborted-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .aborted-copy {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+  .restart-button {
+    padding: 0.35rem 0.7rem;
+    border: none;
+    border-radius: 0.4rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
   }
   .link-button {
     border: none;
