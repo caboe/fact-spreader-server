@@ -35,7 +35,7 @@
     return COLORS[value ?? ''] ?? 'var(--fs-insufficient)';
   }
   function warningText(code: string, message?: string | null): string {
-    return message ? `${code}: ${message}` : code;
+    return message || code;
   }
   function plain(text: string): string {
     return text
