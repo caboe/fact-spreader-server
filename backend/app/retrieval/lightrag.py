@@ -247,16 +247,23 @@ def _as_float(value: Any) -> float | None:
         return None
 
 
+# LightRAG v1.5.0 runs PENDING -> PARSING -> ANALYZING -> PROCESSING -> PROCESSED | FAILED
+# (``lightrag.base.DocStatus``; PREPROCESSED is its deprecated name for ANALYZING). Every
+# state before a final one is unfinished: treating only pending/processing as busy let
+# seed-fixtures report "ready" while 21 of 23 documents were still being parsed.
+_UNFINISHED_STATES = ("pending", "parsing", "analyzing", "preprocessed", "processing")
+
+
 def _has_unfinished_documents(status: dict[str, Any]) -> bool:
     statuses = status.get("statuses")
     if isinstance(statuses, dict):
-        for key in ("pending", "processing"):
+        for key in _UNFINISHED_STATES:
             value = statuses.get(key)
             if isinstance(value, list) and value:
                 return True
             if isinstance(value, int) and value > 0:
                 return True
-    for key in ("pending", "processing"):
+    for key in _UNFINISHED_STATES:
         value = status.get(key)
         if isinstance(value, list) and value:
             return True
