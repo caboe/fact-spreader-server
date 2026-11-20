@@ -303,8 +303,8 @@ const en: Catalog = {
   'editorial.filter_withdrawn': 'Withdrawn',
   'editorial.progress_title': 'Indexing progress',
   'editorial.progress_summary':
-    '{indexed} of {total} approved documents indexed · {running} running · {waiting} waiting',
-  'editorial.progress_complete': 'All {total} approved documents are indexed.',
+    '{indexed} of {total} approved documents indexed · running: {running} · waiting: {waiting}',
+  'editorial.progress_complete': 'All approved documents are indexed ({total}).',
   'editorial.progress_failed': 'Failed documents: {count}.',
   'editorial.progress_show_failed': 'Show failed',
   'editorial.indexing_now': 'Currently indexing',
@@ -806,8 +806,8 @@ const de: Catalog = {
   'editorial.filter_withdrawn': 'Zurückgezogen',
   'editorial.progress_title': 'Indexierungsfortschritt',
   'editorial.progress_summary':
-    '{indexed} von {total} freigegebenen Dokumenten indiziert · {running} laufen · {waiting} warten',
-  'editorial.progress_complete': 'Alle {total} freigegebenen Dokumente sind indiziert.',
+    '{indexed} von {total} freigegebenen Dokumenten indiziert · laufend: {running} · wartend: {waiting}',
+  'editorial.progress_complete': 'Alle freigegebenen Dokumente sind indiziert ({total}).',
   'editorial.progress_failed': 'Fehlgeschlagene Dokumente: {count}.',
   'editorial.progress_show_failed': 'Fehlgeschlagene anzeigen',
   'editorial.indexing_now': 'Wird gerade indexiert',
@@ -1309,8 +1309,8 @@ const fr: Catalog = {
   'editorial.filter_withdrawn': 'Retirés',
   'editorial.progress_title': 'Progression de l’indexation',
   'editorial.progress_summary':
-    '{indexed} sur {total} documents approuvés indexés · {running} en cours · {waiting} en attente',
-  'editorial.progress_complete': 'Les {total} documents approuvés sont indexés.',
+    '{indexed} sur {total} documents approuvés indexés · en cours : {running} · en attente : {waiting}',
+  'editorial.progress_complete': 'Tous les documents approuvés sont indexés ({total}).',
   'editorial.progress_failed': 'Documents en échec : {count}.',
   'editorial.progress_show_failed': 'Afficher les échecs',
   'editorial.indexing_now': 'Indexation en cours',
@@ -1812,8 +1812,8 @@ const es: Catalog = {
   'editorial.filter_withdrawn': 'Retirados',
   'editorial.progress_title': 'Progreso de indexación',
   'editorial.progress_summary':
-    '{indexed} de {total} documentos aprobados indexados · {running} en curso · {waiting} en espera',
-  'editorial.progress_complete': 'Los {total} documentos aprobados están indexados.',
+    '{indexed} de {total} documentos aprobados indexados · en curso: {running} · en espera: {waiting}',
+  'editorial.progress_complete': 'Todos los documentos aprobados están indexados ({total}).',
   'editorial.progress_failed': 'Documentos fallidos: {count}.',
   'editorial.progress_show_failed': 'Mostrar fallidos',
   'editorial.indexing_now': 'Indexando ahora',
