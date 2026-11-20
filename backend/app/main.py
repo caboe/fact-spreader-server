@@ -37,6 +37,7 @@ from app.core.config import Settings, get_settings
 from app.core.errors import AppError, app_error_handler, problem
 from app.core.logging import RequestContextMiddleware, configure_logging
 from app.db.session import Database
+from app.llm.client import LLMClient
 from app.retrieval.lightrag import LightRAGClient
 from app.services.language import LanguageService
 from app.services.methodology import Methodology
@@ -78,6 +79,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.supported_languages, settings.default_response_language
         )
         app.state.lightrag = LightRAGClient(settings)
+        # Embeds queries and passages for the relevance cut of research and /retrieval;
+        # checks use their own pipeline client (DECISIONS.md D68).
+        app.state.embedder = LLMClient(settings, consumer="retrieval")
         logger.info("application_started", extra={"event": "startup"})
         try:
             yield

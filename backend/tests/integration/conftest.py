@@ -22,6 +22,8 @@ from pydantic import SecretStr
 from sqlalchemy import select, text
 from testcontainers.postgres import PostgresContainer
 
+from tests.fakes import FakeEmbedder
+
 pytestmark = pytest.mark.integration
 
 
@@ -72,6 +74,8 @@ async def app(settings: Settings) -> AsyncIterator[object]:
     await bootstrap(settings, print_api_key=False)
     application = create_app(settings)
     async with application.router.lifespan_context(application):
+        # Research and /retrieval embed through the gateway; the suite never does.
+        application.state.embedder = FakeEmbedder()  # type: ignore[attr-defined]
         yield application
 
 

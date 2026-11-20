@@ -34,7 +34,8 @@ from app.core.ids import new_id, utcnow
 from app.db.models import Document, DocumentVersion, Result
 from app.llm.aliases import FS_CHAT, FS_VERIFY
 from app.llm.client import LLMError, StructuredLLM
-from app.retrieval.lightrag import LightRAGClient, RetrievalChunk
+from app.retrieval.lightrag import RetrievalChunk
+from app.retrieval.relevance import RelevantRetriever
 from app.services.publishers import grade_at_least
 from app.services.source_refs import parse_source
 
@@ -42,7 +43,7 @@ from app.services.source_refs import parse_source
 @dataclass
 class ResearchService:
     session: AsyncSession
-    lightrag: LightRAGClient
+    retriever: RelevantRetriever
     llm: StructuredLLM | None = None
 
     async def search(
@@ -56,7 +57,9 @@ class ResearchService:
         summary_timeout_seconds: float = 60.0,
     ) -> ResearchResponse:
         started = time.monotonic()
-        result = await self.lightrag.query_data(query, top_k=40, chunk_top_k=25)
+        # The same relevance cut as a check (DECISIONS.md D68): an off-corpus query returns
+        # no documents instead of the whole corpus.
+        result = await self.retriever.retrieve(query, top_k=40, chunk_top_k=25)
         grouped: dict[str, ResearchDocument] = {}
         for chunk in result.chunks[: limit * 4]:
             document = await self._document_for_chunk(chunk)

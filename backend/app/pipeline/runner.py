@@ -13,11 +13,11 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import urlparse
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.contracts.api import (
     ArgumentIssue,
@@ -56,6 +56,7 @@ from app.pipeline.gate import GateConfig, gate_statement, overall_verdict
 from app.pipeline.translation import translate_evidence
 from app.pipeline.verification import VerificationProposal, verify_statement
 from app.retrieval.lightrag import LightRAGClient, LightRAGError, RetrievalChunk
+from app.retrieval.relevance import Embedder, build_retriever
 from app.services.language import LanguageService
 from app.services.methodology import Confounder, Methodology
 from app.services.publishers import PublisherRegistry
@@ -72,6 +73,10 @@ _CONFOUNDER_TOPICS = {
     "crime_statistics": {"racism", "politics"},
     "labor_statistics": {"economics", "poverty"},
 }
+
+
+class PipelineLLM(StructuredLLM, Embedder, Protocol):
+    """The gateway client: structured chat for the stages, embeddings for the relevance cut."""
 
 
 class PipelineError(RuntimeError):
@@ -102,7 +107,7 @@ class CheckPipeline:
         self,
         *,
         settings: Settings,
-        llm: StructuredLLM,
+        llm: PipelineLLM,
         lightrag: LightRAGClient,
         publishers: PublisherRegistry,
         methodology: Methodology,
@@ -118,6 +123,11 @@ class CheckPipeline:
         self.language = language
         self.session = session
         self.instance = instance
+        engine = session.bind
+        if not isinstance(engine, AsyncEngine):
+            raise TypeError("the pipeline session must be bound to an engine")
+        # One retrieval path for checks, research and /retrieval (DECISIONS.md D68).
+        self.retriever = build_retriever(settings, lightrag=lightrag, embedder=llm, engine=engine)
 
     async def run(
         self,
@@ -211,8 +221,10 @@ class CheckPipeline:
             confounders = self.methodology.confounders_for(topics)
             staleness_days = self.methodology.staleness_days_for(topics)
             try:
-                retrieval = await self.lightrag.query_data(
+                retrieval = await self.retriever.retrieve(
                     _retrieval_query(located.text, extraction, located.keywords_low),
+                    relevance_text=located.text,
+                    user_id=user_id,
                     high_level_keywords=_dedupe(
                         [*extraction.keywords_high, *located.keywords_high]
                     )[:8],
@@ -220,7 +232,7 @@ class CheckPipeline:
                         :16
                     ],
                 )
-            except LightRAGError as exc:
+            except (LightRAGError, LLMError) as exc:
                 raise PipelineError(
                     "retrieval_unavailable",
                     f"The retrieval service failed: {exc}",
@@ -557,8 +569,10 @@ class CheckPipeline:
             )
         query = f"{statement} {' '.join(hints)}"[:1000]
         try:
-            retrieval = await self.lightrag.query_data(query, top_k=16, chunk_top_k=10)
-        except LightRAGError:
+            # The confounder hints are what this round looks for, so they are part of the
+            # text the passages are scored against.
+            retrieval = await self.retriever.retrieve(query, top_k=16, chunk_top_k=10)
+        except (LightRAGError, LLMError):
             logger.warning("targeted_retrieval_unavailable")
             return []
         return await self._candidates(retrieval.chunks, pool=pool, statement_text=statement)
@@ -835,6 +849,10 @@ def config_hash(settings: Settings, publishers: PublisherRegistry, methodology: 
         "patterns": methodology.patterns_version,
         "topics": sorted(methodology.checklists),
         "languages": sorted(settings.supported_languages),
+        "retrieval_relevance": [
+            settings.retrieval_relevance_floor,
+            settings.retrieval_relevance_margin,
+        ],
     }
     return "sha256:" + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 

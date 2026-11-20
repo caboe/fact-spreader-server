@@ -44,6 +44,14 @@ const RESPONSE = {
   ],
   entities: [{ entity_name: 'Rent', file_path: 'doc_1@v1' }],
   relationships: [{ src_id: 'Rent', file_path: 'doc_1@v1' }],
+  relevance: {
+    floor: 0.4,
+    margin: 0.15,
+    top_score: 0.91,
+    cut_chunks: 3,
+    cut_entities: 4,
+    cut_relationships: 5,
+  },
   returned_chunks: 1,
   dropped_chunks: 2,
   returned_entities: 1,
@@ -110,6 +118,12 @@ test('raw retrieval shows passages and graph data without a check', async ({ pag
   );
   await expect(page.getByText(/Documents: 1 · Passages: 1 · 12 ms/)).toBeVisible();
   await expect(page.getByText(/Filtered out: passages 2/)).toBeVisible();
+  // The page shows the same relevance cut a check applies (DECISIONS.md D68).
+  await expect(
+    page.getByText(
+      /Relevance cut \(same as a check\): floor 0\.40, within 0\.15 of the best match 0\.910\. Below the cut: passages 3 · entities 4 · relationships 5/,
+    ),
+  ).toBeVisible();
   await expect(page.getByText(/Source quality B/)).toBeVisible();
 
   await page.locator('details.graph summary').click();

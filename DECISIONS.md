@@ -1111,3 +1111,58 @@ publisher's contact block, not because it improves retrieval.
 had not recreated, so it indexed the old text; one document then stalled in `processing`
 after a LightRAG deletion error (`'set' object is not subscriptable`) and was repaired by
 deleting and re-inserting its source. Two passes were paid for; the second took effect.
+
+## D68 — A relevance cut in our layer decides which LightRAG candidates count
+
+**What:** checks, research and `/retrieval` call one `RelevantRetriever`
+(`backend/app/retrieval/relevance.py`). It asks stock LightRAG's `/query/data` for
+candidates as before, embeds the scoring text and every candidate passage with the corpus
+embedding model through the gateway, and keeps a passage when its cosine similarity is at
+least `RETRIEVAL_RELEVANCE_FLOOR` (0.40) and at least the best candidate's score minus
+`RETRIEVAL_RELEVANCE_MARGIN` (0.15). The scoring text is the statement for a check (not the
+LightRAG query with its appended keywords), the statement plus confounder hints for the
+targeted re-retrieval, and the query for research and `/retrieval`. Kept passages are
+ordered by score; the score becomes the evidence `relevance` and the passage `score`.
+Graph records are kept only if one of their source documents kept a passage. Passage
+vectors are cached in `chunk_embeddings` by content hash and locked embedding model. An
+embedding failure is `retrieval_unavailable`, never an uncut list (PROTOCOL §5.4).
+
+**Why:** LightRAG's floor (0.2) lies below every passage of a small corpus and its graph
+leg brings chunks along whatever their similarity, so `/retrieval` returned 13 of 18
+documents for an off-corpus claim and 15 of 18 for `Köln Familien`, and a check's
+`no_matching_document` path never fired (docs/RETRIEVAL_FINDINGS.md). Whole-text cosine
+separates well where LightRAG does not: on the dpa corpus, 4 off-corpus queries peaked at
+0.326–0.338 while 12 on-corpus ones, 8 of them cross-lingual, put their target first at
+0.540–0.718. On the fixture corpus the 21 checkable eval claims had a best passage of
+0.468–0.885, short cross-lingual topic queries 0.438–0.454, and an off-corpus budget claim
+0.404. The floor sits below the weakest genuine match; the margin removes the flat tail
+behind a clear match (`Köln Familien`: 0.540 vs at most 0.370) but keeps a contradiction
+pair (0.885/0.813) together.
+
+**Measured after the change** (`/retrieval`, defaults): dpa corpus — `Köln Familien` 1
+document (Cologne), four off-corpus queries 0 documents, all 12 on-corpus queries keep
+their target first with 1–5 documents; fixture corpus — the budget claim 1 document,
+German/French/Dutch topic queries 3, 8 and 4 documents, the German burglary claim and its
+Dutch translation 1 document each (the German-only target). Latency of a repeated
+`/retrieval` query 186–241 ms (214 ms before).
+
+**Evaluation** on a separate Compose project seeded with `make seed-fixtures`, the same
+LightRAG index for all runs, full pipeline, three runs each: before 0.560 / 0.640 / 0.720
+(mean 0.640), after 0.600 / 0.600 / 0.680 (mean 0.627). No checkable statement in the
+after runs lost all its passages (no result carries `no_matching_document`), and cited
+evidence per result went from 3.40–3.64 to 3.80–4.24. The
+one systematic change is `claim-044` (`contested`): 3/3 before, 1/3 after. In both failed
+runs the verifier linked the 5,200 source as `supports` and the 3,900 source as `refutes`
+but proposed `insufficient_evidence`, and `gate_statement` returns an
+`insufficient_evidence` proposal before it runs contradiction detection. With the
+relevance-ordered top six the verifier now sees more context passages and hedges more
+often. The gate behaviour is pre-existing and its fix is a gate-rule change, which needs
+human confirmation; it was not changed here. The committed baseline file is unchanged.
+
+**Rejected:** raising `COSINE_THRESHOLD` (one floor for chunks, entities and relations,
+D66); `naive` mode for checks (drops the graph leg's candidates instead of judging them);
+a rerank model (new capability, still a top-k, needs a cut anyway); reading similarity
+from LightRAG's tables (not its documented API, invariant 7); failing open when the
+embedding is unavailable (silently restores the whole corpus as evidence); scoring
+against the LightRAG query with its LLM keywords (the keywords widen the candidate set
+but would move the cut with every extraction).

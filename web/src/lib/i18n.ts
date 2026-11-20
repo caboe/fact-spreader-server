@@ -489,6 +489,8 @@ const en: Catalog = {
   'raw.summary': 'Documents: {documents} · Passages: {chunks} · {ms} ms',
   'raw.filtered':
     'Filtered out: passages {chunks} · entities {entities} · relationships {relationships} (not approved or indexed).',
+  'raw.relevance':
+    'Relevance cut (same as a check): floor {floor}, within {margin} of the best match {top}. Below the cut: passages {chunks} · entities {entities} · relationships {relationships}.',
   'raw.graph': 'Graph data: {entities} entities, {relationships} relationships',
   'raw.response_json': 'Response JSON',
   'raw.forbidden': 'You do not have permission to use raw retrieval.',
@@ -977,6 +979,8 @@ const de: Catalog = {
   'raw.summary': 'Dokumente: {documents} · Passagen: {chunks} · {ms} ms',
   'raw.filtered':
     'Gefiltert: Passagen {chunks} · Entitäten {entities} · Relationen {relationships} (nicht freigegeben oder nicht indexiert).',
+  'raw.relevance':
+    'Relevanzschnitt (wie bei einem Check): Untergrenze {floor}, höchstens {margin} unter dem besten Treffer {top}. Unter dem Schnitt: Passagen {chunks} · Entitäten {entities} · Relationen {relationships}.',
   'raw.graph': 'Graphdaten: {entities} Entitäten, {relationships} Relationen',
   'raw.response_json': 'Antwort-JSON',
   'raw.forbidden': 'Du hast keine Berechtigung für die Rohabfrage.',
@@ -1465,6 +1469,8 @@ const fr: Catalog = {
   'raw.summary': 'Documents : {documents} · Passages : {chunks} · {ms} ms',
   'raw.filtered':
     'Filtrés : passages {chunks} · entités {entities} · relations {relationships} (non approuvés ou non indexés).',
+  'raw.relevance':
+    'Seuil de pertinence (identique à une vérification) : plancher {floor}, au plus {margin} sous le meilleur résultat {top}. Sous le seuil : passages {chunks} · entités {entities} · relations {relationships}.',
   'raw.graph': 'Données de graphe : {entities} entités, {relationships} relations',
   'raw.response_json': 'JSON de la réponse',
   'raw.forbidden': 'Vous n’avez pas l’autorisation d’utiliser la recherche brute.',
@@ -1953,6 +1959,8 @@ const es: Catalog = {
   'raw.summary': 'Documentos: {documents} · Pasajes: {chunks} · {ms} ms',
   'raw.filtered':
     'Filtrados: pasajes {chunks} · entidades {entities} · relaciones {relationships} (no aprobados o no indexados).',
+  'raw.relevance':
+    'Corte de relevancia (igual que en una verificación): mínimo {floor}, como mucho {margin} por debajo del mejor resultado {top}. Bajo el corte: pasajes {chunks} · entidades {entities} · relaciones {relationships}.',
   'raw.graph': 'Datos de grafo: {entities} entidades, {relationships} relaciones',
   'raw.response_json': 'JSON de la respuesta',
   'raw.forbidden': 'No tienes permiso para usar la recuperación directa.',

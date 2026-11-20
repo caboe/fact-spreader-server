@@ -335,6 +335,23 @@ class ClaimCache(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class ChunkEmbedding(Base):
+    """Our own embedding of a retrieved passage, for the relevance cut (DECISIONS.md D68).
+
+    LightRAG's ``/query/data`` returns no similarity scores, so the relevance cut re-embeds
+    each candidate passage through the gateway. The vector depends only on the passage text
+    and the corpus embedding model, so it is cached here by content hash and model; a model
+    change (an explicit re-index) simply misses the cache.
+    """
+
+    __tablename__ = "chunk_embeddings"
+
+    content_hash: Mapped[str] = mapped_column(String(80), primary_key=True)
+    model_key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    embedding: Mapped[list[float]] = mapped_column(Vector(1024))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Result(Base):
     __tablename__ = "results"
     __table_args__ = (Index("ix_results_created", "created_at"),)

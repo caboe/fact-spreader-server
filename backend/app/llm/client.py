@@ -252,6 +252,52 @@ class LLMClient:
             raise LLMOutputError("gateway returned an embedding with the wrong dimension")
         return [float(value) for value in embedding]
 
+    async def embed_many(
+        self,
+        texts: list[str],
+        *,
+        data_class: str,
+        purpose: str,
+        user_id: str | None = None,
+    ) -> list[list[float]]:
+        """Embed several texts in one gateway call with the corpus embedding model.
+
+        ``data_class`` is the one data-flow class of all texts (``user_input`` for a query,
+        ``own_corpus`` for a retrieved passage); callers never mix classes in one batch.
+        """
+        if not texts:
+            return []
+        headers = {
+            "Authorization": f"Bearer {self._key}",
+            "X-FS-Consumer": self._consumer,
+            "X-FS-Data-Classes": data_class,
+            "X-FS-Purpose": purpose,
+            "Content-Type": "application/json",
+        }
+        if user_id:
+            headers["X-FS-User-Id"] = user_id
+        if self._request_id:
+            headers["X-Request-Id"] = self._request_id
+        response = await self._http.request(
+            "POST",
+            f"{self._base}/embeddings",
+            json={"model": FS_EMBEDDING, "input": texts},
+            headers=headers,
+        )
+        if response.status_code >= 400:
+            raise _gateway_error(response)
+        try:
+            payload = response.json()
+            rows = sorted(payload["data"], key=lambda item: int(item.get("index", 0)))
+            vectors = [row["embedding"] for row in rows]
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise LLMOutputError("gateway returned a malformed embedding") from exc
+        if len(vectors) != len(texts) or any(
+            not isinstance(vector, list) or len(vector) != 1024 for vector in vectors
+        ):
+            raise LLMOutputError("gateway returned embeddings with the wrong shape")
+        return [[float(value) for value in vector] for vector in vectors]
+
     async def _call(
         self,
         *,

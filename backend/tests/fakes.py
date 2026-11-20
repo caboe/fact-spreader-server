@@ -37,6 +37,7 @@ class FakeLLM:
         judge_issues: list[str] | None = None,
         audit_sequence: list[bool] | None = None,
         verdict: str = "true_but_misleading",
+        passage_similarity: float = 1.0,
     ) -> None:
         self.block = block
         self.unavailable = unavailable
@@ -44,6 +45,7 @@ class FakeLLM:
         self.judge_issues = list(judge_issues or [])
         self.audit_sequence = list(audit_sequence or [])
         self.verdict = verdict
+        self.passage_similarity = passage_similarity
         self.verify_calls = 0
         self.calls: list[str] = []
 
@@ -73,6 +75,20 @@ class FakeLLM:
     ) -> list[float]:
         self.calls.append("embed")
         return [1.0] + [0.0] * 1023
+
+    async def embed_many(
+        self,
+        texts: list[str],
+        *,
+        data_class: str,
+        purpose: str,
+        user_id: str | None = None,
+    ) -> list[list[float]]:
+        """Queries get ``[1, 0, ...]``; every passage scores ``passage_similarity`` against it."""
+        self.calls.append("embed")
+        if data_class == "own_corpus":
+            return [unit_vector(self.passage_similarity) for _text in texts]
+        return [[1.0] + [0.0] * 1023 for _text in texts]
 
     async def chat_structured(
         self,
@@ -159,6 +175,40 @@ class FakeLLM:
         else:
             raise AssertionError(f"unexpected alias {alias}")
         return output, LLMUsage(tokens_in=10, tokens_out=5)
+
+
+class FakeEmbedder:
+    """Deterministic embeddings for the relevance cut (DECISIONS.md D68).
+
+    ``vectors`` maps an exact text to its vector; any other text gets ``default``. A test
+    therefore sets the similarity of each passage to the query by choosing two vectors.
+    """
+
+    def __init__(
+        self,
+        vectors: dict[str, list[float]] | None = None,
+        *,
+        default: list[float] | None = None,
+    ) -> None:
+        self.vectors = dict(vectors or {})
+        self.default = default or ([1.0] + [0.0] * 1023)
+        self.batches: list[tuple[str, list[str]]] = []
+
+    async def embed_many(
+        self,
+        texts: list[str],
+        *,
+        data_class: str,
+        purpose: str,
+        user_id: str | None = None,
+    ) -> list[list[float]]:
+        self.batches.append((data_class, list(texts)))
+        return [self.vectors.get(text, self.default) for text in texts]
+
+
+def unit_vector(similarity: float) -> list[float]:
+    """A 1024-d unit vector whose cosine with ``[1, 0, ...]`` is ``similarity``."""
+    return [similarity, (1.0 - similarity * similarity) ** 0.5] + [0.0] * 1022
 
 
 class FakeLightRAG:

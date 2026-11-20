@@ -328,7 +328,8 @@ result relying on an unchecked description carries `relies_on_figure_description
 - `passage` is always the original and authoritative; `passage_hash`, citations and any
   content match refer to it. A translation is display and judge context only. Evidence in
   an unsupported language carries the warning `unsupported_evidence_language`.
-- `evidence_tier` is `1` in v1. `relevance` is 0–1 and is advisory.
+- `evidence_tier` is `1` in v1. `relevance` is 0–1 and is advisory: the passage's cosine
+  similarity to the statement from the relevance cut (§5.4). The gate does not read it.
 - `independence_key` is derived in order: DOI → canonical URL →
   `publisher|title|publication_date`. Two items are independent iff their
   `independence_key` differs **and** they do not share a non-null `dataset_id`. The
@@ -992,7 +993,10 @@ problem type `moderation_unavailable`.
 - A query with no document hits writes a `CorpusGap` (`frequency` incremented) and
   `gaps_recorded = true`.
 - Research has no verdict and no persona narrative. `role` is `researcher`.
-- `POST /v1/search` with an invalid/oversized query is `422`; budget is `429`.
+- Documents and passages pass the same relevance cut as check evidence (§5.4); a passage
+  `score` is its cosine similarity to the query.
+- `POST /v1/search` with an invalid/oversized query is `422`; budget is `429`; an
+  unavailable LightRAG or relevance embedding is `503` with `retrieval_unavailable`.
 
 ### 5.2 Summary consistency
 
@@ -1011,7 +1015,8 @@ final for the request.
 ### 5.3 `POST /v1/retrieval` — raw retrieval
 
 This is **not a fact check**. It calls stock LightRAG's retrieval endpoint (`/query/data`)
-and returns the matching passages and graph records. It never calls LightRAG's answer
+and returns the matching passages and graph records after the same relevance cut a check
+applies (§5.4), so it shows what a check would see. It never calls LightRAG's answer
 generation (`/query`), and it returns no verdict, gate, summary or archive hits. It does
 not write a corpus gap or any other editorial record.
 
@@ -1056,7 +1061,7 @@ not write a corpus gap or any other editorial record.
           "reference_id": "1",
           "content": "Rent prices rose faster than incomes.",
           "file_path": "doc_...@v1",
-          "score": null,
+          "score": 0.612,
           "order": 0
         }
       ]
@@ -1064,6 +1069,14 @@ not write a corpus gap or any other editorial record.
   ],
   "entities": [],
   "relationships": [],
+  "relevance": {
+    "floor": 0.4,
+    "margin": 0.15,
+    "top_score": 0.612,
+    "cut_chunks": 14,
+    "cut_entities": 9,
+    "cut_relationships": 21
+  },
   "returned_chunks": 1,
   "dropped_chunks": 0,
   "returned_entities": 0,
@@ -1079,12 +1092,36 @@ not write a corpus gap or any other editorial record.
   is not deleted and is `approved` or `indexed`. Other records are counted in `dropped_*`
   and never returned. This closes the window in which LightRAG still serves a withdrawn
   document before its asynchronous deletion finishes.
+- Documents are ordered by their best passage score. `relevance` reports the cut: its
+  `floor` and `margin`, the best `top_score` among the candidates (`null` without
+  candidates), and how many passages, entities and relationships it removed. An entity or
+  relationship is kept only if one of its source documents kept a passage. Stale records
+  are removed first and counted in `dropped_*`, not in `relevance`.
 - `include_graph = false` returns empty `entities` and `relationships` arrays and zero
   graph counts; passage retrieval still runs.
 - Permission is `search:use`. An invalid mode or query is `422`; an unavailable LightRAG
-  is `503` with `retrieval_unavailable`. The endpoint has no generated answer, so it adds
-  no summarization cost; LightRAG's own keyword and embedding calls still go through the
-  gateway and its budget rules.
+  or relevance embedding is `503` with `retrieval_unavailable`. The endpoint has no
+  generated answer, so it adds no summarization cost; LightRAG's own keyword and embedding
+  calls and the relevance embeddings go through the gateway and its budget rules.
+
+### 5.4 Relevance cut
+
+Stock LightRAG ranks by count, not relevance: on a small corpus its candidate set is
+most of the corpus for almost any query. Checks, research and raw retrieval therefore
+apply one cut to LightRAG's candidate passages, in code:
+
+1. each candidate passage is embedded with the corpus embedding model (`fs-embedding`,
+   through the gateway; cached per passage hash and model) and scored by its cosine
+   similarity to the scoring text: the statement for a check, the statement plus the
+   confounder hints for a targeted re-retrieval, the query for research and raw retrieval;
+2. a passage is kept if its score is at least `RETRIEVAL_RELEVANCE_FLOOR` (default 0.40)
+   **and** at least the best candidate's score minus `RETRIEVAL_RELEVANCE_MARGIN` (default
+   0.15).
+
+A check statement without a kept passage takes the `no_matching_document` path
+(`insufficient_evidence`, corpus gap). The score becomes the evidence `relevance` and the
+passage `score`. A failure of the relevance embedding fails the retrieval; it never
+returns the uncut list.
 
 ---
 

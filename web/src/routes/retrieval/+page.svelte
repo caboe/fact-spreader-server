@@ -143,6 +143,16 @@
             ms: result.took_ms,
           })}
         </p>
+        <p class="filtered relevance">
+          {tr('raw.relevance', {
+            floor: result.relevance.floor.toFixed(2),
+            margin: result.relevance.margin.toFixed(2),
+            top: result.relevance.top_score == null ? '–' : result.relevance.top_score.toFixed(3),
+            chunks: result.relevance.cut_chunks,
+            entities: result.relevance.cut_entities,
+            relationships: result.relevance.cut_relationships,
+          })}
+        </p>
         {#if result.dropped_chunks || result.dropped_entities || result.dropped_relationships}
           <p class="filtered">
             {tr('raw.filtered', {

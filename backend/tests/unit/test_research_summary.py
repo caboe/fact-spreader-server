@@ -76,7 +76,7 @@ def make_document(*, redistribution: str = "full") -> ResearchDocument:
 
 
 def service_with(llm: FakeSummaryLLM) -> ResearchService:
-    service: Any = ResearchService(session=None, lightrag=None, llm=llm)
+    service: Any = ResearchService(session=None, retriever=None, llm=llm)
     return service
 
 

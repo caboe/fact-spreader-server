@@ -72,6 +72,15 @@ only the imported dpa corpus — cannot reproduce the labelled verdicts, whateve
 retrieval settings are. Compare a threshold or a model change only on a stack seeded with
 `make seed-fixtures`, and regenerate the baseline there.
 
+A single run is noisy. On a fresh fixture stack with an unchanged LightRAG index, three
+full runs of the same code scored 0.560, 0.640 and 0.720. Compare configurations by
+several runs on the same index, per claim, not by one accuracy figure. A disposable
+project for that is a second Compose project with its own ports and volumes (see
+`scripts/clean-start-test.sh` for the override pattern), bootstrapped with
+`python -m app.cli bootstrap` and seeded with `python -m app.cli seed-fixtures --approve`;
+the eval runner takes `--base-url` and `--api-key-file` for it. The relevance-cut
+comparison in DECISIONS.md D68 was measured that way.
+
 ## Metrics
 
 - accuracy over all cases;

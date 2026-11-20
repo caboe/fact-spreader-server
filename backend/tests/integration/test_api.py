@@ -10,7 +10,7 @@ import httpx
 import pytest
 from app.contracts.enums import JobState
 from app.core.ids import new_id, utcnow
-from app.db.models import Document, DocumentVersion, JobEvent
+from app.db.models import ChunkEmbedding, CorpusGap, Document, DocumentVersion, JobEvent
 from app.db.models import Job as JobRow
 from app.retrieval.lightrag import LightRAGError, RetrievalChunk, RetrievalResult
 from app.services.image_input import ImageExtraction
@@ -18,7 +18,7 @@ from app.services.input_reader import FetchedDocument
 from app.services.research import ResearchService
 from sqlalchemy import func, select
 
-from tests.fakes import FakeLightRAG, FakeLLM
+from tests.fakes import FakeEmbedder, FakeLightRAG, FakeLLM, unit_vector
 
 pytestmark = pytest.mark.integration
 
@@ -611,6 +611,206 @@ async def test_raw_retrieval_uses_the_diagnostic_graph_breadth_not_the_check_def
     ]
     assert (settings.lightrag_raw_top_k, settings.lightrag_raw_chunk_top_k) == (10, 20)
     assert settings.lightrag_raw_top_k != settings.lightrag_top_k
+
+
+class _TwoDocumentRetrieval:
+    """LightRAG returning one matching and one unrelated document, with graph records."""
+
+    def __init__(self, match_id: str, other_id: str) -> None:
+        self.match_id = match_id
+        self.other_id = other_id
+
+    async def query_data(self, query: str, **kwargs: Any) -> RetrievalResult:
+        return RetrievalResult(
+            chunks=[
+                RetrievalChunk(content="Unrelated passage.", file_path=f"{self.other_id}@v1"),
+                RetrievalChunk(content="Cologne passage.", file_path=f"{self.match_id}@v1"),
+            ],
+            entities=[
+                {"entity_name": "Cologne", "file_path": f"{self.match_id}@v1"},
+                {
+                    "entity_name": "Shared",
+                    "file_path": f"{self.other_id}@v1<SEP>{self.match_id}@v1",
+                },
+                {"entity_name": "Unrelated", "file_path": f"{self.other_id}@v1"},
+            ],
+            relationships=[{"src_id": "Unrelated", "file_path": f"{self.other_id}@v1"}],
+        )
+
+
+@pytest.mark.asyncio
+async def test_raw_retrieval_cuts_an_unrelated_document_and_its_graph_records(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    """Prevents /retrieval from returning most of the corpus for any query.
+
+    Measured on the dpa corpus: "Köln Familien" scored 0.540 for the Cologne fact check and
+    at most 0.370 for anything else, yet stock LightRAG returned 15 of 18 documents.
+    """
+    match_id = await _seed_approved_document(app, None)
+    other_id = await _seed_approved_document(app, None)
+    app.state.lightrag = _TwoDocumentRetrieval(match_id, other_id)
+    app.state.embedder = FakeEmbedder(
+        {"Cologne passage.": unit_vector(0.54), "Unrelated passage.": unit_vector(0.37)}
+    )
+    response = await client.post("/v1/retrieval", json={"query": "Köln Familien"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert [document["document"]["id"] for document in body["documents"]] == [match_id]
+    assert body["documents"][0]["chunks"][0]["score"] == pytest.approx(0.54, abs=1e-3)
+    assert [entity["entity_name"] for entity in body["entities"]] == ["Cologne", "Shared"]
+    assert body["relationships"] == []
+    assert body["relevance"] == {
+        "floor": 0.40,
+        "margin": 0.15,
+        "top_score": pytest.approx(0.54, abs=1e-3),
+        "cut_chunks": 1,
+        "cut_entities": 1,
+        "cut_relationships": 1,
+    }
+    assert "Unrelated passage" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_retrieved_passages_are_embedded_once_and_then_served_from_the_cache(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    match_id = await _seed_approved_document(app, None)
+    other_id = await _seed_approved_document(app, None)
+    app.state.lightrag = _TwoDocumentRetrieval(match_id, other_id)
+    embedder = FakeEmbedder({"Cologne passage.": unit_vector(0.54)})
+    app.state.embedder = embedder
+    for _ in range(2):
+        response = await client.post("/v1/retrieval", json={"query": "Köln Familien"})
+        assert response.status_code == 200, response.text
+    assert embedder.batches == [
+        ("user_input", ["Köln Familien"]),
+        ("own_corpus", ["Unrelated passage.", "Cologne passage."]),
+        ("user_input", ["Köln Familien"]),
+    ]
+    async with app.state.db.session_factory() as session:
+        cached = (await session.execute(select(func.count()).select_from(ChunkEmbedding))).scalar()
+    assert cached == 2
+
+
+@pytest.mark.asyncio
+async def test_research_returns_no_document_for_an_off_corpus_query(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    """Research shares the cut with checks: a topic the corpus lacks lists nothing."""
+    match_id = await _seed_approved_document(app, None)
+    other_id = await _seed_approved_document(app, None)
+    app.state.lightrag = _TwoDocumentRetrieval(match_id, other_id)
+    app.state.embedder = FakeEmbedder(default=unit_vector(0.33))
+    app.state.embedder.vectors["Der Bundeshaushalt 2026"] = [1.0] + [0.0] * 1023
+    response = await client.post("/v1/search", json={"query": "Der Bundeshaushalt 2026"})
+    assert response.status_code == 200, response.text
+    assert response.json()["documents"] == []
+
+
+@pytest.mark.asyncio
+async def test_an_unavailable_relevance_embedding_is_a_retrieval_outage_not_an_uncut_list(
+    app: Any, client: httpx.AsyncClient
+) -> None:
+    """Failing open would silently bring back the whole corpus as evidence."""
+    from app.llm.client import LLMError
+
+    class Down:
+        async def embed_many(self, texts: list[str], **kwargs: Any) -> list[list[float]]:
+            raise LLMError(502, "provider_error", "embedding provider down")
+
+    match_id = await _seed_approved_document(app, None)
+    other_id = await _seed_approved_document(app, None)
+    app.state.lightrag = _TwoDocumentRetrieval(match_id, other_id)
+    app.state.embedder = Down()
+    for path in ("/v1/retrieval", "/v1/search"):
+        response = await client.post(path, json={"query": "Köln Familien"})
+        assert response.status_code == 503, (path, response.text)
+        assert response.json()["code"] == "retrieval_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_a_check_with_only_unrelated_passages_takes_the_no_matching_document_path(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Prevents the graph leg from keeping `any_matching` true for off-corpus claims.
+
+    Before the cut, LightRAG always returned some passage, so the deterministic
+    insufficient-evidence path and the corpus-gap record never fired (RETRIEVAL_FINDINGS
+    §5.4). Verification must not even see passages below the floor.
+    """
+    document_id = await _seed_approved_document(app, settings)
+    fake_llm = FakeLLM(passage_similarity=0.33)
+    fake_lightrag = FakeLightRAG(
+        document_id=document_id,
+        passage="Immigrants commit more crimes, according to the fixture.",
+    )
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "The 2026 federal budget is 900 billion euros."}},
+    )
+    assert response.status_code == 202
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=fake_lightrag,  # type: ignore[arg-type]
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+    body = (await client.get(f"/v1/factcheck/{job_id}")).json()
+    result = body["result"]["result"]
+    assert fake_lightrag.queries
+    assert fake_llm.verify_calls == 0
+    assert result["overall_verdict"] == "insufficient_evidence"
+    assert result["evidence"] == []
+    assert "no_matching_document" in [warning["code"] for warning in result["warnings"]]
+    async with app.state.db.session_factory() as session:
+        gaps = (await session.execute(select(func.count()).select_from(CorpusGap))).scalar()
+    assert gaps == 1
+
+
+@pytest.mark.asyncio
+async def test_check_evidence_carries_the_relevance_score_of_its_passage(
+    app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document_id = await _seed_approved_document(app, settings)
+    fake_llm = FakeLLM(passage_similarity=0.71)
+    fake_lightrag = FakeLightRAG(
+        document_id=document_id,
+        passage="Immigrants commit more crimes, according to the fixture.",
+    )
+    monkeypatch.setattr(checks_service, "LLMClient", lambda settings, consumer="pipeline": fake_llm)
+    response = await client.post(
+        "/v1/factcheck",
+        json={"input": {"type": "text", "text": "Immigrants commit more crimes."}},
+    )
+    job_id = response.json()["job"]["id"]
+    async with app.state.db.session_factory() as session:
+        job = await session.get(JobRow, job_id)
+        assert job is not None
+        await checks_service.run_check_job(
+            session,
+            settings=settings,
+            publishers=app.state.publishers,
+            methodology=app.state.methodology,
+            language=app.state.language,
+            lightrag=fake_lightrag,  # type: ignore[arg-type]
+            personas=app.state.personas,
+            job=job,
+        )
+        await session.commit()
+    result = (await client.get(f"/v1/factcheck/{job_id}")).json()["result"]["result"]
+    assert fake_llm.verify_calls >= 1
+    assert result["evidence"][0]["relevance"] == pytest.approx(0.71, abs=1e-3)
 
 
 @pytest.mark.asyncio

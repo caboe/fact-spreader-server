@@ -915,11 +915,23 @@ class RawRetrievalDocument(ApiModel):
     chunks: list[RawRetrievalChunk] = Field(default_factory=list)
 
 
+class RawRetrievalRelevance(ApiModel):
+    """The relevance cut applied to LightRAG's candidates, the same one a check applies."""
+
+    floor: float
+    margin: float
+    top_score: float | None = None
+    cut_chunks: int = 0
+    cut_entities: int = 0
+    cut_relationships: int = 0
+
+
 class RawRetrievalResponse(ApiModel):
     query: str
     mode: RawRetrievalMode
     top_k: int
     chunk_top_k: int
+    relevance: RawRetrievalRelevance
     documents: list[RawRetrievalDocument] = Field(default_factory=list)
     entities: list[dict[str, Any]] = Field(default_factory=list)
     relationships: list[dict[str, Any]] = Field(default_factory=list)

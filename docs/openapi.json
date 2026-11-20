@@ -3981,6 +3981,51 @@
         "title": "RawRetrievalDocumentSummary",
         "type": "object"
       },
+      "RawRetrievalRelevance": {
+        "description": "The relevance cut applied to LightRAG's candidates, the same one a check applies.",
+        "properties": {
+          "cut_chunks": {
+            "default": 0,
+            "title": "Cut Chunks",
+            "type": "integer"
+          },
+          "cut_entities": {
+            "default": 0,
+            "title": "Cut Entities",
+            "type": "integer"
+          },
+          "cut_relationships": {
+            "default": 0,
+            "title": "Cut Relationships",
+            "type": "integer"
+          },
+          "floor": {
+            "title": "Floor",
+            "type": "number"
+          },
+          "margin": {
+            "title": "Margin",
+            "type": "number"
+          },
+          "top_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Score"
+          }
+        },
+        "required": [
+          "floor",
+          "margin"
+        ],
+        "title": "RawRetrievalRelevance",
+        "type": "object"
+      },
       "RawRetrievalRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4099,6 +4144,9 @@
             "title": "Relationships",
             "type": "array"
           },
+          "relevance": {
+            "$ref": "#/components/schemas/RawRetrievalRelevance"
+          },
           "returned_chunks": {
             "default": 0,
             "title": "Returned Chunks",
@@ -4128,7 +4176,8 @@
           "query",
           "mode",
           "top_k",
-          "chunk_top_k"
+          "chunk_top_k",
+          "relevance"
         ],
         "title": "RawRetrievalResponse",
         "type": "object"

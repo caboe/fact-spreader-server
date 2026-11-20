@@ -69,8 +69,10 @@ backed up. During a re-index, checks keep reading the current corpus.
 
 ## Retrieval
 
-`/retrieval` shows exactly what stock LightRAG returns and applies no relevance cut, so on a
-small corpus it returns almost everything. Two settings decide what the index can see.
+`/retrieval` shows what stock LightRAG returns after the same relevance cut a check applies
+(PROTOCOL §5.4, DECISIONS.md D68): every passage carries its similarity score, and the page
+reports the floor, the margin, the best score and how much the cut removed. Three settings
+decide what a check can see.
 
 `hnsw.ef_search = 200` is set on the `lightrag` database at init. pgvector's default of 40
 let the HNSW scan reach only part of the index (measured: 17 of 28 chunks), so a relevant
@@ -87,9 +89,17 @@ Use `POSTGRES_USER` and `LIGHTRAG_DB_NAME` from `.env` if you changed them. `LOA
 is required in that session: without the extension loaded, PostgreSQL does not know the
 parameter and rejects the `ALTER`.
 
-`COSINE_THRESHOLD` (LightRAG environment, default 0.2) is the relevance floor. It is
-deliberately not raised: changing it moves check and research evidence, so it needs the
-evaluation set rather than a guess.
+The relevance cut keeps a passage whose cosine similarity to the statement (or query) is at
+least `RETRIEVAL_RELEVANCE_FLOOR` (default 0.40) and within `RETRIEVAL_RELEVANCE_MARGIN`
+(default 0.15) of the best candidate. The values were calibrated for `bge-m3`; with another
+embedding model the similarity scale is different, so recalibrate them on a stack seeded with
+`make seed-fixtures` (docs/EVALUATION.md) before changing the model. Passage vectors are
+cached in the `chunk_embeddings` table; deleting its rows is safe and only costs re-embedding.
+If the embedding provider is down, checks, research and `/retrieval` fail with
+`retrieval_unavailable` instead of returning uncut passages.
+
+LightRAG's own `COSINE_THRESHOLD` stays at its stock 0.2. It applies to chunks, entities and
+relations alike, and their score distributions differ (D66), so it cannot do this job.
 
 The page and `POST /v1/retrieval` default to `LIGHTRAG_RAW_TOP_K=10` and
 `LIGHTRAG_RAW_CHUNK_TOP_K=20`, separate from the check pipeline's `LIGHTRAG_TOP_K=40`.

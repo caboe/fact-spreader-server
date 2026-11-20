@@ -8,6 +8,25 @@ solution.
 Everything below was measured against this repository's running stack on 2026-11-20. Where
 a number is quoted, the reproduction command is given in §9.
 
+## 0. Outcome (2026-11-20, afternoon)
+
+Implemented as candidate direction 2 (re-score in our layer) together with direction 6
+(a fixture-seeded evaluation project): DECISIONS.md D68, PROTOCOL §5.4. Against §3:
+
+- off-corpus budget claim: 0 documents on the dpa corpus, 1 on the fixture corpus — met;
+- `Köln Familien`: 1 document, the Cologne fact check — met;
+- cross-lingual claims (FR/NL/EN against German documents and back) keep their target
+  first on both corpora — met;
+- `/retrieval`, checks and research share one `RelevantRetriever` — met;
+- accuracy on a valid run: 3 runs before 0.560/0.640/0.720 (mean 0.640), 3 runs after
+  0.600/0.600/0.680 (mean 0.627); no checkable statement lost all its passages —
+  **within noise, but not demonstrably at or above 0.640**. The one systematic loss is
+  `claim-044`, where the gate skips contradiction detection for an
+  `insufficient_evidence` proposal; changing that is a gate rule and awaits a human
+  decision (D68).
+
+The sections below are the hand-off as written before the change.
+
 ## 1. The observation that started this
 
 A user opened `/retrieval` (raw LightRAG retrieval, no fact check) and searched for

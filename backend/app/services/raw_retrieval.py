@@ -2,9 +2,10 @@
 
 This is deliberately not a second check: it calls stock LightRAG's retrieval endpoint
 (``/query/data``), returns the matching passages and graph records, and never asks the
-model for an answer.  Every returned source is resolved against the application database
-first, so a chunk from a withdrawn document cannot reappear while LightRAG's asynchronous
-deletion is still running.
+model for an answer.  It applies the same relevance cut as a check (DECISIONS.md D68), so
+the page shows what a check would see, with our similarity score on every passage.  Every
+returned source is resolved against the application database first, so a chunk from a
+withdrawn document cannot reappear while LightRAG's asynchronous deletion is still running.
 """
 
 from __future__ import annotations
@@ -21,17 +22,19 @@ from app.contracts.api import (
     RawRetrievalDocument,
     RawRetrievalDocumentSummary,
     RawRetrievalMode,
+    RawRetrievalRelevance,
     RawRetrievalResponse,
 )
 from app.db.models import Document, DocumentVersion
-from app.retrieval.lightrag import LightRAGClient, RetrievalChunk
+from app.retrieval.lightrag import RetrievalChunk
+from app.retrieval.relevance import RelevantRetriever
 from app.services.source_refs import parse_source
 
 
 @dataclass
 class RawRetrievalService:
     session: AsyncSession
-    lightrag: LightRAGClient
+    retriever: RelevantRetriever
 
     async def retrieve(
         self,
@@ -41,10 +44,12 @@ class RawRetrievalService:
         top_k: int,
         chunk_top_k: int,
         include_graph: bool,
+        user_id: str | None = None,
     ) -> RawRetrievalResponse:
         started = time.monotonic()
-        result = await self.lightrag.query_data(
+        result = await self.retriever.retrieve(
             query,
+            user_id=user_id,
             mode=mode,
             top_k=top_k,
             chunk_top_k=chunk_top_k,
@@ -94,6 +99,14 @@ class RawRetrievalService:
             documents=list(grouped.values()),
             entities=entities,
             relationships=relationships,
+            relevance=RawRetrievalRelevance(
+                floor=result.policy.floor,
+                margin=result.policy.margin,
+                top_score=result.top_score,
+                cut_chunks=result.cut_chunks,
+                cut_entities=result.cut_entities if include_graph else 0,
+                cut_relationships=result.cut_relationships if include_graph else 0,
+            ),
             returned_chunks=sum(len(item.chunks) for item in grouped.values()),
             dropped_chunks=dropped_chunks,
             returned_entities=len(entities),

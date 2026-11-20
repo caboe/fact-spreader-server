@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     # context budget, so top_k=40 returned fewer passages than top_k=10 (DECISIONS.md D65).
     lightrag_raw_top_k: int = 10
     lightrag_raw_chunk_top_k: int = 20
+    # The relevance cut over LightRAG candidates (DECISIONS.md D68). A passage is kept when
+    # its cosine similarity to the statement or query reaches the floor and lies within the
+    # margin of the best passage of the same retrieval. Calibrated with bge-m3 on the
+    # fixture and the dpa corpus; it is shared by checks, research and /retrieval.
+    retrieval_relevance_floor: float = Field(default=0.40, ge=0.0, le=1.0)
+    retrieval_relevance_margin: float = Field(default=0.15, ge=0.0, le=1.0)
 
     # --- internal LLM gateway ---------------------------------------------------
     internal_llm_key: SecretStr = SecretStr("")

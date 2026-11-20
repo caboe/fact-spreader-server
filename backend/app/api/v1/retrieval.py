@@ -10,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.contracts.api import RawRetrievalRequest, RawRetrievalResponse
 from app.core.errors import AppError
 from app.db.session import get_session
+from app.llm.client import LLMError
 from app.retrieval.lightrag import LightRAGError
+from app.retrieval.relevance import build_retriever
 from app.services.auth import Principal, require_permission
 from app.services.raw_retrieval import RawRetrievalService
 from app.services.setup import setup_gate_dependency
@@ -30,7 +32,12 @@ async def retrieval(
     settings = request.app.state.settings
     service = RawRetrievalService(
         session=session,
-        lightrag=request.app.state.lightrag,
+        retriever=build_retriever(
+            settings,
+            lightrag=request.app.state.lightrag,
+            embedder=request.app.state.embedder,
+            engine=request.app.state.db.engine,
+        ),
     )
     try:
         return await service.retrieve(
@@ -39,8 +46,9 @@ async def retrieval(
             top_k=body.top_k or settings.lightrag_raw_top_k,
             chunk_top_k=body.chunk_top_k or settings.lightrag_raw_chunk_top_k,
             include_graph=body.include_graph,
+            user_id=principal.user_id,
         )
-    except LightRAGError as exc:
+    except (LightRAGError, LLMError) as exc:
         raise AppError(
             503,
             "retrieval_unavailable",

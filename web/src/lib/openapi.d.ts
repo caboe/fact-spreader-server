@@ -2850,6 +2850,33 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * RawRetrievalRelevance
+         * @description The relevance cut applied to LightRAG's candidates, the same one a check applies.
+         */
+        RawRetrievalRelevance: {
+            /**
+             * Cut Chunks
+             * @default 0
+             */
+            cut_chunks: number;
+            /**
+             * Cut Entities
+             * @default 0
+             */
+            cut_entities: number;
+            /**
+             * Cut Relationships
+             * @default 0
+             */
+            cut_relationships: number;
+            /** Floor */
+            floor: number;
+            /** Margin */
+            margin: number;
+            /** Top Score */
+            top_score?: number | null;
+        };
         /** RawRetrievalRequest */
         RawRetrievalRequest: {
             /** Chunk Top K */
@@ -2906,6 +2933,7 @@ export interface components {
             relationships?: {
                 [key: string]: unknown;
             }[];
+            relevance: components["schemas"]["RawRetrievalRelevance"];
             /**
              * Returned Chunks
              * @default 0
