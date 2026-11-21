@@ -1256,11 +1256,13 @@ every document in it is `processed`. An empty track is not idle, a `failed` trac
 and the global `wait_until_idle` path is gone. Re-index only waits for its deleted sources
 to disappear; seed-fixtures waits on each inserted track.
 
-**Why:** a benchmark with two workers and `MAX_PARALLEL_INSERT=2` ran twice as fast as the
-one-worker baseline, but two jobs finished in 0.0 s while LightRAG processed their documents
-later: the global list was still empty when the wait started. Conversely, one stale document
-made every worker wait for the whole queue. Both are correctness and throughput bugs, not
-tuning issues; this change fixes them before concurrency is made permanent.
+**Why:** the first short concurrency run exposed two jobs finishing in 0.0 s while LightRAG
+processed their documents later: the global list was still empty when the wait started.
+Conversely, one stale document made every worker wait for the whole queue. Both are
+correctness and throughput bugs, not tuning issues. After the fix, 20 documents with two
+workers and `MAX_PARALLEL_INSERT=2` took 19.85 min (1.01 documents/min versus 0.63 in the
+preceding one-worker window, about 1.5x); mean job duration rose from 1.38 to 1.91 min, so
+the gain is below the 2x the short run implied. No job finished in 0.0 s and none failed.
 
 **Rejected:** polling the global document list with an initial delay (still blocks on an
 unrelated document and still has a window where a silently failed background enqueue looks
