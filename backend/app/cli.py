@@ -48,7 +48,7 @@ from app.llm.aliases import (
     FS_VERIFY,
     FS_VISION,
 )
-from app.retrieval.lightrag import LightRAGClient
+from app.retrieval.lightrag import LightRAGClient, LightRAGError
 from app.services.auth import all_permissions, create_api_key
 from app.services.providers import upsert_model, upsert_provider
 from app.services.publishers import PublisherMatch, PublisherRegistry
@@ -288,7 +288,7 @@ async def seed_fixtures(settings: Settings, *, approve: bool) -> int:
                 return 2
             publishers = PublisherRegistry.from_path(settings.publisher_list_path)
             corpus_dir = Path(settings.fixture_corpus_dir)
-            inserted: list[tuple[Document, str]] = []
+            inserted: list[tuple[Document, str, str]] = []
             for key in DEFAULT_FIXTURES:
                 path = corpus_dir / f"{key}.md"
                 if not path.exists():
@@ -390,27 +390,32 @@ async def seed_fixtures(settings: Settings, *, approve: bool) -> int:
                     session.add(version)
                 await session.flush()
                 file_source = f"{document.id}@v{document.version}"
-                await lightrag.insert_text(
+                track_id = await lightrag.insert_text(
                     content=strip_publisher_footer(body),
                     file_source=file_source,
                     title=document.title,
                 )
                 document.state = "indexing"
                 document.updated_at = utcnow()
-                inserted.append((document, file_source))
+                inserted.append((document, file_source, track_id))
                 await session.commit()
                 print(f"submitted {key} -> {file_source}", file=sys.stderr)
             if inserted:
-                print("waiting for LightRAG to finish indexing …", file=sys.stderr)
-                idle = await lightrag.wait_until_idle(timeout_seconds=900)
-                if not idle:
-                    print("LightRAG did not become idle within 900s.", file=sys.stderr)
-                    exit_code = 1
-                else:
-                    for document, _ in inserted:
-                        document.state = "indexed"
-                        document.updated_at = utcnow()
-                    await session.commit()
+                print("waiting for LightRAG to finish indexing each document …", file=sys.stderr)
+                for document, file_source, track_id in inserted:
+                    try:
+                        await lightrag.wait_until_track_processed(
+                            track_id,
+                            file_source=file_source,
+                            timeout_seconds=900,
+                        )
+                    except LightRAGError as exc:
+                        print(f"{file_source}: {exc}", file=sys.stderr)
+                        exit_code = 1
+                        break
+                    document.state = "indexed"
+                    document.updated_at = utcnow()
+                await session.commit()
             await _update_corpus_version(session, instance)
             await session.commit()
             count = (

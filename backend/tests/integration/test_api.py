@@ -1179,6 +1179,7 @@ async def test_documents_are_submitted_reviewed_indexed_withdrawn_and_deduplicat
         )
         await session.commit()
     assert fake_lightrag.inserted[0]["file_source"] == f"{document_id}@v1"
+    assert fake_lightrag.waited_tracks == [(fake_lightrag.track_ids[0], f"{document_id}@v1")]
     indexed = await client.get(f"/v1/documents/{document_id}")
     assert indexed.json()["state"] == "indexed"
 

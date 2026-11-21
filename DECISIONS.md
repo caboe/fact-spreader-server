@@ -1246,3 +1246,23 @@ treated as abandoned when it cannot still be making progress.
 **Rejected:** restarting an active job (duplicate inserts), treating every indexing document
 as failed, and automatically reclaiming running jobs without a lease and a safe idempotent
 delete.
+
+
+## D73 — Index jobs wait on their own LightRAG track, not the global queue
+
+**What:** `POST /documents/text` returns a `track_id`; the indexing job polls
+`GET /documents/track_status/{track_id}` until that track contains at least one document and
+every document in it is `processed`. An empty track is not idle, a `failed` track raises,
+and the global `wait_until_idle` path is gone. Re-index only waits for its deleted sources
+to disappear; seed-fixtures waits on each inserted track.
+
+**Why:** a benchmark with two workers and `MAX_PARALLEL_INSERT=2` ran twice as fast as the
+one-worker baseline, but two jobs finished in 0.0 s while LightRAG processed their documents
+later: the global list was still empty when the wait started. Conversely, one stale document
+made every worker wait for the whole queue. Both are correctness and throughput bugs, not
+tuning issues; this change fixes them before concurrency is made permanent.
+
+**Rejected:** polling the global document list with an initial delay (still blocks on an
+unrelated document and still has a window where a silently failed background enqueue looks
+idle), waiting for a fixed time (slow and unreliable), and treating `failed` documents as
+finished.

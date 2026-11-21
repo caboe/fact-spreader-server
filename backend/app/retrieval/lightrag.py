@@ -12,6 +12,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import quote
 
 from app.core.config import Settings
 from app.core.http import OutboundHTTP
@@ -98,15 +99,21 @@ class LightRAGClient:
         content: str,
         file_source: str,
         title: str | None = None,
-    ) -> str | None:
+    ) -> str:
         body: dict[str, Any] = {"text": content, "file_source": file_source}
         if title:
             body["description"] = title
         payload = await self._request("POST", "/documents/text", json=body)
-        return payload.get("track_id") or payload.get("id")
+        track_id = payload.get("track_id")
+        if not isinstance(track_id, str) or not track_id:
+            raise LightRAGError("LightRAG accepted the insert without returning a track id")
+        return track_id
 
     async def document_status(self) -> dict[str, Any]:
         return await self._request("GET", "/documents")
+
+    async def track_status(self, track_id: str) -> dict[str, Any]:
+        return await self._request("GET", f"/documents/track_status/{quote(track_id, safe='')}")
 
     async def delete_documents(self, doc_ids: list[str]) -> dict[str, Any]:
         return await self._request(
@@ -192,16 +199,53 @@ class LightRAGClient:
         payload = await self._request("POST", "/query/data", json=body)
         return _parse_retrieval(payload)
 
-    async def wait_until_idle(
-        self, *, timeout_seconds: float = 900.0, interval: float = 3.0
-    ) -> bool:
+    async def wait_until_track_processed(
+        self,
+        track_id: str,
+        *,
+        file_source: str | None = None,
+        timeout_seconds: float = 900.0,
+        interval: float = 3.0,
+    ) -> None:
+        """Wait until the document inserted under ``track_id`` is really processed.
+
+        ``POST /documents/text`` returns before its background task has enqueued the
+        document, so an empty track immediately after the insert is *not* idle. Polling the
+        global document list instead was wrong twice: it treated the empty list as done
+        (a job could finish in milliseconds while LightRAG processed the document later),
+        and one stale document blocked every worker waiting for the queue.
+
+        A track that never appears, or whose document ends in ``failed``, raises
+        ``LightRAGError``. Callers must not mark a document indexed in either case.
+        """
+        target = file_source or track_id
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
-            status = await self.document_status()
-            if not _has_unfinished_documents(status):
-                return True
+            payload = await self.track_status(track_id)
+            documents = [
+                entry for entry in (payload.get("documents") or []) if isinstance(entry, dict)
+            ]
+            if documents:
+                states = [str(entry.get("status") or "").lower() for entry in documents]
+                if "failed" in states:
+                    detail = next(
+                        (
+                            str(entry.get("error_msg") or "")
+                            for entry in documents
+                            if str(entry.get("status") or "").lower() == "failed"
+                        ),
+                        "",
+                    )
+                    raise LightRAGError(
+                        f"LightRAG failed to index {target}: "
+                        f"{detail[:300] or 'no error detail returned'}"
+                    )
+                if all(state == "processed" for state in states):
+                    return
             await asyncio.sleep(interval)
-        return False
+        raise LightRAGError(
+            f"LightRAG did not finish indexing {target} within {timeout_seconds:.0f}s"
+        )
 
 
 def _parse_retrieval(payload: dict[str, Any]) -> RetrievalResult:
@@ -245,26 +289,3 @@ def _as_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
-
-
-# LightRAG v1.5.0 runs PENDING -> PARSING -> ANALYZING -> PROCESSING -> PROCESSED | FAILED
-# (``lightrag.base.DocStatus``; PREPROCESSED is its deprecated name for ANALYZING). Every
-# state before a final one is unfinished: treating only pending/processing as busy let
-# seed-fixtures report "ready" while 21 of 23 documents were still being parsed.
-_UNFINISHED_STATES = ("pending", "parsing", "analyzing", "preprocessed", "processing")
-
-
-def _has_unfinished_documents(status: dict[str, Any]) -> bool:
-    statuses = status.get("statuses")
-    if isinstance(statuses, dict):
-        for key in _UNFINISHED_STATES:
-            value = statuses.get(key)
-            if isinstance(value, list) and value:
-                return True
-            if isinstance(value, int) and value > 0:
-                return True
-    for key in _UNFINISHED_STATES:
-        value = status.get(key)
-        if isinstance(value, list) and value:
-            return True
-    return False

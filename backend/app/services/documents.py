@@ -33,7 +33,7 @@ from app.core.ids import new_id, sha256_text, utcnow
 from app.db.models import Document, DocumentVersion, Instance, Result
 from app.db.models import Job as JobRow
 from app.llm.client import LLMClient
-from app.retrieval.lightrag import LightRAGClient, LightRAGError
+from app.retrieval.lightrag import LightRAGClient
 from app.services.checks import create_check_job
 from app.services.image_input import extract_image_text, prepare_image
 from app.services.input_reader import UrlFetchError, read_file_bytes
@@ -477,13 +477,19 @@ async def run_document_index_job(
         # fail on a duplicate source or leave two versions of the document.
         await lightrag.delete_by_file_source([file_source])
         await lightrag.wait_until_sources_absent([file_source])
-    await lightrag.insert_text(
+    track_id = await lightrag.insert_text(
         content=strip_publisher_footer(version.content_md),
         file_source=file_source,
         title=document.title,
     )
-    if not await lightrag.wait_until_idle(timeout_seconds=900):
-        raise LightRAGError("LightRAG did not finish indexing the document")
+    # Wait for this document's own LightRAG track. The global document list can be empty
+    # right after the insert (the request is still queued), and another indexing job's
+    # stale document must not hold this one back (DECISIONS.md D73).
+    await lightrag.wait_until_track_processed(
+        track_id,
+        file_source=file_source,
+        timeout_seconds=900,
+    )
     document.state = "indexed"
     document.updated_at = utcnow()
     instance = (await session.execute(select(Instance).limit(1))).scalar_one_or_none()

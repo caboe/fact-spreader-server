@@ -1453,11 +1453,18 @@ with warnings are not.
 
 #### Indexing status and restart
 
+A document counts as indexed only after its own LightRAG `track_id` reports `processed`.
+An empty track immediately after the insert is not success: LightRAG enqueues the text in a
+background task after returning the track id. A `failed` track fails the job. The worker
+does not wait for LightRAG's global document queue, so an unrelated pending document cannot
+block it.
+
 `GET /v1/review/indexing` (`documents:review`) returns the documents currently in the
 `indexing` state, split into `active` and `aborted`. Each item carries the latest
 `document_index` job's id, state, attempts, error, start time and a `stale` flag. A job is
 aborted when it is failed, absent, or still `running` for more than 20 minutes (the worker's
-LightRAG wait is bounded at 15 minutes). A queued or fresh running job is active.
+wait for one document's LightRAG track is bounded at 15 minutes). A queued or fresh running
+job is active.
 
 `POST /v1/documents/{id}/restart-index` (`documents:review`) accepts only an `indexing`
 document whose latest job is aborted. An active job is `409 index_job_active`; a

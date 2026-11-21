@@ -189,7 +189,8 @@ async def run_reindex_job(
             # A source missing from LightRAG must not stop the rebuild: the insert below
             # recreates it and the resulting index is the same.
             logger.warning("reindex_delete_failed", extra={"event": "reindex"})
-    await lightrag.wait_until_idle(timeout_seconds=900)
+    # Queued document_index jobs wait on their own tracks; a global idle wait here would
+    # block the operator job behind unrelated documents (DECISIONS.md D73).
     now = utcnow()
     for index, document in enumerate(documents, start=1):
         document.state = "approved"

@@ -226,13 +226,23 @@ class FakeLightRAG:
         self.relationships: list[dict[str, Any]] = []
         self.inserted: list[dict[str, str]] = []
         self.deleted: list[str] = []
+        self.track_ids: list[str] = []
+        self.waited_tracks: list[tuple[str, str | None]] = []
 
-    async def insert_text(self, *, content: str, file_source: str, title: str) -> dict[str, Any]:
+    async def insert_text(self, *, content: str, file_source: str, title: str) -> str:
         self.inserted.append({"content": content, "file_source": file_source, "title": title})
-        return {"status": "ok"}
+        track_id = f"track-{len(self.inserted)}"
+        self.track_ids.append(track_id)
+        return track_id
 
-    async def wait_until_idle(self, timeout_seconds: int = 900) -> bool:
-        return True
+    async def wait_until_track_processed(
+        self,
+        track_id: str,
+        *,
+        file_source: str | None = None,
+        timeout_seconds: float = 900.0,
+    ) -> None:
+        self.waited_tracks.append((track_id, file_source))
 
     async def delete_documents(self, doc_ids: list[str]) -> dict[str, Any]:
         self.deleted.extend(doc_ids)
