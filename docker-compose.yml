@@ -117,6 +117,10 @@ services:
       dockerfile: backend/Dockerfile
     image: factspreader/backend:0.1.0
     restart: unless-stopped
+    # Two workers were benchmarked at about 1.5x the one-worker indexing throughput; the
+    # worker still claims one job at a time, so this is the process-level parallelism.
+    deploy:
+      replicas: 2
     command: ["python", "-m", "app.worker"]
     env_file:
       - .env

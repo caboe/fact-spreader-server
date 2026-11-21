@@ -1268,3 +1268,21 @@ the gain is below the 2x the short run implied. No job finished in 0.0 s and non
 unrelated document and still has a window where a silently failed background enqueue looks
 idle), waiting for a fixed time (slow and unreliable), and treating `failed` documents as
 finished.
+
+
+## D74 — The default stack runs two workers and two parallel LightRAG inserts
+
+**What:** the Compose `worker` service declares `deploy.replicas: 2`, and LightRAG's
+`MAX_PARALLEL_INSERT` is `2` (with `MAX_ASYNC=4` unchanged). Each worker still claims one job
+at a time; the replicas are the process-level parallelism.
+
+**Why:** after D73 removed the per-document wait bugs, 20 documents indexed by two workers
+took 19.85 minutes (1.01 documents/min) against 0.63 documents/min in the preceding
+one-worker window, about 1.5x. No job finished in 0.0 s, none failed, no provider returned
+429, and both workers stayed busy. The human chose to keep this configuration permanently
+rather than only for the backlog. Mean job latency rose from 1.38 to 1.91 minutes, so the
+gain is a throughput trade-off, not a doubling.
+
+**Rejected:** keeping one worker (the backlog takes several hours longer), going above two
+workers or raising `MAX_ASYNC` without measuring the provider and Postgres limits, and
+leaving the change only in a local override instead of the tracked Compose config.

@@ -34,7 +34,7 @@ security hardening, Caddy edge, backups and the recorded acceptance.
 ```bash
 cp .env.example .env            # fill secrets; never commit
 make install                    # uv + pnpm, locked
-make stack-up                   # Postgres, Redis, backend, worker, LightRAG, Caddy
+make stack-up                   # Postgres, Redis, backend, workers, LightRAG, Caddy
 ```
 
 Open <https://localhost:8443> and complete the wizard with `SETUP_TOKEN` from `.env`

@@ -36,6 +36,18 @@ Caddy does not write access logs by default. Backend logs are structured JSON wi
 ids and contain no claim text, prompts or provider secrets. `/metrics` is not exposed; the
 edge returns `404`, and `/internal/*` is never proxied.
 
+## Indexing concurrency
+
+The default Compose deployment runs two worker replicas (`deploy.replicas: 2`), and LightRAG
+processes up to two inserts in parallel (`MAX_PARALLEL_INSERT=2`, `MAX_ASYNC=4`). Each worker
+claims one job at a time. A 20-document run measured about 1.5x the one-worker throughput
+with no failures (DECISIONS.md D74); per-job latency rises, so this is a throughput setting,
+not a latency one.
+
+`docker compose up -d --scale worker=N` overrides the replica count for that run;
+`docker compose stop worker` stops all replicas. The editorial indexing panel counts active
+documents, not workers.
+
 ## HTTPS
 
 The bundled Caddyfile uses `tls internal` for developer machines. For a real deployment,
