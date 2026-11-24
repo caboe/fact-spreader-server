@@ -1350,3 +1350,22 @@ their originals are gone unless the source is fetched or uploaded again.
 a separate object store (a new runtime dependency and deployment surface for v1), and
 storing originals only at approval time (the bytes would have to be held elsewhere until
 then).
+
+## D78 — Content signatures override declared URL media types
+
+**What:** the URL reader sniffs PDF and image magic bytes and obvious HTML prefixes before
+falling back to the `Content-Type` header. The effective type is what the extractor and
+`FetchedDocument.content_type` use; a URL that returns an image is rejected with a clear
+`url_fetch_failed` instead of being decoded as text. The same signature check applies to
+uploaded files, where filename suffixes remain the final fallback.
+
+**Why:** publishers routinely serve PDFs as `application/octet-stream` and HTML as
+`text/plain`. Trusting the header sent binary PDFs through the text decoder and stored
+unreadable bytes as document content; a mislabelled PDF also missed the PDF extractor
+entirely. Magic bytes are cheap, already understood by the upload path, and cannot be
+spoofed by a wrong header. The declared type still handles formats without a distinctive
+signature and preserves the existing parser selection.
+
+**Rejected:** rejecting every response whose declared type conflicts with its signature
+(too strict for real servers), trusting the header alone (the status quo bug), and
+attempting to decode unknown binary data as text after signature checks fail.

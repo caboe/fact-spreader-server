@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import pytest
 from app.services.input_reader import (
+    UrlFetchError,
     UrlSafetyError,
     _extract_html,
+    sniff_media_type,
     validate_public_url,
 )
 
@@ -45,6 +47,104 @@ def test_html_extraction_skips_scripts_and_keeps_title() -> None:
     assert "Second & last." in text
     assert "steal" not in text
     assert "body{}" not in text
+
+
+def test_sniff_media_type_prefers_content_signatures_over_headers() -> None:
+    assert sniff_media_type(b"%PDF-1.7\n...", "text/plain") == "application/pdf"
+    assert (
+        sniff_media_type(
+            b"<!doctype html><html><body>Body</body></html>", "application/octet-stream"
+        )
+        == "text/html"
+    )
+    assert (
+        sniff_media_type(b"\x89PNG\r\n\x1a\n" + b"0" * 8, "application/octet-stream") == "image/png"
+    )
+    assert sniff_media_type(b"plain text", "text/plain") == "text/plain"
+
+
+def test_fetch_readable_parses_a_pdf_mislabeled_as_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    import httpx
+    from app.core.config import Settings
+    from app.services import input_reader
+
+    class PdfHTTP:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def request(self, method: str, url: str, **_kwargs: object) -> httpx.Response:
+            return httpx.Response(
+                200,
+                headers={"Content-Type": "text/plain"},
+                content=b"%PDF-1.7\nnot really a PDF",
+                request=httpx.Request(method, url),
+            )
+
+    monkeypatch.setattr(input_reader, "OutboundHTTP", PdfHTTP)
+    monkeypatch.setattr(input_reader, "_extract_pdf", lambda _data: "PDF body")
+    page = asyncio.run(input_reader.fetch_readable("http://93.184.216.34/", Settings()))
+    assert page.text == "PDF body"
+    assert page.content_type == "application/pdf"
+
+
+def test_fetch_readable_parses_html_mislabeled_as_binary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    import httpx
+    from app.core.config import Settings
+    from app.services import input_reader
+
+    html = b"<html><head><title>Mislabeled</title></head><body><p>Body.</p></body></html>"
+
+    class HtmlHTTP:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def request(self, method: str, url: str, **_kwargs: object) -> httpx.Response:
+            return httpx.Response(
+                200,
+                headers={"Content-Type": "application/octet-stream"},
+                content=html,
+                request=httpx.Request(method, url),
+            )
+
+    monkeypatch.setattr(input_reader, "OutboundHTTP", HtmlHTTP)
+    page = asyncio.run(input_reader.fetch_readable("http://93.184.216.34/", Settings()))
+    assert page.text == "Body."
+    assert page.title == "Mislabeled"
+    assert page.content_type == "text/html"
+
+
+def test_fetch_readable_rejects_an_image_even_when_declared_as_binary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    import httpx
+    from app.core.config import Settings
+    from app.services import input_reader
+
+    class ImageHTTP:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def request(self, method: str, url: str, **_kwargs: object) -> httpx.Response:
+            return httpx.Response(
+                200,
+                headers={"Content-Type": "application/octet-stream"},
+                content=b"\x89PNG\r\n\x1a\n" + b"0" * 8,
+                request=httpx.Request(method, url),
+            )
+
+    monkeypatch.setattr(input_reader, "OutboundHTTP", ImageHTTP)
+    with pytest.raises(UrlFetchError, match="image"):
+        asyncio.run(input_reader.fetch_readable("http://93.184.216.34/", Settings()))
 
 
 def test_a_redirect_to_a_private_address_is_rejected() -> None:

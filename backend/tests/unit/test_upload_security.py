@@ -74,6 +74,17 @@ def test_a_pdf_with_a_wrong_extension_is_parsed_by_its_magic_bytes() -> None:
     assert title is None
 
 
+def test_html_mislabeled_as_plain_text_is_still_extracted_as_html() -> None:
+    text, title = read_file_bytes(
+        filename="notes.txt",
+        content_type="text/plain",
+        data=b"<html><head><title>Mislabeled upload</title></head><body><p>Body.</p></body></html>",
+        settings=Settings(),
+    )
+    assert title == "Mislabeled upload"
+    assert "Body." in text
+
+
 def test_normal_markdown_still_reads() -> None:
     text, title = read_file_bytes(
         filename="report.md",
