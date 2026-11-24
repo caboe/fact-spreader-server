@@ -68,6 +68,8 @@ Two pipeline issues surfaced during the evaluation and were fixed before the bas
   streamed over SSE and opened the report.
 - `make backup` dumps the application database (uploaded originals are in
   `document_versions.raw_bytes`), writes a summary and SHA256SUMS; checksums verified.
+  **Erratum (2026-11-24):** this was not true for successful documents at the time; only
+  failed batch entries stored raw bytes. D77 adds originals for new file and URL documents.
 - `make backup-test` restored the dump into a disposable project on alternate ports and ran
   one check: **passed**, verdict `insufficient_evidence`. The restored LightRAG volume is
   derived and not part of the backup; re-indexing after a restore remains the documented

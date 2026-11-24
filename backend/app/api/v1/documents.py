@@ -114,6 +114,8 @@ async def submit_document(
     upload_name: str | None = None
     figures: list[dict[str, Any]] = []
     file_text: str | None = None
+    raw_bytes: bytes | None = None
+    raw_media_type: str | None = None
     try:
         if is_multipart:
             form = await request.form()
@@ -134,6 +136,8 @@ async def submit_document(
                 data = await file_part.read()
             finally:
                 await file_part.close()
+            raw_bytes = data
+            raw_media_type = media
             settings = request.app.state.settings
             if len(data) > settings.upload_max_bytes:
                 raise AppError(413, "payload_too_large", "The uploaded file is too large.")
@@ -214,6 +218,8 @@ async def submit_document(
         page_title = page.title
         size = page.size_bytes
         content_type = page.content_type
+        raw_bytes = page.raw_bytes
+        raw_media_type = page.content_type
     else:
         content = normalize_text(body.input.text or "")
         size = upload_size
@@ -248,6 +254,8 @@ async def submit_document(
             figures=figures,
             force=body.force,
             source_name=upload_name or source_url,
+            raw_bytes=raw_bytes,
+            raw_media_type=raw_media_type,
         )
     except ValueError as exc:
         raise AppError(422, "invalid_input", str(exc)) from exc
@@ -857,6 +865,8 @@ async def submit_batch(
                 batch_id=batch.id,
                 force=body.force,
                 source_name=filename,
+                raw_bytes=data,
+                raw_media_type=media,
             )
         except (ValueError, OSError) as exc:
             await record_failure(
@@ -900,6 +910,8 @@ async def submit_batch(
                 source_url=page.url,
                 batch_id=batch.id,
                 force=body.force,
+                raw_bytes=page.raw_bytes,
+                raw_media_type=page.content_type,
             )
         except (ValueError, OSError) as exc:
             await record_failure(

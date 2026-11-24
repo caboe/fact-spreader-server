@@ -74,6 +74,36 @@ def test_a_redirect_to_a_private_address_is_rejected() -> None:
         input_reader.OutboundHTTP = original  # type: ignore[assignment]
 
 
+def test_fetch_readable_keeps_the_original_response_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    import httpx
+    from app.core.config import Settings
+    from app.services import input_reader
+
+    html = b"<html><head><title>Stored original</title></head><body><p>Body.</p></body></html>"
+
+    class StaticHTTP:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def request(self, method: str, url: str, **_kwargs: object) -> httpx.Response:
+            return httpx.Response(
+                200,
+                headers={"Content-Type": "text/html; charset=utf-8"},
+                content=html,
+                request=httpx.Request(method, url),
+            )
+
+    monkeypatch.setattr(input_reader, "OutboundHTTP", StaticHTTP)
+    page = asyncio.run(input_reader.fetch_readable("http://93.184.216.34/", Settings()))
+    assert page.raw_bytes == html
+    assert page.content_type == "text/html"
+    assert page.size_bytes == len(html)
+
+
 def test_a_hostname_resolving_to_a_private_address_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

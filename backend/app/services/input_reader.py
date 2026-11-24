@@ -36,6 +36,7 @@ class FetchedDocument:
     title: str | None
     content_type: str
     size_bytes: int
+    raw_bytes: bytes | None = None
 
 
 def validate_public_url(url: str) -> None:
@@ -107,6 +108,7 @@ async def fetch_readable(url: str, settings: Settings) -> FetchedDocument:
             title=title,
             content_type=content_type or "application/octet-stream",
             size_bytes=len(response.content),
+            raw_bytes=response.content,
         )
     raise UrlFetchError("The URL redirected too many times.")
 

@@ -619,8 +619,13 @@ the stored bytes, recomputes metadata warnings and moves the document to `ready`
 the parser cannot be run again, and re-uploading the whole batch would duplicate the
 successful entries. Raw bytes are retained only for failures, not for accepted documents.
 
-**Rejected:** keeping raw bytes for every document (unnecessary storage and retention),
-retrying from the parsed Markdown (loses the original), re-running the whole batch.
+**Superseded in part by D77:** accepted documents now keep their originals as well. The
+failure-retry path and the rule that a failed parse keeps its bytes are unchanged.
+
+**Rejected at the time:** keeping raw bytes for every document (unnecessary storage and
+retention), retrying from the parsed Markdown (loses the original), re-running the whole
+batch. D77 revisits the storage trade-off because PROTOCOL §15 requires the originals for
+backup and restore.
 
 ## D41 — Batch estimates are computed before any model call and checked against the budget
 
@@ -1324,3 +1329,24 @@ global relaxation would not.
 
 **Rejected:** removing search from the instance copy, serving the handbook from a second
 origin with its own policy, and weakening the global CSP for every response.
+
+## D77 — Every uploaded or fetched document keeps its original bytes
+
+**What:** a successful file upload and a successful URL fetch store the original bytes and
+media type in `document_versions.raw_bytes` / `raw_media_type`. This applies to single
+submissions and to successful batch entries; plain-text submissions have no separate
+original. Failed batch entries keep the same fields for their explicit retry. Raw bytes are
+not exposed by the v1 API.
+
+**Why:** PROTOCOL §15 and PURPOSE §3.15 promise that document originals are kept for
+backup and restore, and `docs/OPERATING.md` describes a database backup that contains
+them. Before this change only failed batch entries had raw bytes, so a backup held parsed
+text but not the source and a parser change could not reparse accepted documents. The
+existing upload and URL limits bound each stored object, and Postgres TOAST keeps large
+values out of the main heap. Documents created before this change cannot be backfilled;
+their originals are gone unless the source is fetched or uploaded again.
+
+**Rejected:** keeping only parsed text (breaks backup/restore and the documented promise),
+a separate object store (a new runtime dependency and deployment surface for v1), and
+storing originals only at approval time (the bytes would have to be held elsewhere until
+then).

@@ -298,6 +298,14 @@ def _estimate(content: str, figures: list[dict[str, Any]]) -> DocumentEstimate:
     )
 
 
+def _raw_media_type(raw_bytes: bytes | None, media_type: str | None) -> str | None:
+    """Keep the stored original's media type comparable and inside the column limit."""
+    if raw_bytes is None:
+        return None
+    normalized = (media_type or "application/octet-stream").split(";", 1)[0].strip().lower()
+    return (normalized or "application/octet-stream")[:100]
+
+
 async def create_document(
     session: AsyncSession,
     *,
@@ -316,6 +324,8 @@ async def create_document(
     force: bool = False,
     batch_id: str | None = None,
     source_name: str | None = None,
+    raw_bytes: bytes | None = None,
+    raw_media_type: str | None = None,
 ) -> tuple[Document, DocumentVersion, list[DocumentWarning], str | None, DocumentEstimate]:
     content = content.strip()
     if not content:
@@ -393,6 +403,8 @@ async def create_document(
         content_hash=content_hash,
         content_md=content,
         file_path=source_name,
+        raw_bytes=raw_bytes,
+        raw_media_type=_raw_media_type(raw_bytes, raw_media_type),
         size_bytes=size_bytes,
         created_at=now,
     )

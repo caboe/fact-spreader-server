@@ -1371,6 +1371,86 @@ async def test_a_stale_indexing_job_can_be_restarted(app: Any, client: httpx.Asy
 
 
 @pytest.mark.asyncio
+async def test_a_file_upload_keeps_the_original_bytes(app: Any, client: httpx.AsyncClient) -> None:
+    import json
+
+    raw = b"# Original\n\nThis is the uploaded file, byte for byte."
+    payload = {
+        "input": {"type": "file"},
+        "metadata": {
+            "title": "Original file",
+            "publisher": "Federal Statistical Office of Germany (Destatis)",
+            "license": "dl-de/by-2-0",
+            "redistribution": "full_text",
+            "language": "en",
+        },
+    }
+    response = await client.post(
+        "/v1/documents",
+        data={"payload": json.dumps(payload)},
+        files={"file": ("original.md", raw, "text/markdown")},
+    )
+    assert response.status_code == 202, response.text
+    document_id = response.json()["document"]["id"]
+
+    async with app.state.db.session_factory() as session:
+        version = (
+            await session.execute(
+                select(DocumentVersion).where(DocumentVersion.document_id == document_id)
+            )
+        ).scalar_one()
+        assert version.raw_bytes == raw
+        assert version.raw_media_type == "text/markdown"
+
+
+@pytest.mark.asyncio
+async def test_a_url_document_keeps_the_fetched_body(
+    app: Any, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.api.v1.documents as documents_route
+
+    html = b"<html><head><title>URL original</title></head><body>URL body.</body></html>"
+
+    async def fake_fetch(url: str, settings: Any) -> FetchedDocument:
+        return FetchedDocument(
+            url="https://example.org/final",
+            text="URL body.",
+            title="URL original",
+            content_type="text/html",
+            size_bytes=len(html),
+            raw_bytes=html,
+        )
+
+    monkeypatch.setattr(documents_route, "fetch_readable", fake_fetch)
+    response = await client.post(
+        "/v1/documents",
+        json={
+            "input": {"type": "url", "url": "https://example.org/start"},
+            "metadata": {
+                "title": "URL document",
+                "license": "CC0-1.0",
+                "redistribution": "full_text",
+                "language": "en",
+            },
+        },
+    )
+    assert response.status_code == 202, response.text
+    document_id = response.json()["document"]["id"]
+
+    async with app.state.db.session_factory() as session:
+        document = await session.get(Document, document_id)
+        version = (
+            await session.execute(
+                select(DocumentVersion).where(DocumentVersion.document_id == document_id)
+            )
+        ).scalar_one()
+        assert document is not None
+        assert document.url == "https://example.org/final"
+        assert version.raw_bytes == html
+        assert version.raw_media_type == "text/html"
+
+
+@pytest.mark.asyncio
 async def test_four_eyes_and_the_daily_recheck_budget_are_enforced(
     app: Any, client: httpx.AsyncClient, settings: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1474,9 +1554,10 @@ async def test_batch_upload_sanitises_zip_and_reports_per_file_states(
     import io
     import zipfile
 
+    first = b"# Housing\n\nRents rose by 4 percent in 2025."
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w") as zf:
-        zf.writestr("safe-one.md", "# Housing\n\nRents rose by 4 percent in 2025.")
+        zf.writestr("safe-one.md", first)
         zf.writestr("safe-two.md", "# Housing\n\nRents rose by 4 percent in 2025.")
         zf.writestr("../escape.md", "malicious")
         link = zipfile.ZipInfo("link.md")
@@ -1497,7 +1578,7 @@ async def test_batch_upload_sanitises_zip_and_reports_per_file_states(
         files=[
             (
                 "files",
-                ("first.md", b"# Housing\n\nRents rose by 4 percent in 2025.", "text/markdown"),
+                ("first.md", first, "text/markdown"),
             ),
             ("archive", ("batch.zip", archive.getvalue(), "application/zip")),
         ],
@@ -1515,6 +1596,14 @@ async def test_batch_upload_sanitises_zip_and_reports_per_file_states(
     assert detail.json()["batch"]["counts"]["total"] == 3
 
     ready_id = next(item["document_id"] for item in batch["files"] if item["state"] == "ready")
+    async with app.state.db.session_factory() as session:
+        version = (
+            await session.execute(
+                select(DocumentVersion).where(DocumentVersion.document_id == ready_id)
+            )
+        ).scalar_one()
+        assert version.raw_bytes == first
+        assert version.raw_media_type == "text/markdown"
     missing_quality = await client.post(
         f"/v1/documents/batches/{batch['id']}/approve",
         json={

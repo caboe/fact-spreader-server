@@ -67,9 +67,11 @@ served by the same edge; do not expose the backend port publicly.
 
 ## Backup and restore
 
-Uploaded originals and approved text live in the application database
-(`document_versions.raw_bytes`); LightRAG is derived and can be rebuilt from approved
-documents.
+Uploaded originals, fetched URL bodies and approved text live in the application database
+(`document_versions.raw_bytes` and `content_md`); LightRAG is derived and can be rebuilt
+from approved documents. Documents submitted before 24 November 2026 predate raw-byte
+retention and have only their parsed text; their originals cannot be restored from a
+backup.
 
 ```bash
 make backup                    # backups/<timestamp>/app.dump + summary + SHA256SUMS
