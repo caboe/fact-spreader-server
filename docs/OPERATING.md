@@ -36,6 +36,15 @@ Caddy does not write access logs by default. Backend logs are structured JSON wi
 ids and contain no claim text, prompts or provider secrets. `/metrics` is not exposed; the
 edge returns `404`, and `/internal/*` is never proxied.
 
+## Handbook
+
+Every instance serves the user handbook at <https://localhost:8443/handbook/>. It is built
+from the same commit as the application and bundled into the Caddy image, so help works
+without internet access. The pages carry `X-Robots-Tag: noindex`, and unknown handbook
+paths return the handbook's own 404 page. The source is `handbook/`, the build is in
+`site/`, and `make site-check` verifies it. The public site is the same handbook plus a
+landing page; `.github/workflows/site.yml` deploys it when GitHub Pages is enabled.
+
 ## Indexing concurrency
 
 The default Compose deployment runs two worker replicas (`deploy.replicas: 2`), and LightRAG

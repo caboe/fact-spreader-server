@@ -33,3 +33,9 @@ tests/eval/reference_corpus/
 
 # Local backups
 backups/
+
+# Handbook site (generated)
+site/.astro/
+site/dist/
+site/dist-public/
+site/src/content/docs/

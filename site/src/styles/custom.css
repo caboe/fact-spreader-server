@@ -1,0 +1,14 @@
+/* Match the application's calm teal accent instead of Starlight's default purple. */
+:root {
+  --sl-color-accent-low: #d7f0ea;
+  --sl-color-accent: #0f6f64;
+  --sl-color-accent-high: #0b4f47;
+  --sl-color-text-accent: #0f6f64;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #123b36;
+  --sl-color-accent: #5eead4;
+  --sl-color-accent-high: #99f6e4;
+  --sl-color-text-accent: #5eead4;
+}

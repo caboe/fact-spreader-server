@@ -43,7 +43,8 @@ automation path. Then submit a document in `/submit`, approve it in `/editorial`
 a check on `/`.
 
 ```bash
-make verify            # lint, types, unit + integration, migrations, OpenAPI, compose, web
+make verify            # lint, types, unit + integration, migrations, OpenAPI, compose, web, site
+make site-check        # handbook typecheck, build, link check, public composition
 make stack-smoke       # one real canonical check, no-evidence case and moderation block
 make eval-recorded     # offline labelled evaluation
 make backup            # database dump
@@ -53,7 +54,9 @@ make backup-test       # restore into a throwaway stack and check
 Operating details are in [`docs/OPERATING.md`](docs/OPERATING.md), security in
 [`docs/SECURITY.md`](docs/SECURITY.md), the extension connection in
 [`docs/EXTENSION.md`](docs/EXTENSION.md) and the evaluation in
-[`docs/EVALUATION.md`](docs/EVALUATION.md).
+[`docs/EVALUATION.md`](docs/EVALUATION.md). The user handbook is in
+[`handbook/`](handbook/README.md); [`site/`](site/) builds it as a static site, and every
+instance serves the same build at `/handbook/`.
 
 Phase 1 is a vertical slice: a text claim goes through the public API, a Postgres-backed
 worker, stock LightRAG, the internal LLM gateway, a real model, the pure gate, and comes
@@ -129,13 +132,15 @@ Phase 9 and Phase 7 respectively.
 | `backend/` | FastAPI app, worker, Alembic, unit/integration tests |
 | `deploy/` | Pinned Postgres image and static stock-LightRAG configuration |
 | `methodology/` | Publisher grades, confounder checklists, argument patterns |
+| `handbook/` | User and operator handbook in Markdown (CC BY-SA 4.0); source of the website |
+| `site/` | Astro + Starlight build for the public site and the instance's `/handbook/` |
 | `tests/eval/`, `tests/fixtures/corpus/` | Carried-over evaluation sets and the synthetic CI corpus |
 
 ## Licences
 
 * Code: [GNU AGPL-3.0-or-later](LICENSE).
-* Methodology data, personas, evaluation sets and the fixture corpus
-  (`methodology/`, `PERSONAS.md`, `tests/eval/`, `tests/fixtures/corpus/`):
+* Methodology data, personas, the handbook, evaluation sets and the fixture corpus
+  (`methodology/`, `PERSONAS.md`, `handbook/`, `tests/eval/`, `tests/fixtures/corpus/`):
   [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 * Contributions are accepted under the
   [Developer Certificate of Origin](https://developercertificate.org/): sign off your

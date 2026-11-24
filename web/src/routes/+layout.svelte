@@ -169,6 +169,7 @@
     {#if $session?.user.permissions.some((permission) => ['config:manage', 'users:manage'].includes(permission))}
       <a href="/admin">{tr('nav.admin')}</a>
     {/if}
+    <a href="/handbook/" target="_blank" rel="noreferrer">{tr('nav.help')}</a>
   </nav>
   <div class="account" bind:this={accountEl}>
     {#if $session}

@@ -18,3 +18,8 @@ web/build
 web/dist
 web/test-results
 web/playwright-report
+site/node_modules
+site/.astro
+site/dist
+site/dist-public
+site/src/content/docs

@@ -1286,3 +1286,41 @@ gain is a throughput trade-off, not a doubling.
 **Rejected:** keeping one worker (the backlog takes several hours longer), going above two
 workers or raising `MAX_ASYNC` without measuring the provider and Postgres limits, and
 leaving the change only in a local override instead of the tracked Compose config.
+
+## D75 — Handbook content lives in Markdown; Astro Starlight builds the site
+
+**What:** `handbook/content/` is the single source for the user and operator handbook.
+`site/` is a separate Astro 7 + Starlight 0.43 workspace that copies the content into its
+collection before every build. One build with a configurable base (default `/handbook/`,
+a GitHub project page adds the repository prefix) feeds both outputs: the public site (a
+hand-written landing page plus the handbook under `/handbook/`) and the instance Caddy
+image, which serves the same tree at `/handbook/`. Handbook text and
+screenshots are CC BY-SA 4.0; the site build code is AGPL-3.0-or-later.
+
+**Why:** the SPA is an authenticated client-side application with `fallback: index.html`,
+no prerendering and no search; it is the wrong host for public documentation. A separate
+static build keeps the public site and the instance decoupled, gives every instance an
+offline handbook that matches its commit, and keeps `/handbook/...` stable across both.
+Starlight supplies the sidebar, search (Pagefind) and static output, while the landing page
+stays hand-written so product copy is not generated from manual pages. Markdown keeps the
+content reviewable in normal pull requests and independent of the generator.
+
+**Rejected:** serving the handbook from inside the SvelteKit SPA (auth, bundle size, no
+prerender/search), VitePress or MkDocs (viable, but Starlight already fits Astro's static
+output and the landing page in one project), maintaining a second content tree for the
+website, and linking only to an external docs host (instances must work offline).
+
+## D76 — The handbook alone gets `wasm-unsafe-eval` for Pagefind
+
+**What:** the Caddy edge applies an extra CSP, `script-src 'self' 'unsafe-inline'
+'wasm-unsafe-eval'`, to `/handbook/*` and to the handbook's 404 response. The SPA, `/api`,
+`/v1` and every other path keep the strict policy without it.
+
+**Why:** Pagefind compiles a WebAssembly module in the browser to search the offline
+handbook. The first live search test failed with a CSP `CompileError`, and the exception is
+needed for that feature only. `'wasm-unsafe-eval'` allows WebAssembly compilation but not
+string eval. Scoping it to the handbook keeps the application's policy unchanged, which a
+global relaxation would not.
+
+**Rejected:** removing search from the instance copy, serving the handbook from a second
+origin with its own policy, and weakening the global CSP for every response.

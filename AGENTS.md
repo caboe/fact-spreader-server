@@ -87,6 +87,7 @@ and ask; do not continue on your own.
 | `DECISIONS.md` | One short entry per non-obvious decision: what, why, alternatives rejected. Decisions, not bug diaries. |
 | `methodology/` | Publisher grades, confounder checklists, argument patterns. Content that changes conclusions. |
 | `tests/eval/`, `tests/fixtures/corpus/` | Labelled evaluation sets and the synthetic CI corpus. The 25-case claim set and the 30-case moderation set are the Phase 9 baseline. |
+| `handbook/` | Canonical user and operator handbook in English Markdown (CC BY-SA 4.0). `site/` builds it into the public site and the instance's offline copy. |
 
 The spec revision is complete. If you find a contradiction that the revised specs and the
 redesign notes do not settle, ask before implementing.
@@ -114,6 +115,12 @@ wrong there is summarised in §10 of the redesign notes.
    as OpenAPI. The web UI and the extension use a client generated from it, so a shape
    mismatch fails the type check, not the user.
 7. **Boring, tested code over clever abstractions.** Record trade-offs in `DECISIONS.md`.
+8. **The handbook travels with the change.** A change that alters user-visible behaviour,
+   labels, limits, verdict semantics, warning text or an operator workflow updates the
+   affected page under `handbook/content/` in the same commit. Nothing generates the
+   handbook from the app: `site-check` proves that the site builds and its links resolve,
+   not that the prose is current. Regenerate screenshots with Playwright instead of editing
+   them by hand.
 
 ## Hard invariants
 
@@ -166,9 +173,10 @@ human confirmation.
 Python 3.12 / FastAPI, async SQLAlchemy 2 + Alembic, Pydantic v2, Postgres (pgvector +
 Apache AGE), Redis, a worker for pipeline jobs, LightRAG (stock image, pinned, never
 `latest`), Docling for document parsing. Frontend: SvelteKit in SPA mode
-(`adapter-static`), TypeScript strict, Tailwind. Tests: pytest, Testcontainers,
-Playwright, Vitest, Schemathesis (public `/v1` API only). Packaging: Docker Compose with
-Caddy for HTTPS.
+(`adapter-static`), TypeScript strict, Tailwind. Handbook: Astro + Starlight static site in
+`site/`, content in `handbook/`. Tests: pytest, Testcontainers, Playwright, Vitest,
+Schemathesis (public `/v1` API only). Packaging: Docker Compose with Caddy for HTTPS and
+the bundled handbook.
 
 A new runtime dependency or a pinned image bump needs a `DECISIONS.md` entry.
 
@@ -191,6 +199,7 @@ make test-integration     # Testcontainers Postgres; fake model and retrieval
 make migrate-check        # Alembic up/down/up + drift check on a disposable Postgres
 make openapi-check        # generated docs/openapi.json is current
 make compose-check        # pinned images, no Docker socket, no host network
+make site-check           # handbook typecheck, build, link check, public composition
 ```
 
 The Phase 1 live smoke used the approved DeepSeek chat/moderation provider and local
@@ -207,12 +216,15 @@ budgeted.
   checker; fix the cause. Module docstrings say what the module is for and why it is
   shaped that way, with spec references.
 * **Licence headers:** source files start with `SPDX-License-Identifier: AGPL-3.0-or-later`;
-  content in `methodology/`, `tests/eval/` and `tests/fixtures/corpus/` is CC BY-SA 4.0.
+  content in `methodology/`, `handbook/`, `tests/eval/` and `tests/fixtures/corpus/` is
+  CC BY-SA 4.0.
 * **Tests:** names are sentences describing the guarantee. A regression test's docstring
   names the bug it prevents. Never delete, skip or weaken a test to get green; if a
   requirement changed, change the spec and the test together and say so.
 * **Generated files** (OpenAPI, generated clients, JSON Schemas) are regenerated, never
-  edited by hand, and guarded by a drift check.
+  edited by hand, and guarded by a drift check. `site/src/content/docs/` is generated from
+  `handbook/content/`; edit the handbook, never the copy. A change under `web/src/` or to a
+  verdict/warning contract without a handbook change needs a reason in the PR body.
 * **Git:** prefixes `feat:`, `fix:`, `docs:`, `test:`, `chore:` with an optional scope.
   The subject is a lowercase sentence about the effect, not a ticket title. The body
   explains cause, change and what was verified. One logical change per commit, the tree

@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fact Spreader — check the claim, not just the sentence</title>
+    <meta
+      name="description"
+      content="Fact Spreader verifies the factual core of a claim, audits what it leaves out, and returns a verdict with citations. Built for the formally true but misleading post."
+    />
+    <meta name="theme-color" content="#0f6f64" />
+    <meta property="og:title" content="Fact Spreader" />
+    <meta
+      property="og:description"
+      content="Fact-checking over a curated, editorially approved corpus. Verdicts, missing context and citations in one report."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="top">
+      <a class="brand" href="./">
+        <img src="favicon.svg" alt="" width="28" height="28" />
+        <span>Fact Spreader</span>
+      </a>
+      <nav aria-label="Main">
+        <a href="#how">How it works</a>
+        <a href="#verdicts">Verdicts</a>
+        <a href="handbook/">Handbook</a>
+        <a class="source" href="https://github.com/caboe/fact-spreader-server">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Fact-checking over an approved corpus</p>
+          <h1>Check the claim,<br /> not just the sentence.</h1>
+          <p class="lede">
+            Fact Spreader verifies the factual core of a claim, audits what it leaves out,
+            and returns a verdict with citations. It is built for the formally true but
+            misleading post.
+          </p>
+          <div class="actions">
+            <a class="primary" href="handbook/">Read the handbook</a>
+            <a class="secondary" href="https://github.com/caboe/fact-spreader-server"
+              >View the source</a
+            >
+          </div>
+        </div>
+        <figure class="shot">
+          <img
+            src="assets/report.png"
+            alt="A Fact Spreader report: the overall verdict, statements with their verdicts, and cited evidence."
+            width="1280"
+            height="1957"
+          />
+          <figcaption>Verdict, missing context, evidence and warnings in one report.</figcaption>
+        </figure>
+      </section>
+
+      <section class="section" aria-labelledby="tasks-heading">
+        <h2 id="tasks-heading">What you can do</h2>
+        <div class="cards">
+          <article class="card">
+            <h3>Check a claim</h3>
+            <p>
+              Paste text, a file, a URL or an image. Every checkworthy statement is
+              extracted and verified separately.
+            </p>
+            <a href="handbook/checking-a-claim/">Checking a claim</a>
+          </article>
+          <article class="card">
+            <h3>Research a topic</h3>
+            <p>
+              Search approved documents, passages and previously checked claims, with an
+              optional summary that cites every sentence.
+            </p>
+            <a href="handbook/">Handbook</a>
+          </article>
+          <article class="card">
+            <h3>Submit a document</h3>
+            <p>
+              Send a file, a URL or a batch to the editorial queue. It becomes citable only
+              after approval and indexing.
+            </p>
+            <a href="handbook/">Handbook</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section split" aria-labelledby="difference-heading">
+        <div>
+          <h2 id="difference-heading">Built for the misleading half-truth</h2>
+          <p>
+            A claim can be literally accurate and still create a false impression. Fact
+            Spreader separates the two questions: is the factual core supported, and does
+            the framing leave out something that changes the conclusion?
+          </p>
+          <ul class="checks">
+            <li>
+              <strong>The gate runs in code.</strong> A model proposes; deterministic rules
+              over the evidence decide. No free-text verdicts.
+            </li>
+            <li>
+              <strong>Missing context is part of the verdict.</strong> Topic-specific
+              confounder checks trigger targeted re-retrieval before a clean
+              <code>true</code> is allowed.
+            </li>
+            <li>
+              <strong>Citations are checked.</strong> An evidence identifier that is not in
+              the retrieved set is rejected, not shown.
+            </li>
+            <li>
+              <strong>Only approved documents count.</strong> Claim text, queries and
+              uploads never enter the corpus.
+            </li>
+          </ul>
+        </div>
+        <figure class="shot small">
+          <img
+            src="assets/check.png"
+            alt="The Fact Spreader check form with text, URL, file and image input."
+            width="1280"
+            height="900"
+          />
+          <figcaption>Four input types, one checked pipeline.</figcaption>
+        </figure>
+      </section>
+
+      <section class="section" id="verdicts" aria-labelledby="verdicts-heading">
+        <h2 id="verdicts-heading">Seven verdicts, one deterministic rule</h2>
+        <p class="section-lede">
+          The overall verdict is computed from the statement verdicts. A true sentence in a
+          misleading frame can still end as <code>true_but_misleading</code>.
+        </p>
+        <div class="chips">
+          <span class="chip true">True</span>
+          <span class="chip misleading">True but misleading</span>
+          <span class="chip misleading">Partially false</span>
+          <span class="chip false">False</span>
+          <span class="chip contested">Contested</span>
+          <span class="chip insufficient">Insufficient evidence</span>
+          <span class="chip insufficient">Not checkable</span>
+        </div>
+        <p class="more"><a href="handbook/verdicts/">How the verdict is computed</a></p>
+      </section>
+
+      <section class="section" id="how" aria-labelledby="how-heading">
+        <h2 id="how-heading">How a check runs</h2>
+        <ol class="steps">
+          <li>
+            <strong>Moderate the input.</strong> Most findings flag the check; sexual
+            content involving minors is always blocked.
+          </li>
+          <li>
+            <strong>Extract statements.</strong> Each statement keeps its span, its kind and
+            a checkworthiness judgement.
+          </li>
+          <li>
+            <strong>Retrieve evidence.</strong> Hybrid graph and vector search over approved
+            documents only.
+          </li>
+          <li>
+            <strong>Verify and audit.</strong> Stances and proposed verdicts are structured
+            output; confounder checks trigger targeted re-retrieval.
+          </li>
+          <li>
+            <strong>Gate and decide.</strong> Source count, independence, publisher grade and
+            missing-context support are checked in code.
+          </li>
+          <li>
+            <strong>Stream the report.</strong> The substance arrives first; a
+            consistency-checked narrative follows.
+          </li>
+        </ol>
+      </section>
+
+      <section class="section run" aria-labelledby="run-heading">
+        <div>
+          <h2 id="run-heading">Run it on your own instance</h2>
+          <p>
+            The stack is self-hosted: Postgres with pgvector, Redis, a FastAPI backend,
+            stock LightRAG and a Caddy edge. You need Docker and an approved provider key.
+          </p>
+          <pre><code>cp .env.example .env
+make install
+make stack-up</code></pre>
+          <p class="fine">
+            Open <code>https://localhost:8443</code> and complete the setup wizard with
+            <code>SETUP_TOKEN</code> from <code>.env</code>. Operating details are in the
+            repository.
+          </p>
+        </div>
+        <figure class="shot small">
+          <img
+            src="assets/editorial.png"
+            alt="The editorial queue with submitted documents awaiting approval."
+            width="1280"
+            height="1365"
+          />
+          <figcaption>Approval is explicit; nothing is indexed automatically.</figcaption>
+        </figure>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div>
+        <strong>Fact Spreader</strong>
+        <p>Fact-check and research over an editorially approved knowledge base.</p>
+      </div>
+      <nav aria-label="Footer">
+        <a href="handbook/">Handbook</a>
+        <a href="https://github.com/caboe/fact-spreader-server">Source</a>
+        <a href="https://github.com/caboe/fact-spreader-server/blob/main/docs/OPERATING.md"
+          >Operating notes</a
+        >
+      </nav>
+      <p class="licence">
+        Code <a href="https://github.com/caboe/fact-spreader-server/blob/main/LICENSE">AGPL-3.0-or-later</a>.
+        Handbook and methodology content
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+      </p>
+    </footer>
+  </body>
+</html>

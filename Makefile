@@ -10,13 +10,17 @@ BACKEND := backend
 export UV_CACHE_DIR := $(CURDIR)/.local/uv-cache
 export BUILDX_CONFIG := $(CURDIR)/.local/buildx
 export TESTCONTAINERS_RYUK_DISABLED := true
+# Astro telemetry writes outside the workspace and is irrelevant in tests and builds.
+export ASTRO_TELEMETRY_DISABLED := 1
 COMPOSE := docker compose
 WEB := web
+SITE := site
 API_KEY_FILE := .local/api-key
 EVAL_API_KEY_FILE ?= .local/eval-api-key
 
 .PHONY: install fmt fmt-check lint typecheck test test-integration migrate migrate-check \
-	openapi openapi-check compose-check web-install web-check web-e2e verify stack-up \
+	openapi openapi-check compose-check web-install web-check web-e2e site-install site-check \
+	verify stack-up \
 	stack-down stack-logs bootstrap seed-fixtures stack-smoke spend clean \
 	eval-check eval-recorded eval-live backup backup-test clean-start-test schemathesis
 
@@ -24,6 +28,7 @@ install:
 	mkdir -p $(UV_CACHE_DIR) $(BUILDX_CONFIG)
 	cd $(BACKEND) && uv sync --frozen
 	cd $(WEB) && pnpm install --frozen-lockfile
+	cd $(SITE) && pnpm install --frozen-lockfile --store-dir $(CURDIR)/.local/pnpm-store
 
 fmt:
 	cd $(BACKEND) && uv run ruff format .
@@ -70,7 +75,18 @@ web-check:
 web-e2e:
 	cd $(WEB) && pnpm test:e2e
 
-verify: fmt-check lint typecheck test test-integration migrate-check openapi-check compose-check web-check
+site-install:
+	cd $(SITE) && pnpm install --frozen-lockfile --store-dir $(CURDIR)/.local/pnpm-store
+
+# Build the handbook, check its links, then compose and check the public site tree.
+site-check:
+	cd $(SITE) && pnpm check
+	cd $(SITE) && pnpm build
+	cd $(SITE) && pnpm check:links
+	cd $(SITE) && pnpm build:public
+	cd $(SITE) && pnpm check:links:public
+
+verify: fmt-check lint typecheck test test-integration migrate-check openapi-check compose-check web-check site-check
 
 stack-up:
 	$(COMPOSE) up -d --build

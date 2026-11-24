@@ -26,6 +26,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/v1/')) return;
+  // The handbook is a separate static site; never answer it with the cached app shell.
+  if (url.pathname === '/handbook' || url.pathname.startsWith('/handbook/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(

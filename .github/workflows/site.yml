@@ -1,0 +1,64 @@
+name: Handbook site
+
+# Publishes the product landing page and the handbook to GitHub Pages.
+# Enable Pages once under Settings → Pages → Source: "GitHub Actions".
+# The workflow assumes a project page at https://<owner>.github.io/<repository>/.
+# For a user/organization page or a custom domain, set SITE_MOUNT to `/` and SITE_BASE to
+# `/handbook/`.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.18.3"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+      - name: Install
+        run: cd site && pnpm install --frozen-lockfile
+      - name: Build
+        env:
+          ASTRO_TELEMETRY_DISABLED: "1"
+          # Project page: keep both in sync. For a custom domain, use SITE_MOUNT "/" and
+          # SITE_BASE "/handbook/".
+          SITE_MOUNT: /${{ github.event.repository.name }}/
+          SITE_BASE: /${{ github.event.repository.name }}/handbook/
+          SITE_URL: https://${{ github.repository_owner }}.github.io
+        run: |
+          cd site
+          pnpm build
+          pnpm check:links
+          pnpm build:public
+          pnpm check:links:public
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist-public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

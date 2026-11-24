@@ -1,0 +1,23 @@
+{
+  "name": "fact-spreader-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/sync-handbook.mjs",
+    "dev": "astro dev",
+    "prebuild": "node scripts/sync-handbook.mjs",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "node scripts/sync-handbook.mjs && astro check",
+    "check:links": "node scripts/check-links.mjs",
+    "check:links:public": "node scripts/check-links.mjs --root dist-public --mode site",
+    "build:public": "node scripts/compose-public.mjs"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/starlight": "^0.43.1",
+    "astro": "^7.4.13",
+    "typescript": "^5.9.2"
+  }
+}
